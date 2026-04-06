@@ -83,6 +83,11 @@ try {
         (new Database\Seeders\RolesAndPermissionsSeeder())->run();
     }
 
+    // Seed standard data (parcours, phases, actions, templates, etc.)
+    if (App\Models\Parcours::count() === 0) {
+        (new Database\Seeders\DefaultDataSeeder())->run();
+    }
+
     // Create admin user
     \$user = App\Models\User::create([
         'name' => '{$adminName}',
