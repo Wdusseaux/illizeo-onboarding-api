@@ -32,6 +32,20 @@ class IllizeoSeeder extends Seeder
 {
     public function run(): void
     {
+        // Clear existing content to allow re-seeding
+        $truncate = ['cooptation_points','cooptations','cooptation_campaigns','cooptation_settings',
+            'nps_responses','nps_surveys','company_blocks','collaborateur_field_config',
+            'document_acknowledgements','signature_documents','signature_logs','documents','document_categories',
+            'contrats','email_templates','workflows','notifications_config',
+            'collaborateur_actions','collaborateur_accompagnants','collaborateur_groupe',
+            'groupes','actions','phases','parcours','parcours_categories','action_types',
+            'integrations','equipments','equipment_packages','equipment_package_items','equipment_types',
+            'badge_templates','badges','onboarding_team_members','onboarding_teams',
+            'messages','conversations','user_notifications','collaborateurs'];
+        foreach ($truncate as $t) {
+            try { \Illuminate\Support\Facades\DB::table($t)->delete(); } catch (\Exception $e) {}
+        }
+
         // ── 1. Parcours Categories ──────────────────────────────
         $categories = [];
         foreach ([
@@ -40,7 +54,7 @@ class IllizeoSeeder extends Seeder
             ['slug' => 'crossboarding', 'nom' => 'Crossboarding', 'description' => 'Mobilité interne', 'couleur' => '#1A73E8'],
             ['slug' => 'reboarding', 'nom' => 'Reboarding', 'description' => 'Retour après absence', 'couleur' => '#F9A825'],
         ] as $cat) {
-            $categories[$cat['slug']] = ParcoursCategorie::firstOrCreate(['slug' => $cat['slug']], $cat);
+            $categories[$cat['slug']] = ParcoursCategorie::create($cat);
         }
 
         // ── 2. Parcours Templates ───────────────────────────────
