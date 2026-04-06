@@ -1,0 +1,655 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Action;
+use App\Models\ActionType;
+use App\Models\CollaborateurFieldConfig;
+use App\Models\CompanyBlock;
+use App\Models\Contrat;
+use App\Models\DocumentCategorie;
+use App\Models\Document;
+use App\Models\EmailTemplate;
+use App\Models\Groupe;
+use App\Models\Integration;
+use App\Models\NotificationConfig;
+use App\Models\Parcours;
+use App\Models\ParcoursCategorie;
+use App\Models\Phase;
+use App\Models\BadgeTemplate;
+use App\Models\Workflow;
+use Illuminate\Database\Seeder;
+
+class DefaultDataSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // ── 1. Parcours Categories ──────────────────────────────
+        $categories = [];
+        foreach ([
+            ['slug' => 'onboarding', 'nom' => 'Onboarding', 'description' => 'Intégration des nouveaux collaborateurs', 'couleur' => '#4CAF50'],
+            ['slug' => 'offboarding', 'nom' => 'Offboarding', 'description' => 'Gestion des départs', 'couleur' => '#E53935'],
+            ['slug' => 'crossboarding', 'nom' => 'Crossboarding', 'description' => 'Mobilité interne', 'couleur' => '#1A73E8'],
+            ['slug' => 'reboarding', 'nom' => 'Reboarding', 'description' => 'Retour après absence', 'couleur' => '#F9A825'],
+        ] as $cat) {
+            $categories[$cat['slug']] = ParcoursCategorie::firstOrCreate(
+                ['slug' => $cat['slug']],
+                $cat
+            );
+        }
+
+        // ── 2. Parcours Templates ───────────────────────────────
+        $parcoursData = [
+            ['nom' => 'Onboarding Standard', 'categorie' => 'onboarding', 'actions_count' => 12, 'docs_count' => 22, 'collaborateurs_actifs' => 4, 'status' => 'actif'],
+            ['nom' => 'Onboarding Cadres', 'categorie' => 'onboarding', 'actions_count' => 18, 'docs_count' => 28, 'collaborateurs_actifs' => 1, 'status' => 'actif'],
+            ['nom' => 'Onboarding Stagiaires', 'categorie' => 'onboarding', 'actions_count' => 6, 'docs_count' => 8, 'collaborateurs_actifs' => 0, 'status' => 'brouillon'],
+            ['nom' => 'Départ standard', 'categorie' => 'offboarding', 'actions_count' => 14, 'docs_count' => 6, 'collaborateurs_actifs' => 2, 'status' => 'actif'],
+            ['nom' => 'Départ retraite', 'categorie' => 'offboarding', 'actions_count' => 18, 'docs_count' => 8, 'collaborateurs_actifs' => 1, 'status' => 'actif'],
+            ['nom' => 'Fin de contrat', 'categorie' => 'offboarding', 'actions_count' => 8, 'docs_count' => 4, 'collaborateurs_actifs' => 0, 'status' => 'actif'],
+            ['nom' => 'Mobilité interne standard', 'categorie' => 'crossboarding', 'actions_count' => 10, 'docs_count' => 3, 'collaborateurs_actifs' => 1, 'status' => 'actif'],
+            ['nom' => 'Promotion managériale', 'categorie' => 'crossboarding', 'actions_count' => 14, 'docs_count' => 5, 'collaborateurs_actifs' => 0, 'status' => 'brouillon'],
+            ['nom' => 'Retour congé maternité/parental', 'categorie' => 'reboarding', 'actions_count' => 8, 'docs_count' => 2, 'collaborateurs_actifs' => 1, 'status' => 'actif'],
+            ['nom' => 'Retour maladie longue durée', 'categorie' => 'reboarding', 'actions_count' => 12, 'docs_count' => 4, 'collaborateurs_actifs' => 0, 'status' => 'actif'],
+        ];
+
+        $parcours = [];
+        foreach ($parcoursData as $p) {
+            $parcours[$p['nom']] = Parcours::firstOrCreate(
+                ['nom' => $p['nom']],
+                [
+                    'nom' => $p['nom'],
+                    'categorie_id' => $categories[$p['categorie']]->id,
+                    'actions_count' => $p['actions_count'],
+                    'docs_count' => $p['docs_count'],
+                    'collaborateurs_actifs' => $p['collaborateurs_actifs'],
+                    'status' => $p['status'],
+                ]
+            );
+        }
+
+        // ── 3. Phases ───────────────────────────────────────────
+        $phasesData = [
+            ['nom' => 'Avant le premier jour', 'delai_debut' => 'J-30', 'delai_fin' => 'J-1', 'couleur' => '#4CAF50', 'icone' => 'Hand', 'actions_defaut' => 4, 'ordre' => 1, 'parcours' => 'Onboarding Standard'],
+            ['nom' => 'Premier jour', 'delai_debut' => 'J+0', 'delai_fin' => 'J+0', 'couleur' => '#1A73E8', 'icone' => 'PartyPopper', 'actions_defaut' => 3, 'ordre' => 2, 'parcours' => 'Onboarding Standard'],
+            ['nom' => 'Première semaine', 'delai_debut' => 'J+1', 'delai_fin' => 'J+7', 'couleur' => '#F9A825', 'icone' => 'Dumbbell', 'actions_defaut' => 3, 'ordre' => 3, 'parcours' => 'Onboarding Standard'],
+            ['nom' => '3 premiers mois', 'delai_debut' => 'J+8', 'delai_fin' => 'J+90', 'couleur' => '#C2185B', 'icone' => 'Package', 'actions_defaut' => 2, 'ordre' => 4, 'parcours' => 'Onboarding Standard'],
+            // Offboarding phases
+            ['nom' => 'Annonce', 'delai_debut' => 'J-30', 'delai_fin' => 'J-14', 'couleur' => '#E53935', 'icone' => 'Bell', 'actions_defaut' => 2, 'ordre' => 1, 'parcours' => 'Départ standard'],
+            ['nom' => 'Transition', 'delai_debut' => 'J-14', 'delai_fin' => 'J-1', 'couleur' => '#F9A825', 'icone' => 'ArrowRight', 'actions_defaut' => 3, 'ordre' => 2, 'parcours' => 'Départ standard'],
+            ['nom' => 'Dernier jour', 'delai_debut' => 'J+0', 'delai_fin' => 'J+0', 'couleur' => '#7B5EA7', 'icone' => 'LogOut', 'actions_defaut' => 2, 'ordre' => 3, 'parcours' => 'Départ standard'],
+            ['nom' => 'Post-départ', 'delai_debut' => 'J+1', 'delai_fin' => 'J+30', 'couleur' => '#888', 'icone' => 'Mail', 'actions_defaut' => 2, 'ordre' => 4, 'parcours' => 'Départ standard'],
+            // Crossboarding phases
+            ['nom' => 'Annonce mobilité', 'delai_debut' => 'J-30', 'delai_fin' => 'J-14', 'couleur' => '#1A73E8', 'icone' => 'Navigation', 'actions_defaut' => 1, 'ordre' => 1, 'parcours' => 'Mobilité interne standard'],
+            ['nom' => 'Transition poste', 'delai_debut' => 'J-14', 'delai_fin' => 'J-1', 'couleur' => '#F9A825', 'icone' => 'Route', 'actions_defaut' => 2, 'ordre' => 2, 'parcours' => 'Mobilité interne standard'],
+            ['nom' => 'Intégration équipe', 'delai_debut' => 'J+0', 'delai_fin' => 'J+7', 'couleur' => '#4CAF50', 'icone' => 'Users', 'actions_defaut' => 1, 'ordre' => 3, 'parcours' => 'Mobilité interne standard'],
+            ['nom' => 'Suivi J+30', 'delai_debut' => 'J+8', 'delai_fin' => 'J+30', 'couleur' => '#C2185B', 'icone' => 'Target', 'actions_defaut' => 1, 'ordre' => 4, 'parcours' => 'Mobilité interne standard'],
+            // Reboarding phases
+            ['nom' => 'Pré-retour J-14', 'delai_debut' => 'J-14', 'delai_fin' => 'J-1', 'couleur' => '#4CAF50', 'icone' => 'Calendar', 'actions_defaut' => 1, 'ordre' => 1, 'parcours' => 'Retour congé maternité/parental'],
+            ['nom' => 'Jour de retour', 'delai_debut' => 'J+0', 'delai_fin' => 'J+0', 'couleur' => '#1A73E8', 'icone' => 'PartyPopper', 'actions_defaut' => 2, 'ordre' => 2, 'parcours' => 'Retour congé maternité/parental'],
+            ['nom' => 'Réintégration', 'delai_debut' => 'J+1', 'delai_fin' => 'J+30', 'couleur' => '#F9A825', 'icone' => 'Target', 'actions_defaut' => 1, 'ordre' => 3, 'parcours' => 'Retour congé maternité/parental'],
+        ];
+
+        $phases = [];
+        foreach ($phasesData as $ph) {
+            $parcoursNom = $ph['parcours'];
+            unset($ph['parcours']);
+            $parcoursId = $parcours[$parcoursNom]->id;
+            $ph['parcours_id'] = $parcoursId;
+            $phase = Phase::firstOrCreate(
+                ['nom' => $ph['nom'], 'parcours_id' => $parcoursId],
+                $ph
+            );
+            if ($phase->wasRecentlyCreated) {
+                $phase->parcours()->attach($parcoursId, ['ordre' => $ph['ordre']]);
+            }
+            $phases[$ph['nom']] = $phase;
+        }
+
+        // ── 4. Action Types ─────────────────────────────────────
+        $actionTypesData = [
+            ['slug' => 'document', 'label' => 'Document', 'icone' => 'FileUp', 'couleur_bg' => '#E3F2FD', 'couleur_texte' => '#1A73E8'],
+            ['slug' => 'formulaire', 'label' => 'Formulaire', 'icone' => 'ClipboardList', 'couleur_bg' => '#FFF0F5', 'couleur_texte' => '#C2185B'],
+            ['slug' => 'formation', 'label' => 'Formation', 'icone' => 'GraduationCap', 'couleur_bg' => '#E8F5E9', 'couleur_texte' => '#4CAF50'],
+            ['slug' => 'questionnaire', 'label' => 'Questionnaire', 'icone' => 'ListChecks', 'couleur_bg' => '#F3E5F5', 'couleur_texte' => '#7B5EA7'],
+            ['slug' => 'tache', 'label' => 'Tâche', 'icone' => 'ShieldCheck', 'couleur_bg' => '#E8F5E9', 'couleur_texte' => '#388E3C'],
+            ['slug' => 'signature', 'label' => 'Signature', 'icone' => 'PenTool', 'couleur_bg' => '#FFF8E1', 'couleur_texte' => '#F9A825'],
+            ['slug' => 'lecture', 'label' => 'Lecture', 'icone' => 'BookOpen', 'couleur_bg' => '#E8EAF6', 'couleur_texte' => '#3949AB'],
+            ['slug' => 'rdv', 'label' => 'Rendez-vous', 'icone' => 'CalendarClock', 'couleur_bg' => '#FCE4EC', 'couleur_texte' => '#D81B60'],
+            ['slug' => 'message', 'label' => 'Message', 'icone' => 'MessageSquare', 'couleur_bg' => '#E0F7FA', 'couleur_texte' => '#00897B'],
+            ['slug' => 'entretien', 'label' => 'Entretien', 'icone' => 'MessageCircle', 'couleur_bg' => '#FFF3E0', 'couleur_texte' => '#E65100'],
+            ['slug' => 'checklist_it', 'label' => 'Checklist IT', 'icone' => 'Clock', 'couleur_bg' => '#E3F2FD', 'couleur_texte' => '#0D47A1'],
+            ['slug' => 'passation', 'label' => 'Passation', 'icone' => 'ArrowRight', 'couleur_bg' => '#F3E5F5', 'couleur_texte' => '#6A1B9A'],
+            ['slug' => 'visite', 'label' => 'Visite', 'icone' => 'MapPin', 'couleur_bg' => '#E8F5E9', 'couleur_texte' => '#2E7D32'],
+        ];
+
+        $actionTypes = [];
+        foreach ($actionTypesData as $at) {
+            $actionTypes[$at['slug']] = ActionType::firstOrCreate(
+                ['slug' => $at['slug']],
+                $at
+            );
+        }
+
+        // ── 5. Actions — all 13 types with full options ─────────
+        $actionsData = [
+            // ── ONBOARDING STANDARD ─────────────────────────────
+            // document
+            ['titre' => 'Compléter mon dossier administratif', 'type' => 'document', 'phase' => 'Avant le premier jour', 'delai' => 'J-30', 'oblig' => true, 'desc' => "Fournir tous les documents administratifs requis pour l'embauche", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'pieces' => ["Pièce d'identité / Passeport", "RIB / IBAN", "Attestation sécurité sociale", "Photo d'identité"],
+             'options' => ['pieces' => ["Pièce d'identité / Passeport", "RIB / IBAN", "Attestation sécurité sociale", "Photo d'identité"], 'fichiersAcceptes' => 'PDF, Image (JPG, PNG)']],
+            // formulaire
+            ['titre' => 'Compléter les formulaires Suisse', 'type' => 'formulaire', 'phase' => 'Avant le premier jour', 'delai' => 'J-21', 'oblig' => true, 'desc' => 'Formulaires permis, déclaration IS, fiche identification', 'parcours' => 'Onboarding Standard', 'mode' => 'site', 'valeurs' => ['Genève', 'Lausanne'],
+             'options' => ['champs' => [['label' => 'Numéro AVS', 'type' => 'texte'], ['label' => 'Date de naissance', 'type' => 'date'], ['label' => 'Nationalité', 'type' => 'texte'], ['label' => 'Adresse complète', 'type' => 'textarea'], ['label' => "Numéro de permis", 'type' => 'texte']]]],
+            // formation
+            ['titre' => 'Découvre le groupe Illizeo', 'type' => 'formation', 'phase' => 'Avant le premier jour', 'delai' => 'J-14', 'oblig' => true, 'desc' => 'Vidéo de présentation du groupe et de ses valeurs', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'lien' => 'https://illizeo.com/onboard/decouverte', 'duree' => '15 min',
+             'options' => ['support' => 'video']],
+            ['titre' => 'A la rencontre de nos leaders !', 'type' => 'formation', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => false, 'desc' => "Vidéos capsules des leaders de l'entreprise", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'lien' => 'https://illizeo.com/onboard/leaders', 'duree' => '20 min',
+             'options' => ['support' => 'video']],
+            ['titre' => 'Formation sécurité & RGPD', 'type' => 'formation', 'phase' => 'Première semaine', 'delai' => 'J+3', 'oblig' => true, 'desc' => 'Module e-learning obligatoire sur la sécurité informatique et le RGPD', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'lien' => 'https://illizeo.com/elearning/rgpd', 'duree' => '45 min',
+             'options' => ['support' => 'scorm']],
+            // questionnaire
+            ['titre' => "Questionnaire d'intégration J+7", 'type' => 'questionnaire', 'phase' => 'Première semaine', 'delai' => 'J+7', 'oblig' => true, 'desc' => "Feedback sur la première semaine d'intégration", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['questions' => [['question' => "Comment s'est passée votre première semaine ?", 'type' => 'libre'], ['question' => 'Avez-vous bien été accueilli(e) ?', 'type' => 'oui_non'], ['question' => "Notez votre intégration (1-10)", 'type' => 'note'], ['question' => 'Quel aspect améliorer ?', 'type' => 'libre']], 'scoreMinimum' => 0]],
+            ['titre' => "Quiz culture d'entreprise", 'type' => 'questionnaire', 'phase' => '3 premiers mois', 'delai' => 'J+30', 'oblig' => false, 'desc' => 'Testez vos connaissances sur Illizeo après 1 mois', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['questions' => [['question' => "En quelle année Illizeo a été fondée ?", 'type' => 'qcm'], ['question' => 'Combien de sites Illizeo possède ?', 'type' => 'qcm'], ['question' => 'Quel est le slogan Illizeo ?', 'type' => 'libre']], 'scoreMinimum' => 60]],
+            // tache
+            ['titre' => 'Personnaliser son espace de travail', 'type' => 'tache', 'phase' => 'Première semaine', 'delai' => 'J+1', 'oblig' => false, 'desc' => "Configurer son poste de travail et ses outils", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['sousTaches' => ["Configurer sa signature email", "Installer les logiciels métier", "Personnaliser son profil Teams/Slack", "Configurer le VPN", "Tester l'accès au drive partagé"]]],
+            // signature
+            ['titre' => 'Signer la charte informatique', 'type' => 'signature', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => "Signature de la charte d'utilisation des outils IT", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['documentNom' => 'Charte informatique 2026', 'provider' => 'docusign', 'rappelAuto' => true, 'certifie' => false]],
+            ['titre' => 'Signer le contrat de travail', 'type' => 'signature', 'phase' => 'Avant le premier jour', 'delai' => 'J-14', 'oblig' => true, 'desc' => "Signature électronique du contrat de travail", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['documentNom' => 'Contrat CDI', 'provider' => 'ugosign', 'rappelAuto' => true, 'certifie' => true]],
+            // lecture
+            ['titre' => 'Lire le règlement intérieur', 'type' => 'lecture', 'phase' => 'Avant le premier jour', 'delai' => 'J-7', 'oblig' => true, 'desc' => "Document PDF à lire obligatoirement avant l'arrivée", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['confirmationRequise' => true]],
+            ['titre' => 'Lire la politique de confidentialité', 'type' => 'lecture', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => "Politique de protection des données personnelles", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'lien' => 'https://illizeo.com/privacy',
+             'options' => ['confirmationRequise' => true]],
+            // rdv
+            ['titre' => 'Visite des locaux', 'type' => 'rdv', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => 'Visite guidée des bureaux et espaces communs', 'parcours' => 'Onboarding Standard', 'mode' => 'site', 'valeurs' => ['Genève'], 'duree' => '45 min',
+             'options' => ['lieu' => 'Accueil — Bâtiment A', 'participants' => 'Buddy, Office Manager']],
+            ['titre' => 'Planifier le point manager', 'type' => 'rdv', 'phase' => 'Première semaine', 'delai' => 'J+3', 'oblig' => true, 'desc' => 'Créneau de 30 min avec votre manager direct', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '30 min',
+             'options' => ['lieu' => 'Bureau du manager ou Teams', 'participants' => 'Manager direct']],
+            ['titre' => 'Définir les objectifs 3 mois', 'type' => 'rdv', 'phase' => '3 premiers mois', 'delai' => 'J+30', 'oblig' => true, 'desc' => 'Fixer les objectifs des 3 premiers mois', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '1h',
+             'options' => ['lieu' => 'Salle de réunion', 'participants' => 'Manager, HRBP']],
+            // message
+            ['titre' => "Se présenter à l'équipe", 'type' => 'message', 'phase' => 'Première semaine', 'delai' => 'J+1', 'oblig' => false, 'desc' => 'Message de présentation pour briser la glace', 'parcours' => 'Onboarding Standard', 'mode' => 'groupe', 'valeurs' => ['Nouveaux arrivants Genève'],
+             'options' => ['canal' => 'slack', 'destinataires' => 'Canal #nouveaux-arrivants', 'template' => "Bonjour à tous ! Je suis {{prenom}}, je rejoins l'équipe {{departement}} en tant que {{poste}}. Ravi(e) de faire partie de l'aventure Illizeo !"]],
+            // entretien
+            ['titre' => 'Point de suivi J+15', 'type' => 'entretien', 'phase' => 'Première semaine', 'delai' => 'J+15', 'oblig' => true, 'desc' => 'Entretien de suivi avec le manager après 2 semaines', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '30 min',
+             'options' => ['participants' => 'Manager direct', 'trame' => ["Comment vous sentez-vous dans l'équipe ?", "Avez-vous les outils nécessaires ?", "Y a-t-il des blocages ?", "Points positifs / axes d'amélioration"]]],
+            ['titre' => "Rapport d'étonnement", 'type' => 'entretien', 'phase' => '3 premiers mois', 'delai' => 'J+60', 'oblig' => false, 'desc' => 'Recueillir les impressions du collaborateur après 2 mois', 'parcours' => 'Onboarding Standard', 'mode' => 'contrat', 'valeurs' => ['CDI'], 'duree' => '45 min',
+             'options' => ['participants' => 'HRBP', 'trame' => ["Qu'est-ce qui vous a le plus surpris ?", "Qu'est-ce qui fonctionne bien ?", "Que changeriez-vous ?", "Recommanderiez-vous Illizeo ?"]]],
+            // checklist_it
+            ['titre' => 'Provisioning IT — Accès & matériel', 'type' => 'checklist_it', 'phase' => 'Avant le premier jour', 'delai' => 'J-7', 'oblig' => true, 'desc' => "Préparer tous les accès et matériel pour le nouveau collaborateur", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['items' => ["Créer le compte Active Directory", "Configurer la boîte email", "Attribuer une licence Microsoft 365", "Préparer le laptop (image standard)", "Créer le compte Slack/Teams", "Configurer le VPN", "Commander le badge d'accès", "Ajouter aux groupes de sécurité"], 'responsableIT' => 'Équipe IT Suisse']],
+            // passation
+            ['titre' => 'Récupérer les accès du prédécesseur', 'type' => 'passation', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => false, 'desc' => "Récupérer les documents, accès et contacts du poste", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['elements' => ["Documentation du poste", "Accès aux projets en cours", "Liste des contacts clés", "Mots de passe partagés (coffre-fort)"], 'successeur' => 'N/A (prise de poste)']],
+            // visite
+            ['titre' => 'Rencontrer son buddy', 'type' => 'visite', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => "Premier contact avec le parrain/marraine d'intégration", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '30 min',
+             'options' => ['lieu' => 'Cafétéria / espace commun', 'guide' => 'Buddy assigné']],
+            ['titre' => "Déjeuner d'équipe", 'type' => 'visite', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => false, 'desc' => "Déjeuner informel avec l'équipe", 'parcours' => 'Onboarding Standard', 'mode' => 'groupe', 'valeurs' => ['Nouveaux arrivants Genève'], 'duree' => '1h',
+             'options' => ['lieu' => 'Restaurant partenaire', 'guide' => 'Manager + Buddy']],
+
+            // ── OFFBOARDING ─────────────────────────────────────
+            ['titre' => 'Restitution matériel IT', 'type' => 'checklist_it', 'phase' => 'Annonce', 'delai' => 'J-7', 'oblig' => true, 'desc' => 'Restituer tout le matériel professionnel', 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['items' => ["Laptop", "Badge d'accès", "Téléphone professionnel", "Clés de bureau", "Carte de transport"], 'responsableIT' => 'IT Support']],
+            ['titre' => 'Désactivation des accès', 'type' => 'checklist_it', 'phase' => 'Dernier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => 'Désactiver tous les comptes et accès', 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['items' => ["Email", "VPN", "Slack/Teams", "Accès drives", "Outils métier", "Badge physique"], 'responsableIT' => 'Admin IT']],
+            ['titre' => 'Entretien de départ', 'type' => 'entretien', 'phase' => 'Transition', 'delai' => 'J-14', 'oblig' => true, 'desc' => 'Entretien confidentiel avec le HRBP', 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '45 min',
+             'options' => ['participants' => 'HRBP', 'trame' => ["Raison du départ", "Satisfaction générale", "Relations avec le management", "Suggestions d'amélioration", "Recommanderiez-vous Illizeo ?"]]],
+            ['titre' => 'Plan de passation', 'type' => 'passation', 'phase' => 'Transition', 'delai' => 'J-21', 'oblig' => true, 'desc' => 'Transférer connaissances, projets et contacts', 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['elements' => ["Projets en cours + état d'avancement", "Documentation technique", "Contacts clients/partenaires", "Accès et mots de passe (via coffre-fort)", "Procédures récurrentes"], 'successeur' => 'À définir par le manager']],
+            ['titre' => 'Solde de tout compte', 'type' => 'signature', 'phase' => 'Dernier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => 'Signature des documents de fin de contrat', 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['documentNom' => 'Solde de tout compte', 'provider' => 'ugosign', 'rappelAuto' => false, 'certifie' => true]],
+            ['titre' => 'Certificat de travail', 'type' => 'document', 'phase' => 'Post-départ', 'delai' => 'J+7', 'oblig' => true, 'desc' => 'Génération et remise du certificat de travail', 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['pieces' => ['Certificat de travail', 'Attestation Pôle Emploi'], 'fichiersAcceptes' => 'PDF']],
+            ['titre' => "Communication départ", 'type' => 'message', 'phase' => 'Transition', 'delai' => 'J-7', 'oblig' => false, 'desc' => "Informer l'équipe du départ", 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['canal' => 'email', 'destinataires' => "Équipe + parties prenantes", 'template' => "Chers collègues, je vous informe que {{prenom}} quittera l'entreprise le {{date}}. Merci de faciliter la transition."]],
+            ['titre' => 'Invitation réseau alumni', 'type' => 'message', 'phase' => 'Post-départ', 'delai' => 'J+14', 'oblig' => false, 'desc' => "Invitation au réseau alumni Illizeo", 'parcours' => 'Départ standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['canal' => 'email', 'destinataires' => 'Collaborateur sortant', 'template' => "Bonjour {{prenom}}, nous espérons que votre expérience chez Illizeo a été enrichissante. Rejoignez notre réseau alumni !"]],
+
+            // ── CROSSBOARDING ───────────────────────────────────
+            ['titre' => 'Avenant au contrat', 'type' => 'signature', 'phase' => 'Annonce mobilité', 'delai' => 'J-21', 'oblig' => true, 'desc' => "Signature de l'avenant de mobilité", 'parcours' => 'Mobilité interne standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['documentNom' => 'Avenant mobilité interne', 'provider' => 'docusign', 'rappelAuto' => true, 'certifie' => true]],
+            ['titre' => 'Transfert des projets', 'type' => 'passation', 'phase' => 'Transition poste', 'delai' => 'J-14', 'oblig' => true, 'desc' => "Handover complet des projets", 'parcours' => 'Mobilité interne standard', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['elements' => ["Projets en cours", "Documentation", "Contacts clés", "Outils spécifiques"], 'successeur' => 'À définir']],
+            ['titre' => 'Formation nouveau poste', 'type' => 'formation', 'phase' => 'Transition poste', 'delai' => 'J-7', 'oblig' => true, 'desc' => 'Formation aux outils du nouveau poste', 'parcours' => 'Mobilité interne standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '2h',
+             'options' => ['support' => 'lien']],
+            ['titre' => 'Rencontre nouvelle équipe', 'type' => 'visite', 'phase' => 'Intégration équipe', 'delai' => 'J+0', 'oblig' => true, 'desc' => 'Rencontre avec les membres de la nouvelle équipe', 'parcours' => 'Mobilité interne standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '1h',
+             'options' => ['lieu' => 'Nouveau bureau / salle équipe', 'guide' => 'Nouveau manager']],
+            ['titre' => 'Point J+30 nouveau manager', 'type' => 'entretien', 'phase' => 'Suivi J+30', 'delai' => 'J+30', 'oblig' => true, 'desc' => 'Bilan du premier mois', 'parcours' => 'Mobilité interne standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '45 min',
+             'options' => ['participants' => 'Nouveau manager, HRBP', 'trame' => ["Adaptation au poste", "Relation avec la nouvelle équipe", "Objectifs atteints", "Besoins de formation"]]],
+
+            // ── REBOARDING ──────────────────────────────────────
+            ['titre' => 'Mise à jour accès IT', 'type' => 'checklist_it', 'phase' => 'Pré-retour J-14', 'delai' => 'J-7', 'oblig' => true, 'desc' => 'Réactivation des accès et vérification matériel', 'parcours' => 'Retour congé maternité/parental', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['items' => ["Réactiver le compte AD", "Vérifier email", "Réactiver VPN", "Vérifier le laptop", "Mettre à jour les logiciels"], 'responsableIT' => 'IT Support']],
+            ['titre' => 'Point de reprise manager', 'type' => 'entretien', 'phase' => 'Jour de retour', 'delai' => 'J+0', 'oblig' => true, 'desc' => 'Entretien de réaccueil', 'parcours' => 'Retour congé maternité/parental', 'mode' => 'tous', 'valeurs' => [], 'duree' => '30 min',
+             'options' => ['participants' => 'Manager direct', 'trame' => ["Bienvenue de retour", "Changements survenus", "Nouveaux objectifs", "Aménagements nécessaires"]]],
+            ['titre' => 'Briefing changements', 'type' => 'formation', 'phase' => 'Jour de retour', 'delai' => 'J+0', 'oblig' => true, 'desc' => "Présentation des changements (équipe, projets, outils)", 'parcours' => 'Retour congé maternité/parental', 'mode' => 'tous', 'valeurs' => [], 'duree' => '1h',
+             'options' => ['support' => 'lien']],
+            ['titre' => 'Aménagement du poste', 'type' => 'tache', 'phase' => 'Réintégration', 'delai' => 'J+7', 'oblig' => false, 'desc' => "Vérifier si un aménagement est nécessaire", 'parcours' => 'Retour congé maternité/parental', 'mode' => 'tous', 'valeurs' => [],
+             'options' => ['sousTaches' => ["Vérifier les horaires aménagés", "Adapter le poste ergonomique si besoin", "Mettre à jour les accès bâtiment", "Informer l'équipe du retour"]]],
+        ];
+
+        foreach ($actionsData as $a) {
+            Action::firstOrCreate(
+                ['titre' => $a['titre'], 'parcours_id' => isset($parcours[$a['parcours']]) ? $parcours[$a['parcours']]->id : null],
+                [
+                    'titre' => $a['titre'],
+                    'action_type_id' => $actionTypes[$a['type']]->id,
+                    'phase_id' => isset($phases[$a['phase']]) ? $phases[$a['phase']]->id : null,
+                    'parcours_id' => isset($parcours[$a['parcours']]) ? $parcours[$a['parcours']]->id : null,
+                    'delai_relatif' => $a['delai'],
+                    'obligatoire' => $a['oblig'],
+                    'description' => $a['desc'],
+                    'lien_externe' => $a['lien'] ?? null,
+                    'duree_estimee' => $a['duree'] ?? null,
+                    'pieces_requises' => $a['pieces'] ?? null,
+                    'assignation_mode' => $a['mode'],
+                    'assignation_valeurs' => !empty($a['valeurs']) ? $a['valeurs'] : null,
+                    'options' => $a['options'] ?? null,
+                ]
+            );
+        }
+
+        // ── 7. Groupes ──────────────────────────────────────────
+        $groupesData = [
+            ['nom' => 'Nouveaux arrivants Genève', 'description' => 'Tous les collaborateurs intégrant le site de Genève', 'couleur' => '#C2185B', 'critere_type' => 'site', 'critere_valeur' => 'Genève'],
+            ['nom' => 'Équipe Tech', 'description' => 'Développeurs, data analysts et IT', 'couleur' => '#1A73E8', 'critere_type' => 'departement', 'critere_valeur' => 'Tech'],
+            ['nom' => 'CDI France & Suisse', 'description' => 'Tous les contrats CDI', 'couleur' => '#4CAF50', 'critere_type' => 'contrat', 'critere_valeur' => 'CDI'],
+            ['nom' => 'Managers Suisse', 'description' => 'Managers sur les sites suisses', 'couleur' => '#F9A825', 'critere_type' => null, 'critere_valeur' => null],
+            ['nom' => 'Stagiaires & Alternants', 'description' => 'Contrats stage et alternance', 'couleur' => '#7B5EA7', 'critere_type' => 'contrat', 'critere_valeur' => 'Stage'],
+        ];
+
+        foreach ($groupesData as $g) {
+            Groupe::firstOrCreate(
+                ['nom' => $g['nom']],
+                $g
+            );
+        }
+
+        // ── 8. Document Categories & Documents ──────────────────
+        $docCatsData = [
+            ['slug' => 'complementaires', 'titre' => 'Documents administratifs complémentaires', 'pieces' => [
+                ['nom' => 'IBAN/BIC Suisse', 'obligatoire' => true, 'type' => 'upload'],
+                ['nom' => 'Certificats De Travail et Diplômes', 'obligatoire' => true, 'type' => 'upload'],
+            ]],
+            ['slug' => 'formulaires', 'titre' => 'Formulaires à remplir et à renvoyer', 'pieces' => [
+                ['nom' => 'Formulaire permis résident Vaud', 'obligatoire' => false, 'type' => 'formulaire'],
+                ['nom' => 'Formulaire frontalier Genève', 'obligatoire' => false, 'type' => 'formulaire'],
+                ['nom' => 'Déclaration impôt Vaudois', 'obligatoire' => false, 'type' => 'formulaire'],
+                ['nom' => 'Fiche identification', 'obligatoire' => true, 'type' => 'formulaire'],
+            ]],
+            ['slug' => 'suisse', 'titre' => 'Documents administratifs – Suisse', 'pieces' => [
+                ['nom' => 'Pièce d\'identité / Passeport', 'obligatoire' => true, 'type' => 'upload'],
+                ['nom' => 'Carte AVS', 'obligatoire' => false, 'type' => 'upload'],
+                ['nom' => 'Permis de travail ou de résidence', 'obligatoire' => false, 'type' => 'upload'],
+                ['nom' => 'Photo d\'identité', 'obligatoire' => true, 'type' => 'upload'],
+            ]],
+            ['slug' => 'supplementaires', 'titre' => 'Documents administratifs supplémentaires', 'pieces' => [
+                ['nom' => 'Pièce justificative 1', 'obligatoire' => false, 'type' => 'upload'],
+                ['nom' => 'Pièce justificative 2', 'obligatoire' => false, 'type' => 'upload'],
+                ['nom' => 'Pièce justificative 3', 'obligatoire' => false, 'type' => 'upload'],
+            ]],
+        ];
+
+        foreach ($docCatsData as $dc) {
+            $pieces = $dc['pieces'];
+            unset($dc['pieces']);
+            $cat = DocumentCategorie::firstOrCreate(
+                ['slug' => $dc['slug']],
+                $dc
+            );
+
+            foreach ($pieces as $piece) {
+                Document::firstOrCreate(
+                    ['nom' => $piece['nom'], 'categorie_id' => $cat->id],
+                    [
+                        'nom' => $piece['nom'],
+                        'obligatoire' => $piece['obligatoire'],
+                        'type' => $piece['type'],
+                        'categorie_id' => $cat->id,
+                    ]
+                );
+            }
+        }
+
+        // ── 9. Contrats ─────────────────────────────────────────
+        $contratsData = [
+            ['nom' => 'CDI — Droit Suisse', 'type' => 'CDI', 'juridiction' => 'Suisse', 'variables' => 18, 'derniere_maj' => '2026-02-15', 'actif' => true, 'fichier' => 'CDI_Suisse_v3.docx'],
+            ['nom' => 'CDI — Droit Français', 'type' => 'CDI', 'juridiction' => 'France', 'variables' => 22, 'derniere_maj' => '2026-01-10', 'actif' => true, 'fichier' => 'CDI_France_v2.docx'],
+            ['nom' => 'CDD — Droit Suisse', 'type' => 'CDD', 'juridiction' => 'Suisse', 'variables' => 20, 'derniere_maj' => '2026-02-15', 'actif' => true, 'fichier' => 'CDD_Suisse_v1.docx'],
+            ['nom' => 'Convention de stage', 'type' => 'Stage', 'juridiction' => 'France', 'variables' => 15, 'derniere_maj' => '2026-03-05', 'actif' => true, 'fichier' => 'Convention_Stage_v4.docx'],
+            ['nom' => "Contrat d'alternance", 'type' => 'Alternance', 'juridiction' => 'France', 'variables' => 16, 'derniere_maj' => '2026-01-12', 'actif' => false, 'fichier' => 'Alternance_v1.docx'],
+            ['nom' => 'Avenant de mobilité', 'type' => 'Avenant', 'juridiction' => 'Multi', 'variables' => 12, 'derniere_maj' => '2026-02-20', 'actif' => true, 'fichier' => 'Avenant_Mobilite_v2.docx'],
+        ];
+
+        foreach ($contratsData as $c) {
+            Contrat::firstOrCreate(
+                ['nom' => $c['nom']],
+                $c
+            );
+        }
+
+        // ── 10. Workflows ───────────────────────────────────────
+        $workflowsData = [
+            ['nom' => "Validation pièce d'identité", 'declencheur' => 'Document soumis', 'action' => 'Envoyer pour validation au Manager', 'destinataire' => 'Manager direct', 'actif' => true],
+            ['nom' => 'Relance documents en retard', 'declencheur' => 'J-7 avant date limite', 'action' => 'Envoyer email de relance', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Notification nouveau collaborateur', 'declencheur' => 'Parcours créé', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
+            ['nom' => 'Validation dossier complet', 'declencheur' => 'Tous documents validés', 'action' => 'Envoyer confirmation au collaborateur', 'destinataire' => 'Collaborateur', 'actif' => false],
+            ['nom' => 'Approbation formulaires Suisse', 'declencheur' => 'Formulaire soumis', 'action' => 'Envoyer pour approbation Admin RH', 'destinataire' => 'Admin RH Suisse', 'actif' => true],
+            ['nom' => 'Alerte collaborateur en retard', 'declencheur' => 'Collaborateur en retard', 'action' => 'Envoyer email de relance', 'destinataire' => 'Manager direct', 'actif' => true],
+            ['nom' => 'Message bienvenue IllizeoBot', 'declencheur' => 'Nouveau collaborateur', 'action' => 'Envoyer un message IllizeoBot', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Notification Teams — Nouveau', 'declencheur' => 'Nouveau collaborateur', 'action' => 'Envoyer via Teams', 'destinataire' => 'Équipe RH', 'actif' => true],
+            ['nom' => 'Badge parcours terminé', 'declencheur' => 'Parcours complété à 100%', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => "Évaluation fin période d'essai", 'declencheur' => "Période d'essai terminée", 'action' => 'Envoyer pour validation au Manager', 'destinataire' => 'Manager direct', 'actif' => true],
+            ['nom' => 'Relance document refusé', 'declencheur' => 'Document refusé', 'action' => 'Envoyer email de relance', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Alerte NPS négatif', 'declencheur' => 'Questionnaire NPS soumis', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
+            ['nom' => 'Récompense cooptation', 'declencheur' => 'Cooptation validée', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => false],
+            ['nom' => 'Félicitations anniversaire', 'declencheur' => "Anniversaire d'embauche", 'action' => 'Envoyer un message IllizeoBot', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Désactivation accès offboarding', 'declencheur' => 'Fin de parcours offboarding', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
+        ];
+
+        foreach ($workflowsData as $w) {
+            Workflow::firstOrCreate(
+                ['nom' => $w['nom']],
+                $w
+            );
+        }
+
+        // ── 11. Email Templates ─────────────────────────────────
+        $emailTemplatesData = [
+            ['nom' => 'Invitation onboarding', 'sujet' => "Bienvenue chez Illizeo – Ton parcours d'intégration", 'declencheur' => 'Création du parcours', 'variables' => ['{{prenom}}', '{{date_debut}}', '{{site}}'], 'actif' => true],
+            ['nom' => 'Relance documents', 'sujet' => 'Rappel : documents à compléter', 'declencheur' => 'J-7 avant deadline documents', 'variables' => ['{{prenom}}', '{{nb_docs_manquants}}', '{{date_limite}}'], 'actif' => true],
+            ['nom' => 'Confirmation dossier complet', 'sujet' => 'Ton dossier est complet !', 'declencheur' => 'Tous documents validés', 'variables' => ['{{prenom}}', '{{date_debut}}'], 'actif' => true],
+            ['nom' => 'Bienvenue premier jour', 'sujet' => 'C\'est le grand jour {{prenom}} !', 'declencheur' => 'J+0', 'variables' => ['{{prenom}}', '{{site}}', '{{adresse}}', '{{manager}}'], 'actif' => false],
+            ['nom' => 'Fin de parcours', 'sujet' => 'Félicitations – Parcours terminé', 'declencheur' => 'Parcours complété à 100%', 'variables' => ['{{prenom}}', '{{parcours_nom}}'], 'actif' => true],
+        ];
+
+        foreach ($emailTemplatesData as $et) {
+            EmailTemplate::firstOrCreate(
+                ['nom' => $et['nom']],
+                $et
+            );
+        }
+
+        // ── 12. Notifications Config ────────────────────────────
+        $notifications = [
+            'Anniversaire', 'Changement de rôle avant la date de début du parcours',
+            'Changement de rôle sur un parcours en cours', 'Délégation créée',
+            'Delegation Deleted', 'Delegation Ended', 'Délégation modifiée',
+            'La délégation a commencé', 'Fin de contrat', "Fin de la période d'essai",
+            "Fin de la période d'essai renouvelée", 'Gazette',
+            "Invitation d'un utilisateur standard",
+            'Relancer un parcours en retard pour le collaborateur',
+            'Relancer les participants à un parcours en retard',
+            'Les arrivées de la semaine', 'Une nouvelle recrue arrive',
+            'Nouveau questionnaire disponible', 'Nouvelle tâche disponible',
+            'Relance des invitations', 'Pièce administrative à signer disponible',
+            'Catégorie de pièces administratives complétée',
+            'Catégorie de pièce administrative refusée',
+            'Catégorie de pièce administrative à valider',
+            'Pièce administrative complétée', 'La ressource a été mise à jour',
+            'Pièces administratives signées', 'Questionnaire complété',
+        ];
+
+        foreach ($notifications as $notif) {
+            NotificationConfig::firstOrCreate(
+                ['nom' => $notif, 'categorie' => 'general'],
+                [
+                    'nom' => $notif,
+                    'canal' => 'email',
+                    'actif' => true,
+                    'categorie' => 'general',
+                ]
+            );
+        }
+
+        // Resource notification
+        NotificationConfig::firstOrCreate(
+            ['nom' => 'Événements', 'categorie' => 'ressource'],
+            [
+                'nom' => 'Événements',
+                'canal' => 'email',
+                'actif' => true,
+                'categorie' => 'ressource',
+            ]
+        );
+
+        // ── 13. Intégrations ────────────────────────────────
+        $integrations = [
+            // Signature
+            ['provider' => 'docusign', 'categorie' => 'signature', 'nom' => 'DocuSign', 'config' => ['integration_key' => '', 'secret_key' => '', 'user_id' => '', 'api_account_id' => '', 'base_uri' => 'https://eu.docusign.net', 'environment' => 'sandbox', 'rsa_private_key' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'ugosign', 'categorie' => 'signature', 'nom' => 'UgoSign', 'config' => ['api_key' => '', 'api_secret' => '', 'environment' => 'sandbox'], 'actif' => false, 'connecte' => false],
+            ['provider' => 'native', 'categorie' => 'signature', 'nom' => 'Signature in-app', 'config' => [], 'actif' => true, 'connecte' => true],
+            // Communication
+            ['provider' => 'teams', 'categorie' => 'communication', 'nom' => 'Microsoft Teams', 'config' => ['webhook_url' => '', 'mode' => 'webhook'], 'actif' => false, 'connecte' => false],
+            ['provider' => 'slack', 'categorie' => 'communication', 'nom' => 'Slack', 'config' => ['bot_token' => '', 'webhook_url' => ''], 'actif' => false, 'connecte' => false],
+            // Identity & SSO
+            ['provider' => 'entra_id', 'categorie' => 'identity', 'nom' => 'Microsoft Entra ID', 'config' => ['tenant_id' => '', 'client_id' => '', 'client_secret' => ''], 'actif' => false, 'connecte' => false],
+            // ATS
+            ['provider' => 'smartrecruiters', 'categorie' => 'ats', 'nom' => 'SmartRecruiters', 'config' => ['api_key' => '', 'company_id' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'teamtailor', 'categorie' => 'ats', 'nom' => 'Teamtailor', 'config' => ['api_key' => ''], 'actif' => false, 'connecte' => false],
+            // SIRH
+            ['provider' => 'sap', 'categorie' => 'sirh', 'nom' => 'SAP SuccessFactors', 'config' => ['base_url' => '', 'company_id' => '', 'username' => '', 'password' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'personio', 'categorie' => 'sirh', 'nom' => 'Personio', 'config' => ['client_id' => '', 'client_secret' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'lucca', 'categorie' => 'sirh', 'nom' => 'Lucca', 'config' => ['subdomain' => '', 'api_key' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'bamboohr', 'categorie' => 'sirh', 'nom' => 'BambooHR', 'config' => ['company_domain' => '', 'api_key' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'workday', 'categorie' => 'sirh', 'nom' => 'Workday HCM', 'config' => ['host' => '', 'tenant' => '', 'client_id' => '', 'client_secret' => '', 'refresh_token' => ''], 'actif' => false, 'connecte' => false],
+        ];
+
+        foreach ($integrations as $i) {
+            Integration::firstOrCreate(
+                ['provider' => $i['provider']],
+                $i
+            );
+        }
+
+        // ── 14. Collaborateur field config ──────────────────
+        $fieldConfigs = [
+            // Personal
+            ['field_key' => 'civilite', 'label' => 'Civilité', 'label_en' => 'Salutation', 'section' => 'personal', 'field_type' => 'list', 'list_values' => ['M.', 'Mme'], 'actif' => true, 'obligatoire' => false, 'ordre' => 1],
+            ['field_key' => 'date_naissance', 'label' => 'Date de naissance', 'label_en' => 'Date of birth', 'section' => 'personal', 'field_type' => 'date', 'actif' => true, 'obligatoire' => false, 'ordre' => 2],
+            ['field_key' => 'nationalite', 'label' => 'Nationalité', 'label_en' => 'Nationality', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 3],
+            ['field_key' => 'numero_avs', 'label' => 'Numéro AVS / Sécurité sociale', 'label_en' => 'Social security number', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 4],
+            ['field_key' => 'telephone', 'label' => 'Téléphone', 'label_en' => 'Phone', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 5],
+            ['field_key' => 'adresse', 'label' => 'Adresse', 'label_en' => 'Address', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 6],
+            ['field_key' => 'ville', 'label' => 'Ville', 'label_en' => 'City', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 7],
+            ['field_key' => 'code_postal', 'label' => 'Code postal', 'label_en' => 'Postal code', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 8],
+            ['field_key' => 'pays', 'label' => 'Pays', 'label_en' => 'Country', 'section' => 'personal', 'field_type' => 'list', 'list_values' => ['Suisse', 'France', 'Allemagne', 'Italie', 'Autre'], 'actif' => true, 'obligatoire' => false, 'ordre' => 9],
+            ['field_key' => 'iban', 'label' => 'IBAN', 'label_en' => 'IBAN', 'section' => 'personal', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
+            // Contract
+            ['field_key' => 'type_contrat', 'label' => 'Type de contrat', 'label_en' => 'Contract type', 'section' => 'contract', 'field_type' => 'list', 'list_values' => ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance'], 'actif' => true, 'obligatoire' => true, 'ordre' => 1],
+            ['field_key' => 'salaire_brut', 'label' => 'Salaire brut annuel', 'label_en' => 'Annual gross salary', 'section' => 'contract', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 2],
+            ['field_key' => 'devise', 'label' => 'Devise', 'label_en' => 'Currency', 'section' => 'contract', 'field_type' => 'list', 'list_values' => ['CHF', 'EUR', 'USD', 'GBP'], 'actif' => true, 'obligatoire' => false, 'ordre' => 3],
+            ['field_key' => 'taux_activite', 'label' => "Taux d'activité (%)", 'label_en' => 'Work rate (%)', 'section' => 'contract', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 4],
+            ['field_key' => 'periode_essai', 'label' => "Période d'essai", 'label_en' => 'Probation period', 'section' => 'contract', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 5],
+            ['field_key' => 'date_fin_essai', 'label' => "Date de fin de période d'essai", 'label_en' => 'Probation end date', 'section' => 'contract', 'field_type' => 'date', 'actif' => false, 'obligatoire' => false, 'ordre' => 6],
+            ['field_key' => 'convention_collective', 'label' => 'Convention collective', 'label_en' => 'Collective agreement', 'section' => 'contract', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 7],
+            ['field_key' => 'duree_contrat', 'label' => 'Durée du contrat (CDD)', 'label_en' => 'Contract duration', 'section' => 'contract', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 8],
+            // Org
+            ['field_key' => 'matricule', 'label' => 'Matricule employé', 'label_en' => 'Employee ID', 'section' => 'org', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 1],
+            ['field_key' => 'manager_nom', 'label' => 'Manager', 'label_en' => 'Manager', 'section' => 'org', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 2],
+            ['field_key' => 'centre_cout', 'label' => 'Centre de coût', 'label_en' => 'Cost center', 'section' => 'org', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 3],
+            ['field_key' => 'entite_juridique', 'label' => 'Entité juridique', 'label_en' => 'Legal entity', 'section' => 'org', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 4],
+            ['field_key' => 'categorie_pro', 'label' => 'Catégorie professionnelle', 'label_en' => 'Job category', 'section' => 'org', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 5],
+            ['field_key' => 'niveau_hierarchique', 'label' => 'Niveau hiérarchique', 'label_en' => 'Job level', 'section' => 'org', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 6],
+            ['field_key' => 'recruteur', 'label' => 'Recruteur', 'label_en' => 'Recruiter', 'section' => 'org', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 7],
+            // Job Information
+            ['field_key' => 'job_title', 'label' => 'Intitulé du poste', 'label_en' => 'Job title', 'section' => 'job', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 1],
+            ['field_key' => 'job_family', 'label' => 'Famille de métiers', 'label_en' => 'Job family', 'section' => 'job', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 2],
+            ['field_key' => 'job_code', 'label' => 'Code métier', 'label_en' => 'Job code', 'section' => 'job', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 3],
+            ['field_key' => 'job_level', 'label' => 'Niveau de poste', 'label_en' => 'Job level', 'section' => 'job', 'field_type' => 'list', 'list_values' => ['Junior', 'Confirmé', 'Senior', 'Lead', 'Principal', 'Director', 'VP', 'C-Level'], 'actif' => true, 'obligatoire' => false, 'ordre' => 4],
+            ['field_key' => 'employment_type', 'label' => "Type d'emploi", 'label_en' => 'Employment type', 'section' => 'job', 'field_type' => 'list', 'list_values' => ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance', 'Intérim', 'Apprentissage'], 'actif' => true, 'obligatoire' => false, 'ordre' => 5],
+            ['field_key' => 'date_fin_contrat', 'label' => 'Date de fin de contrat', 'label_en' => 'Contract end date', 'section' => 'job', 'field_type' => 'date', 'actif' => true, 'obligatoire' => false, 'ordre' => 6],
+            ['field_key' => 'motif_embauche', 'label' => "Motif d'embauche", 'label_en' => 'Hiring reason', 'section' => 'job', 'field_type' => 'list', 'list_values' => ['Création de poste', 'Remplacement', 'Surcroît d\'activité', 'Réorganisation', 'Autre'], 'actif' => true, 'obligatoire' => false, 'ordre' => 7],
+            // Position Information
+            ['field_key' => 'position_title', 'label' => 'Intitulé de la position', 'label_en' => 'Position title', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 1],
+            ['field_key' => 'position_code', 'label' => 'Code position', 'label_en' => 'Position code', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 2],
+            ['field_key' => 'business_unit', 'label' => 'Business Unit', 'label_en' => 'Business unit', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 3],
+            ['field_key' => 'division', 'label' => 'Division', 'label_en' => 'Division', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 4],
+            ['field_key' => 'cost_center', 'label' => 'Centre de coût', 'label_en' => 'Cost center', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 5],
+            ['field_key' => 'location_code', 'label' => 'Code site', 'label_en' => 'Location code', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 6],
+            ['field_key' => 'manager_id', 'label' => 'Manager (ID)', 'label_en' => 'Manager ID', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 7],
+            ['field_key' => 'dotted_line_manager', 'label' => 'Manager fonctionnel', 'label_en' => 'Dotted-line manager', 'section' => 'position', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 8],
+            ['field_key' => 'work_schedule', 'label' => 'Horaire de travail', 'label_en' => 'Work schedule', 'section' => 'position', 'field_type' => 'list', 'list_values' => ['Temps plein', 'Temps partiel', 'Horaires flexibles', 'Travail posté'], 'actif' => true, 'obligatoire' => false, 'ordre' => 9],
+            ['field_key' => 'fte', 'label' => 'FTE (équivalent temps plein)', 'label_en' => 'FTE', 'section' => 'position', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
+        ];
+
+        foreach ($fieldConfigs as $fc) {
+            CollaborateurFieldConfig::firstOrCreate(
+                ['field_key' => $fc['field_key']],
+                $fc
+            );
+        }
+
+        // ── 15. Company page blocks ──────────────────────────
+        $blocks = [
+            ['type' => 'hero', 'titre' => 'Bienvenue chez nous', 'contenu' => "Nous sommes ravis de vous accueillir dans l'équipe. Découvrez notre entreprise, notre mission et nos valeurs.", 'data' => ['subtitle' => 'Votre aventure commence ici', 'image_url' => ''], 'ordre' => 1],
+            ['type' => 'text', 'titre' => 'À propos de nous', 'contenu' => "Présentez votre entreprise ici. Décrivez votre activité, votre histoire et ce qui fait votre force.", 'data' => ['icon' => 'building'], 'ordre' => 2],
+            ['type' => 'mission', 'titre' => 'Notre mission', 'contenu' => "Décrivez la mission de votre entreprise et ce qui vous anime au quotidien.", 'data' => ['number' => '01'], 'ordre' => 3],
+            ['type' => 'stats', 'titre' => 'Nos chiffres clés', 'contenu' => 'Quelques chiffres qui parlent', 'data' => ['badge' => '', 'items' => [
+                ['value' => '—', 'label' => 'Collaborateurs'],
+                ['value' => '—', 'label' => 'Sites'],
+                ['value' => '—', 'label' => 'Pays'],
+            ]], 'ordre' => 4],
+            ['type' => 'values', 'titre' => 'Nos valeurs', 'contenu' => null, 'data' => ['items' => [
+                ['icon' => 'heart', 'title' => 'Bienveillance', 'desc' => "Nous plaçons l'humain au cœur de nos décisions"],
+                ['icon' => 'rocket', 'title' => 'Innovation', 'desc' => 'Nous repoussons les limites pour créer de la valeur'],
+                ['icon' => 'users', 'title' => 'Collaboration', 'desc' => 'Ensemble, nous allons plus loin'],
+                ['icon' => 'shield', 'title' => 'Intégrité', 'desc' => 'Nous agissons avec transparence et éthique'],
+            ]], 'ordre' => 5],
+            ['type' => 'team', 'titre' => "L'équipe qui vous accompagne", 'contenu' => null, 'data' => ['members' => []], 'ordre' => 6],
+        ];
+
+        foreach ($blocks as $b) {
+            CompanyBlock::firstOrCreate(
+                ['type' => $b['type'], 'ordre' => $b['ordre']],
+                $b
+            );
+        }
+
+        // ── 16. Badge Templates ─────────────────────────────────
+        $badgeTemplates = [
+            ['nom' => 'Parcours terminé', 'description' => 'Félicitations ! Vous avez terminé votre parcours d\'intégration.', 'icon' => 'trophy', 'color' => '#F9A825', 'critere' => 'parcours_complete'],
+            ['nom' => 'Documents complets', 'description' => 'Tous vos documents administratifs sont validés.', 'icon' => 'file-check', 'color' => '#4CAF50', 'critere' => 'docs_complete'],
+            ['nom' => 'Premier message', 'description' => 'Vous avez envoyé votre premier message.', 'icon' => 'message-circle', 'color' => '#1A73E8', 'critere' => 'premier_message'],
+            ['nom' => 'Première semaine', 'description' => 'Vous avez complété votre première semaine !', 'icon' => 'calendar-check', 'color' => '#7B5EA7', 'critere' => 'first_week'],
+            ['nom' => 'Premier mois', 'description' => 'Un mois déjà ! Bravo pour votre intégration.', 'icon' => 'star', 'color' => '#C2185B', 'critere' => 'first_month'],
+            ['nom' => 'Super Coopteur', 'description' => 'Vous avez recommandé un candidat qui a été embauché.', 'icon' => 'handshake', 'color' => '#E91E8C', 'critere' => 'cooptation'],
+            ['nom' => 'NPS Champion', 'description' => 'Merci d\'avoir partagé votre feedback !', 'icon' => 'smile', 'color' => '#00897B', 'critere' => 'nps_complete'],
+            ['nom' => 'Bienvenue', 'description' => 'Bienvenue dans l\'équipe !', 'icon' => 'party-popper', 'color' => '#FF6B35', 'critere' => 'manual'],
+        ];
+
+        foreach ($badgeTemplates as $bt) {
+            BadgeTemplate::firstOrCreate(['nom' => $bt['nom']], $bt);
+        }
+
+        // ── 18. Equipment Types par défaut ──────────────────────
+        $equipmentTypes = [
+            // Matériel
+            ['nom' => 'Ordinateur portable', 'icon' => 'laptop', 'categorie' => 'materiel', 'description' => 'PC portable, MacBook, Chromebook...'],
+            ['nom' => 'Écran', 'icon' => 'monitor', 'categorie' => 'materiel', 'description' => 'Écran externe, moniteur...'],
+            ['nom' => 'Téléphone', 'icon' => 'phone', 'categorie' => 'materiel', 'description' => 'Smartphone professionnel'],
+            ['nom' => 'Badge / Clé', 'icon' => 'key', 'categorie' => 'materiel', 'description' => 'Badge d\'accès, clé de bureau, carte parking'],
+            ['nom' => 'Casque / Audio', 'icon' => 'headphones', 'categorie' => 'materiel', 'description' => 'Casque, écouteurs, micro'],
+            ['nom' => 'Clavier / Souris', 'icon' => 'mouse', 'categorie' => 'materiel', 'description' => 'Clavier, souris, trackpad'],
+            ['nom' => 'Mobilier', 'icon' => 'armchair', 'categorie' => 'materiel', 'description' => 'Bureau, chaise, caisson'],
+            ['nom' => 'Véhicule', 'icon' => 'car', 'categorie' => 'materiel', 'description' => 'Véhicule de fonction'],
+            ['nom' => 'Autre matériel', 'icon' => 'package', 'categorie' => 'materiel', 'description' => 'Autre équipement'],
+            // Licences
+            ['nom' => 'Microsoft 365', 'icon' => 'globe', 'categorie' => 'licence', 'description' => 'Licence Office 365, Teams, OneDrive'],
+            ['nom' => 'Slack', 'icon' => 'message-circle', 'categorie' => 'licence', 'description' => 'Licence Slack workspace'],
+            ['nom' => 'GitHub / GitLab', 'icon' => 'code', 'categorie' => 'licence', 'description' => 'Accès dépôt de code'],
+            ['nom' => 'Jira / Confluence', 'icon' => 'clipboard', 'categorie' => 'licence', 'description' => 'Licence Atlassian'],
+            ['nom' => 'VPN', 'icon' => 'shield', 'categorie' => 'licence', 'description' => 'Accès VPN entreprise'],
+            ['nom' => 'ERP / CRM', 'icon' => 'database', 'categorie' => 'licence', 'description' => 'SAP, Salesforce, HubSpot...'],
+            ['nom' => 'Autre licence', 'icon' => 'key', 'categorie' => 'licence', 'description' => 'Autre licence logicielle'],
+        ];
+        foreach ($equipmentTypes as $et) {
+            \App\Models\EquipmentType::firstOrCreate(['nom' => $et['nom']], $et);
+        }
+
+        // ── 18b. Equipment Packages par défaut ──────────────────
+        if (\App\Models\EquipmentPackage::count() === 0) {
+            $pcType = \App\Models\EquipmentType::where('nom', 'Ordinateur portable')->first();
+            $mouseType = \App\Models\EquipmentType::where('nom', 'Clavier / Souris')->first();
+            $screenType = \App\Models\EquipmentType::where('nom', 'Écran')->first();
+            $headsetType = \App\Models\EquipmentType::where('nom', 'Casque / Audio')->first();
+            $badgeType = \App\Models\EquipmentType::where('nom', 'Badge / Clé')->first();
+            $m365Type = \App\Models\EquipmentType::where('nom', 'Microsoft 365')->first();
+            $vpnType = \App\Models\EquipmentType::where('nom', 'VPN')->first();
+
+            $pkgDev = \App\Models\EquipmentPackage::create(['nom' => 'Package IT Développeur', 'description' => 'Équipement standard pour les développeurs', 'icon' => 'laptop', 'couleur' => '#1A73E8']);
+            if ($pcType) $pkgDev->items()->create(['equipment_type_id' => $pcType->id, 'quantite' => 1]);
+            if ($screenType) $pkgDev->items()->create(['equipment_type_id' => $screenType->id, 'quantite' => 2, 'notes' => 'Double écran']);
+            if ($mouseType) $pkgDev->items()->create(['equipment_type_id' => $mouseType->id, 'quantite' => 1]);
+            if ($headsetType) $pkgDev->items()->create(['equipment_type_id' => $headsetType->id, 'quantite' => 1]);
+            if ($badgeType) $pkgDev->items()->create(['equipment_type_id' => $badgeType->id, 'quantite' => 1]);
+            if ($m365Type) $pkgDev->items()->create(['equipment_type_id' => $m365Type->id, 'quantite' => 1]);
+            if ($vpnType) $pkgDev->items()->create(['equipment_type_id' => $vpnType->id, 'quantite' => 1]);
+
+            $pkgStd = \App\Models\EquipmentPackage::create(['nom' => 'Package Standard', 'description' => 'Équipement de base pour les collaborateurs', 'icon' => 'package', 'couleur' => '#4CAF50']);
+            if ($pcType) $pkgStd->items()->create(['equipment_type_id' => $pcType->id, 'quantite' => 1]);
+            if ($screenType) $pkgStd->items()->create(['equipment_type_id' => $screenType->id, 'quantite' => 1]);
+            if ($mouseType) $pkgStd->items()->create(['equipment_type_id' => $mouseType->id, 'quantite' => 1]);
+            if ($badgeType) $pkgStd->items()->create(['equipment_type_id' => $badgeType->id, 'quantite' => 1]);
+            if ($m365Type) $pkgStd->items()->create(['equipment_type_id' => $m365Type->id, 'quantite' => 1]);
+
+            $pkgMgr = \App\Models\EquipmentPackage::create(['nom' => 'Package Manager', 'description' => 'Équipement pour les managers et cadres', 'icon' => 'crown', 'couleur' => '#7B5EA7']);
+            if ($pcType) $pkgMgr->items()->create(['equipment_type_id' => $pcType->id, 'quantite' => 1]);
+            if ($screenType) $pkgMgr->items()->create(['equipment_type_id' => $screenType->id, 'quantite' => 1]);
+            if ($mouseType) $pkgMgr->items()->create(['equipment_type_id' => $mouseType->id, 'quantite' => 1]);
+            if ($headsetType) $pkgMgr->items()->create(['equipment_type_id' => $headsetType->id, 'quantite' => 1]);
+            if ($badgeType) $pkgMgr->items()->create(['equipment_type_id' => $badgeType->id, 'quantite' => 1]);
+            if ($m365Type) $pkgMgr->items()->create(['equipment_type_id' => $m365Type->id, 'quantite' => 1]);
+            if ($vpnType) $pkgMgr->items()->create(['equipment_type_id' => $vpnType->id, 'quantite' => 1]);
+        }
+
+        // ── 19. Signature Documents par défaut ─────────────────
+        $signDocs = [
+            ['titre' => 'Règlement intérieur', 'description' => 'Le collaborateur doit lire et accepter le règlement intérieur de l\'entreprise.', 'type' => 'lecture', 'obligatoire' => true],
+            ['titre' => 'Charte informatique', 'description' => 'Conditions d\'utilisation du matériel informatique et des systèmes d\'information.', 'type' => 'lecture', 'obligatoire' => true],
+            ['titre' => 'Droit à l\'image', 'description' => 'Autorisation d\'utilisation de l\'image du collaborateur à des fins professionnelles.', 'type' => 'signature', 'obligatoire' => false],
+            ['titre' => 'Accord de confidentialité (NDA)', 'description' => 'Engagement de non-divulgation des informations confidentielles de l\'entreprise.', 'type' => 'signature', 'obligatoire' => true],
+            ['titre' => 'Politique RGPD', 'description' => 'Information sur le traitement des données personnelles conformément au RGPD.', 'type' => 'lecture', 'obligatoire' => true],
+        ];
+        foreach ($signDocs as $sd) {
+            \App\Models\SignatureDocument::firstOrCreate(['titre' => $sd['titre']], $sd);
+        }
+
+        // ── 17. NPS Surveys par défaut ──────────────────────────
+        $surveys = [
+            [
+                'titre' => 'NPS Onboarding',
+                'description' => "Enquête NPS envoyée à la fin du parcours d'onboarding pour mesurer la satisfaction globale.",
+                'type' => 'nps',
+                'declencheur' => 'fin_parcours',
+                'actif' => true,
+                'questions' => [
+                    ['text' => "Sur une échelle de 0 à 10, recommanderiez-vous notre processus d'onboarding à un collègue ?", 'type' => 'nps'],
+                    ['text' => "Comment évaluez-vous l'accompagnement de votre manager ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Qu'est-ce qui pourrait être amélioré dans votre intégration ?", 'type' => 'text'],
+                ],
+            ],
+            [
+                'titre' => 'Satisfaction 3 mois',
+                'description' => "Enquête de satisfaction envoyée 3 mois après l'arrivée du collaborateur.",
+                'type' => 'satisfaction',
+                'declencheur' => 'date_specifique',
+                'actif' => true,
+                'questions' => [
+                    ['text' => "Comment évaluez-vous votre intégration globale ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Vous sentez-vous bien accompagné(e) par votre manager ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Les outils et ressources mis à disposition sont-ils suffisants ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Avez-vous des suggestions pour améliorer l'accueil des nouveaux arrivants ?", 'type' => 'text'],
+                ],
+            ],
+        ];
+
+        foreach ($surveys as $s) {
+            \App\Models\NpsSurvey::firstOrCreate(['titre' => $s['titre']], $s);
+        }
+    }
+}
