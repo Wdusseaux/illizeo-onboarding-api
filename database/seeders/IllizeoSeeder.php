@@ -40,7 +40,7 @@ class IllizeoSeeder extends Seeder
             ['slug' => 'crossboarding', 'nom' => 'Crossboarding', 'description' => 'Mobilité interne', 'couleur' => '#1A73E8'],
             ['slug' => 'reboarding', 'nom' => 'Reboarding', 'description' => 'Retour après absence', 'couleur' => '#F9A825'],
         ] as $cat) {
-            $categories[$cat['slug']] = ParcoursCategorie::create($cat);
+            $categories[$cat['slug']] = ParcoursCategorie::firstOrCreate(['slug' => $cat['slug']], $cat);
         }
 
         // ── 2. Parcours Templates ───────────────────────────────
