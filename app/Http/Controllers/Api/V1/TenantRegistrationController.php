@@ -49,6 +49,9 @@ class TenantRegistrationController extends Controller
         try {
             // Everything runs in a subprocess to avoid stancl tenancy config issues in HTTP context
             $phpBin = PHP_BINARY;
+            if (empty($phpBin) || !is_executable($phpBin)) {
+                $phpBin = trim(shell_exec('which php') ?? '') ?: '/usr/bin/php';
+            }
             $scriptPath = base_path("_reg_{$tenantId}.php");
             $companyName = addslashes($request->company_name);
             $adminName = addslashes($request->admin_name);

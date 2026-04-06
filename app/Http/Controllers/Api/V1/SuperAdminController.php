@@ -18,10 +18,10 @@ class SuperAdminController extends Controller
      */
     private function authorize(Request $request): void
     {
-        $superAdminEmail = env('SUPER_ADMIN_EMAIL');
+        $superAdminEmails = array_map('trim', explode(',', env('SUPER_ADMIN_EMAIL', '')));
         $user = $request->user();
 
-        if (!$user || !$superAdminEmail || $user->email !== $superAdminEmail) {
+        if (!$user || empty($superAdminEmails[0]) || !in_array($user->email, $superAdminEmails)) {
             abort(403, 'Accès réservé au super administrateur de la plateforme.');
         }
 
