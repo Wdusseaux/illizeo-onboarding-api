@@ -13,7 +13,7 @@ class Document extends Model
         'nom', 'obligatoire', 'type', 'categorie_id',
         'status', 'collaborateur_id', 'fichier_path',
         'user_id', 'fichier_original', 'fichier_taille', 'fichier_mime',
-        'validated_by', 'validated_at', 'refuse_motif', 'notes',
+        'validated_by', 'validated_at', 'refuse_motif', 'notes', 'translations',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class Document extends Model
             'obligatoire' => 'boolean',
             'fichier_taille' => 'integer',
             'validated_at' => 'datetime',
+            'translations' => 'array',
         ];
     }
 

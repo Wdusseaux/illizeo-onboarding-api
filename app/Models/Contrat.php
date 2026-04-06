@@ -8,7 +8,7 @@ class Contrat extends Model
 {
     protected $fillable = [
         'nom', 'type', 'juridiction', 'variables',
-        'derniere_maj', 'actif', 'fichier',
+        'derniere_maj', 'actif', 'fichier', 'translations',
     ];
 
     protected function casts(): array
@@ -16,6 +16,7 @@ class Contrat extends Model
         return [
             'actif' => 'boolean',
             'derniere_maj' => 'date',
+            'translations' => 'array',
         ];
     }
 }

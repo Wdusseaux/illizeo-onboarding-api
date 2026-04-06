@@ -12,7 +12,7 @@ class Equipment extends Model
     protected $fillable = [
         'equipment_type_id', 'nom', 'numero_serie', 'marque', 'modele',
         'etat', 'collaborateur_id', 'assigned_by', 'assigned_at', 'returned_at',
-        'date_achat', 'valeur', 'notes',
+        'date_achat', 'valeur', 'notes', 'translations',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class Equipment extends Model
             'returned_at' => 'datetime',
             'date_achat' => 'date',
             'valeur' => 'decimal:2',
+            'translations' => 'array',
         ];
     }
 

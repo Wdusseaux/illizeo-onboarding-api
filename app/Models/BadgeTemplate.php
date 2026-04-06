@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class BadgeTemplate extends Model
 {
     protected $fillable = [
-        'nom', 'description', 'icon', 'color', 'critere', 'actif',
+        'nom', 'description', 'icon', 'color', 'critere', 'actif', 'translations',
     ];
 
     protected function casts(): array
     {
         return [
             'actif' => 'boolean',
+            'translations' => 'array',
         ];
     }
 

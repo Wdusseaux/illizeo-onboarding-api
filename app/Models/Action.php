@@ -11,7 +11,7 @@ class Action extends Model
         'titre', 'action_type_id', 'phase_id', 'parcours_id',
         'delai_relatif', 'obligatoire', 'description', 'lien_externe',
         'duree_estimee', 'pieces_requises', 'assignation_mode', 'assignation_valeurs',
-        'options',
+        'options', 'translations',
     ];
 
     protected function casts(): array
@@ -21,6 +21,7 @@ class Action extends Model
             'pieces_requises' => 'array',
             'assignation_valeurs' => 'array',
             'options' => 'array',
+            'translations' => 'array',
         ];
     }
 

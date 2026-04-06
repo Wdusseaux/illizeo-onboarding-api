@@ -13,7 +13,11 @@ class Parcours extends Model
 
     protected $fillable = [
         'nom', 'categorie_id', 'actions_count', 'docs_count',
-        'collaborateurs_actifs', 'status',
+        'collaborateurs_actifs', 'status', 'translations',
+    ];
+
+    protected $casts = [
+        'translations' => 'array',
     ];
 
     public function categorie(): BelongsTo
