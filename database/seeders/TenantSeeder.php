@@ -30,6 +30,7 @@ class TenantSeeder extends Seeder
             'date_format' => 'DD/MM/YYYY',
             'time_format' => '24h',
             'timezone' => 'Europe/Zurich',
+            'active_languages' => '["fr","en"]',
         ];
         foreach ($defaults as $key => $value) {
             \App\Models\CompanySetting::updateOrCreate(['key' => $key], ['value' => $value]);
