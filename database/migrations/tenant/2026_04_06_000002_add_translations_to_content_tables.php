@@ -21,6 +21,7 @@ return new class extends Migration
         'equipments',
         'equipment_packages',
         'signature_documents',
+        'company_blocks',
     ];
 
     public function up(): void

@@ -514,31 +514,31 @@ class IllizeoSeeder extends Seeder
 
         // ── 15. Company page blocks ──────────────────────────
         $blocks = [
-            ['type' => 'hero', 'titre' => 'Bienvenue chez Illizeo', 'contenu' => "Nous sommes ravis de vous accueillir dans l'équipe. Découvrez notre entreprise, notre mission et nos valeurs.", 'data' => ['subtitle' => 'Votre aventure commence ici', 'image_url' => ''], 'ordre' => 1],
-            ['type' => 'text', 'titre' => 'À propos de nous', 'contenu' => "Illizeo est un groupe international de conseil et d'expertises technologiques qui accélère la transformation de ses clients par les leviers de l'innovation, la technologie et la data. Présent sur 5 continents, dans 18 pays, le Groupe, certifié Great Place To Work, comptera plus de 7200 collaborateurs fin 2024.", 'data' => ['icon' => 'building'], 'ordre' => 2],
-            ['type' => 'mission', 'titre' => 'Notre mission', 'contenu' => "Accélérer votre transformation par les leviers de la technologie, de la data et de l'innovation.", 'data' => ['number' => '01'], 'ordre' => 3],
-            ['type' => 'text', 'titre' => 'Positive Innovation', 'contenu' => "La « Positive Innovation » c'est la trajectoire que propose Illizeo à ses clients pour garantir un impact positif dans la conduite de leurs projets et pour accélérer leur transformation.", 'data' => ['icon' => 'sparkles'], 'ordre' => 4],
+            ['type' => 'hero', 'titre' => 'Bienvenue chez Illizeo', 'contenu' => "Nous sommes ravis de vous accueillir dans l'équipe. Découvrez notre entreprise, notre mission et nos valeurs.", 'data' => ['subtitle' => 'Votre aventure commence ici', 'image_url' => ''], 'ordre' => 1, 'translations' => ['titre' => ['en' => 'Welcome to Illizeo', 'de' => 'Willkommen bei Illizeo'], 'contenu' => ['en' => 'We are delighted to welcome you to the team. Discover our company, our mission and our values.', 'de' => 'Wir freuen uns, Sie im Team begrüßen zu dürfen.']]],
+            ['type' => 'text', 'titre' => 'À propos de nous', 'contenu' => "Illizeo est un groupe international de conseil et d'expertises technologiques qui accélère la transformation de ses clients par les leviers de l'innovation, la technologie et la data. Présent sur 5 continents, dans 18 pays, le Groupe, certifié Great Place To Work, comptera plus de 7200 collaborateurs fin 2024.", 'data' => ['icon' => 'building'], 'ordre' => 2, 'translations' => ['titre' => ['en' => 'About us', 'de' => 'Über uns'], 'contenu' => ['en' => "Illizeo is an international consulting and technology expertise group that accelerates its clients' transformation through innovation, technology and data. Present on 5 continents, in 18 countries, the Group, certified Great Place To Work, will have more than 7,200 employees by the end of 2024.", 'de' => 'Illizeo ist eine internationale Beratungs- und Technologiegruppe.']]],
+            ['type' => 'mission', 'titre' => 'Notre mission', 'contenu' => "Accélérer votre transformation par les leviers de la technologie, de la data et de l'innovation.", 'data' => ['number' => '01'], 'ordre' => 3, 'translations' => ['titre' => ['en' => 'Our mission', 'de' => 'Unsere Mission'], 'contenu' => ['en' => 'Accelerating your transformation through technology, data and innovation.', 'de' => 'Ihre Transformation durch Technologie, Daten und Innovation beschleunigen.']]],
+            ['type' => 'text', 'titre' => 'Positive Innovation', 'contenu' => "La « Positive Innovation » c'est la trajectoire que propose Illizeo à ses clients pour garantir un impact positif dans la conduite de leurs projets et pour accélérer leur transformation.", 'data' => ['icon' => 'sparkles'], 'ordre' => 4, 'translations' => ['titre' => ['en' => 'Positive Innovation'], 'contenu' => ['en' => '"Positive Innovation" is the trajectory that Illizeo offers its clients to ensure a positive impact in their projects and accelerate their transformation.']]],
             ['type' => 'stats', 'titre' => 'Un groupe formidable où travailler', 'contenu' => 'Nous sommes une formidable équipe', 'data' => ['badge' => 'Great Place to Work depuis 2014', 'items' => [
                 ['value' => '83%', 'label' => "de nos employés disent qu'Illizeo est un endroit formidable où travailler"],
                 ['value' => '85%', 'label' => 'de nos employés sont prêts à se surpasser pour que le travail soit fait'],
                 ['value' => '80%', 'label' => "confirme que les employés d'Illizeo cherchent à innover"],
-            ]], 'ordre' => 5],
+            ]], 'ordre' => 5, 'translations' => ['titre' => ['en' => 'A great place to work', 'de' => 'Ein großartiger Arbeitsplatz'], 'contenu' => ['en' => 'We are a great team', 'de' => 'Wir sind ein großartiges Team']]],
             ['type' => 'values', 'titre' => 'Nos valeurs', 'contenu' => null, 'data' => ['items' => [
                 ['icon' => 'heart', 'title' => 'Bienveillance', 'desc' => "Nous plaçons l'humain au cœur de nos décisions"],
                 ['icon' => 'rocket', 'title' => 'Innovation', 'desc' => 'Nous repoussons les limites pour créer de la valeur'],
                 ['icon' => 'users', 'title' => 'Collaboration', 'desc' => 'Ensemble, nous allons plus loin'],
                 ['icon' => 'shield', 'title' => 'Intégrité', 'desc' => 'Nous agissons avec transparence et éthique'],
-            ]], 'ordre' => 6],
+            ]], 'ordre' => 6, 'translations' => ['titre' => ['en' => 'Our values', 'de' => 'Unsere Werte']]],
             ['type' => 'video', 'titre' => 'Découvrez Illizeo en vidéo', 'contenu' => 'Dans un monde où la technologie', 'data' => ['videos' => [
                 ['title' => 'Illizeo Animation English Version', 'url' => 'https://www.youtube.com/embed/EXVC94sRWxI', 'youtube_id' => 'EXVC94sRWxI'],
                 ['title' => 'Illizeo Animation - Version française', 'url' => 'https://www.youtube.com/embed/d_1DrYbQHZg', 'youtube_id' => 'd_1DrYbQHZg'],
-            ]], 'ordre' => 7],
+            ]], 'ordre' => 7, 'translations' => ['titre' => ['en' => 'Discover Illizeo in video', 'de' => 'Entdecken Sie Illizeo im Video'], 'contenu' => ['en' => 'In a world where technology', 'de' => 'In einer Welt, in der Technologie']]],
             ['type' => 'team', 'titre' => "L'équipe qui vous accompagne", 'contenu' => null, 'data' => ['members' => [
                 ['name' => 'Amira Laroussi', 'role' => 'Recruteur(se)', 'initials' => 'AL', 'color' => '#C2185B', 'email' => 'amira.laroussi@illizeo.com', 'phone' => '+41 22 700 01 01'],
                 ['name' => 'Julie Perrin', 'role' => 'HRBP', 'initials' => 'JP', 'color' => '#8D6E63', 'email' => 'julie.perrin@illizeo.com', 'phone' => '+41 22 700 01 02'],
                 ['name' => 'Romain Ndiaye', 'role' => 'DSI', 'initials' => 'RN', 'color' => '#1A73E8', 'email' => 'romain.ndiaye@illizeo.com', 'phone' => '+41 22 700 01 03'],
                 ['name' => 'Mehdi Kessler', 'role' => 'Manager', 'initials' => 'MK', 'color' => '#4CAF50', 'email' => 'mehdi.kessler@illizeo.com', 'phone' => '+41 22 700 01 04'],
-            ]], 'ordre' => 8],
+            ]], 'ordre' => 8, 'translations' => ['titre' => ['en' => 'The team supporting you', 'de' => 'Das Team, das Sie begleitet']]],
         ];
 
         foreach ($blocks as $b) {
