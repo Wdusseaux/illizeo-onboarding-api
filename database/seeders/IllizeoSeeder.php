@@ -25,6 +25,7 @@ use App\Models\NotificationConfig;
 use App\Models\Parcours;
 use App\Models\ParcoursCategorie;
 use App\Models\Phase;
+use App\Models\SignatureDocument;
 use App\Models\Workflow;
 use Illuminate\Database\Seeder;
 
@@ -348,6 +349,22 @@ class IllizeoSeeder extends Seeder
 
         foreach ($contratsData as $c) {
             Contrat::create($c);
+        }
+
+        // ── 9b. Documents à signer ──────────────────────────────
+        $signatureDocsData = [
+            ['titre' => 'Règlement intérieur', 'description' => "Le collaborateur doit lire et accepter le règlement intérieur de l'entreprise.", 'type' => 'lecture', 'obligatoire' => true, 'actif' => true],
+            ['titre' => "Charte informatique", 'description' => "Charte d'utilisation des outils informatiques, messagerie et accès réseau.", 'type' => 'signature', 'obligatoire' => true, 'actif' => true],
+            ['titre' => "Droit à l'image", 'description' => "Autorisation d'utilisation de l'image du collaborateur pour la communication interne et externe.", 'type' => 'signature', 'obligatoire' => false, 'actif' => true],
+            ['titre' => 'Accord de confidentialité (NDA)', 'description' => "Engagement de non-divulgation des informations confidentielles de l'entreprise.", 'type' => 'signature', 'obligatoire' => true, 'actif' => true],
+            ['titre' => 'Politique de protection des données (RGPD)', 'description' => "Politique de traitement des données personnelles conformément au RGPD.", 'type' => 'lecture', 'obligatoire' => true, 'actif' => true],
+            ['titre' => 'Charte éthique & RSE', 'description' => "Engagements éthiques, anti-corruption et responsabilité sociétale de l'entreprise.", 'type' => 'lecture', 'obligatoire' => false, 'actif' => true],
+            ['titre' => 'Avenant télétravail', 'description' => "Conditions et modalités du télétravail, jours autorisés et équipement fourni.", 'type' => 'signature', 'obligatoire' => false, 'actif' => true],
+            ['titre' => 'Politique santé & sécurité', 'description' => "Règles de sécurité au travail, procédures d'évacuation et contacts d'urgence.", 'type' => 'lecture', 'obligatoire' => true, 'actif' => true],
+        ];
+
+        foreach ($signatureDocsData as $sd) {
+            SignatureDocument::create($sd);
         }
 
         // ── 10. Workflows ───────────────────────────────────────
