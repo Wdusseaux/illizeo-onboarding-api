@@ -11,11 +11,12 @@ class Phase extends Model
 {
     protected $fillable = [
         'nom', 'delai_debut', 'delai_fin', 'couleur', 'icone',
-        'actions_defaut', 'ordre', 'parcours_id', 'translations',
+        'actions_defaut', 'ordre', 'parcours_id', 'translations', 'active',
     ];
 
     protected $casts = [
         'translations' => 'array',
+        'active' => 'boolean',
     ];
 
     public function parcours(): BelongsToMany

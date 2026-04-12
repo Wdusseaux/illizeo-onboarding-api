@@ -30,6 +30,7 @@ class PhaseController extends Controller
             'icone' => 'nullable|string',
             'actions_defaut' => 'nullable|integer',
             'ordre' => 'nullable|integer',
+            'active' => 'nullable|boolean',
             'parcours_ids' => 'nullable|array',
             'parcours_ids.*' => 'exists:parcours,id',
         ]);
@@ -61,6 +62,7 @@ class PhaseController extends Controller
             'icone' => 'nullable|string',
             'actions_defaut' => 'nullable|integer',
             'ordre' => 'nullable|integer',
+            'active' => 'nullable|boolean',
             'parcours_ids' => 'nullable|array',
             'parcours_ids.*' => 'exists:parcours,id',
         ]);
