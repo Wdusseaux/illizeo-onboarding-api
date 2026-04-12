@@ -456,6 +456,30 @@ class IllizeoSeeder extends Seeder
             ]);
         }
 
+        // Additional categorized notifications
+        $categorizedNotifs = [
+            ['nom' => 'Nouveau message reçu', 'categorie' => 'communication'],
+            ['nom' => 'Document validé', 'categorie' => 'document'],
+            ['nom' => 'Badge obtenu', 'categorie' => 'gamification'],
+            ['nom' => 'Cooptation — Statut mis à jour', 'categorie' => 'cooptation'],
+            ['nom' => 'Parcours terminé', 'categorie' => 'parcours'],
+            ['nom' => 'Signature de contrat requise', 'categorie' => 'signature'],
+            ['nom' => 'Rappel pré-arrivée J-3', 'categorie' => 'onboarding'],
+            ['nom' => 'Feedback buddy / parrain demandé', 'categorie' => 'onboarding'],
+            ['nom' => 'Mobilité interne — Début de parcours', 'categorie' => 'crossboarding'],
+            ['nom' => 'Retour de congé — Parcours initié', 'categorie' => 'reboarding'],
+            ['nom' => 'Résumé hebdomadaire collaborateur', 'categorie' => 'general'],
+            ['nom' => 'NPS — Nouvelle enquête disponible', 'categorie' => 'nps'],
+        ];
+        foreach ($categorizedNotifs as $cn) {
+            NotificationConfig::create([
+                'nom' => $cn['nom'],
+                'canal' => 'email',
+                'actif' => true,
+                'categorie' => $cn['categorie'],
+            ]);
+        }
+
         // Resource notification
         NotificationConfig::create([
             'nom' => 'Événements',
