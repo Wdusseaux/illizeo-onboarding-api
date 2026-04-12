@@ -349,6 +349,8 @@ class DefaultDataSeeder extends Seeder
             ['nom' => 'Récompense cooptation', 'declencheur' => 'Cooptation validée', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => false],
             ['nom' => 'Félicitations anniversaire', 'declencheur' => "Anniversaire d'embauche", 'action' => 'Envoyer un message IllizeoBot', 'destinataire' => 'Collaborateur', 'actif' => true],
             ['nom' => 'Désactivation accès offboarding', 'declencheur' => 'Fin de parcours offboarding', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
+            ['nom' => "Envoi formulaire fin de période d'essai", 'declencheur' => "Période d'essai terminée", 'action' => 'Envoyer formulaire évaluation', 'destinataire' => 'Manager direct', 'actif' => true],
+            ['nom' => 'Envoi entretien de sortie', 'declencheur' => 'Parcours offboarding créé', 'action' => 'Envoyer questionnaire exit interview', 'destinataire' => 'Collaborateur', 'actif' => true],
         ];
 
         foreach ($workflowsData as $w) {
@@ -365,6 +367,8 @@ class DefaultDataSeeder extends Seeder
             ['nom' => 'Confirmation dossier complet', 'sujet' => 'Ton dossier est complet !', 'declencheur' => 'Tous documents validés', 'variables' => ['{{prenom}}', '{{date_debut}}'], 'actif' => true],
             ['nom' => 'Bienvenue premier jour', 'sujet' => 'C\'est le grand jour {{prenom}} !', 'declencheur' => 'J+0', 'variables' => ['{{prenom}}', '{{site}}', '{{adresse}}', '{{manager}}'], 'actif' => false],
             ['nom' => 'Fin de parcours', 'sujet' => 'Félicitations – Parcours terminé', 'declencheur' => 'Parcours complété à 100%', 'variables' => ['{{prenom}}', '{{parcours_nom}}'], 'actif' => true],
+            ['nom' => "Évaluation fin de période d'essai", 'sujet' => "Évaluation de fin de période d'essai — {{collab_nom}}", 'declencheur' => 'Parcours complété à 100%', 'variables' => ['{{manager}}', '{{collab_nom}}', '{{date_fin_essai}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{manager}},</h2><p>La période d'essai de <strong>{{collab_nom}}</strong> arrive à son terme le <strong>{{date_fin_essai}}</strong>.</p><p>Merci de compléter le formulaire d'évaluation afin de confirmer ou non la poursuite du contrat.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Compléter l'évaluation</a></p>"],
+            ['nom' => 'Entretien de sortie (Exit Interview)', 'sujet' => 'Votre avis compte — Entretien de sortie', 'declencheur' => 'Création du parcours', 'variables' => ['{{prenom}}', '{{date_depart}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Votre départ est prévu le <strong>{{date_depart}}</strong>. Nous aimerions recueillir votre retour d'expérience.</p><p>Ce questionnaire est confidentiel et prend environ 5 minutes.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Répondre au questionnaire</a></p>"],
         ];
 
         foreach ($emailTemplatesData as $et) {
@@ -736,6 +740,59 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Vous sentez-vous bien accompagné(e) par votre manager ? (1-5)", 'type' => 'rating'],
                     ['text' => "Les outils et ressources mis à disposition sont-ils suffisants ? (1-5)", 'type' => 'rating'],
                     ['text' => "Avez-vous des suggestions pour améliorer l'accueil des nouveaux arrivants ?", 'type' => 'text'],
+                ],
+            ],
+        ];
+
+            [
+                'titre' => "Évaluation fin de période d'essai",
+                'description' => "Formulaire d'évaluation rempli par le manager à la fin de la période d'essai du collaborateur.",
+                'type' => 'custom',
+                'declencheur' => 'manuel',
+                'actif' => true,
+                'questions' => [
+                    ['text' => "Maîtrise des compétences techniques requises pour le poste", 'type' => 'rating'],
+                    ['text' => "Capacité d'adaptation et d'apprentissage", 'type' => 'rating'],
+                    ['text' => "Qualité du travail et respect des délais", 'type' => 'rating'],
+                    ['text' => "Intégration dans l'équipe et collaboration", 'type' => 'rating'],
+                    ['text' => "Autonomie et prise d'initiative", 'type' => 'rating'],
+                    ['text' => "Respect des valeurs et de la culture d'entreprise", 'type' => 'rating'],
+                    ['text' => "Communication et relationnel", 'type' => 'rating'],
+                    ['text' => "Assiduité et ponctualité", 'type' => 'rating'],
+                    ['text' => "Recommandation", 'type' => 'choice', 'options' => ['Confirmation en CDI', 'Renouvellement période d\'essai', 'Non-renouvellement']],
+                    ['text' => "Points forts observés durant la période d'essai", 'type' => 'text'],
+                    ['text' => "Axes d'amélioration identifiés", 'type' => 'text'],
+                    ['text' => "Objectifs fixés pour les 6 prochains mois", 'type' => 'text'],
+                    ['text' => "Commentaire libre du manager", 'type' => 'text'],
+                ],
+                'translations' => [
+                    'titre' => ['en' => 'Probation Period Evaluation', 'de' => 'Bewertung der Probezeit', 'it' => 'Valutazione del periodo di prova', 'es' => 'Evaluación del período de prueba'],
+                    'description' => ['en' => 'Evaluation form filled by the manager at the end of the probation period.', 'de' => 'Bewertungsbogen des Managers am Ende der Probezeit.', 'it' => "Modulo di valutazione compilato dal manager alla fine del periodo di prova.", 'es' => 'Formulario de evaluación completado por el manager al final del período de prueba.'],
+                ],
+            ],
+            [
+                'titre' => "Entretien de fin de contrat (Exit Interview)",
+                'description' => "Questionnaire de sortie pour recueillir le feedback du collaborateur qui quitte l'entreprise.",
+                'type' => 'custom',
+                'declencheur' => 'manuel',
+                'actif' => true,
+                'questions' => [
+                    ['text' => "Comment évaluez-vous votre expérience globale dans l'entreprise ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous la relation avec votre manager direct ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous l'ambiance et la culture d'entreprise ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous les opportunités de développement professionnel ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous l'équilibre vie professionnelle / vie personnelle ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous la rémunération et les avantages ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Raison principale du départ", 'type' => 'choice', 'options' => ['Nouvelle opportunité professionnelle', 'Rémunération', 'Évolution de carrière limitée', 'Management', 'Conditions de travail', 'Déménagement / raisons personnelles', 'Fin de contrat / mission', 'Autre']],
+                    ['text' => "Recommanderiez-vous cette entreprise comme employeur ? (0-10)", 'type' => 'nps'],
+                    ['text' => "Qu'avez-vous le plus apprécié durant votre passage dans l'entreprise ?", 'type' => 'text'],
+                    ['text' => "Qu'est-ce qui aurait pu vous retenir ?", 'type' => 'text'],
+                    ['text' => "Quelles suggestions feriez-vous pour améliorer l'expérience des collaborateurs ?", 'type' => 'text'],
+                    ['text' => "Seriez-vous ouvert(e) à une future collaboration avec l'entreprise ?", 'type' => 'choice', 'options' => ['Oui, certainement', 'Peut-être', 'Non']],
+                ],
+                'translations' => [
+                    'titre' => ['en' => 'Exit Interview', 'de' => 'Austrittsgespräch', 'it' => 'Colloquio di uscita', 'es' => 'Entrevista de salida'],
+                    'description' => ['en' => 'Exit questionnaire to gather feedback from departing employees.', 'de' => 'Fragebogen beim Austritt zur Sammlung von Feedback.', 'it' => "Questionario di uscita per raccogliere il feedback del collaboratore.", 'es' => 'Cuestionario de salida para recoger el feedback del empleado.'],
                 ],
             ],
         ];
