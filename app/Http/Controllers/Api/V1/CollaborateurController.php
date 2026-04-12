@@ -111,4 +111,13 @@ class CollaborateurController extends Controller
         $collaborateur->delete();
         return response()->json(null, 204);
     }
+
+    /**
+     * Purge demo/seed data: delete all collaborateurs with @illizeo.com emails.
+     */
+    public function purgeDemo(): JsonResponse
+    {
+        $deleted = Collaborateur::where('email', 'like', '%@illizeo.com')->delete();
+        return response()->json(['deleted' => $deleted]);
+    }
 }

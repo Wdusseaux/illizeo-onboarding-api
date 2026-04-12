@@ -119,6 +119,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::put('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs.edit');
         Route::patch('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs.edit');
         Route::delete('collaborateurs/{collaborateur}', [CollaborateurController::class, 'destroy'])->middleware('permission:collaborateurs.delete');
+        Route::post('collaborateurs/purge-demo', [CollaborateurController::class, 'purgeDemo'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Parcours ────────────────────────────────────────
         Route::get('parcours', [ParcoursController::class, 'index'])->middleware('permission:parcours.view');
