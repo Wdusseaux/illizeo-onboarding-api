@@ -742,8 +742,6 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Avez-vous des suggestions pour améliorer l'accueil des nouveaux arrivants ?", 'type' => 'text'],
                 ],
             ],
-        ];
-
             [
                 'titre' => "Évaluation fin de période d'essai",
                 'description' => "Formulaire d'évaluation rempli par le manager à la fin de la période d'essai du collaborateur.",
@@ -765,10 +763,6 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Objectifs fixés pour les 6 prochains mois", 'type' => 'text'],
                     ['text' => "Commentaire libre du manager", 'type' => 'text'],
                 ],
-                'translations' => [
-                    'titre' => ['en' => 'Probation Period Evaluation', 'de' => 'Bewertung der Probezeit', 'it' => 'Valutazione del periodo di prova', 'es' => 'Evaluación del período de prueba'],
-                    'description' => ['en' => 'Evaluation form filled by the manager at the end of the probation period.', 'de' => 'Bewertungsbogen des Managers am Ende der Probezeit.', 'it' => "Modulo di valutazione compilato dal manager alla fine del periodo di prova.", 'es' => 'Formulario de evaluación completado por el manager al final del período de prueba.'],
-                ],
             ],
             [
                 'titre' => "Entretien de fin de contrat (Exit Interview)",
@@ -777,22 +771,18 @@ class DefaultDataSeeder extends Seeder
                 'declencheur' => 'manuel',
                 'actif' => true,
                 'questions' => [
-                    ['text' => "Comment évaluez-vous votre expérience globale dans l'entreprise ? (1-5)", 'type' => 'rating'],
-                    ['text' => "Comment évaluez-vous la relation avec votre manager direct ? (1-5)", 'type' => 'rating'],
-                    ['text' => "Comment évaluez-vous l'ambiance et la culture d'entreprise ? (1-5)", 'type' => 'rating'],
-                    ['text' => "Comment évaluez-vous les opportunités de développement professionnel ? (1-5)", 'type' => 'rating'],
-                    ['text' => "Comment évaluez-vous l'équilibre vie professionnelle / vie personnelle ? (1-5)", 'type' => 'rating'],
-                    ['text' => "Comment évaluez-vous la rémunération et les avantages ? (1-5)", 'type' => 'rating'],
-                    ['text' => "Raison principale du départ", 'type' => 'choice', 'options' => ['Nouvelle opportunité professionnelle', 'Rémunération', 'Évolution de carrière limitée', 'Management', 'Conditions de travail', 'Déménagement / raisons personnelles', 'Fin de contrat / mission', 'Autre']],
+                    ['text' => "Comment evaluez-vous votre experience globale dans l'entreprise ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment evaluez-vous la relation avec votre manager direct ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment evaluez-vous l'ambiance et la culture d'entreprise ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment evaluez-vous les opportunites de developpement professionnel ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment evaluez-vous l'equilibre vie professionnelle / vie personnelle ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment evaluez-vous la remuneration et les avantages ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Raison principale du depart", 'type' => 'choice', 'options' => ['Nouvelle opportunite professionnelle', 'Remuneration', 'Evolution de carriere limitee', 'Management', 'Conditions de travail', 'Demenagement / raisons personnelles', 'Fin de contrat / mission', 'Autre']],
                     ['text' => "Recommanderiez-vous cette entreprise comme employeur ? (0-10)", 'type' => 'nps'],
-                    ['text' => "Qu'avez-vous le plus apprécié durant votre passage dans l'entreprise ?", 'type' => 'text'],
+                    ['text' => "Qu'avez-vous le plus apprecie durant votre passage dans l'entreprise ?", 'type' => 'text'],
                     ['text' => "Qu'est-ce qui aurait pu vous retenir ?", 'type' => 'text'],
-                    ['text' => "Quelles suggestions feriez-vous pour améliorer l'expérience des collaborateurs ?", 'type' => 'text'],
-                    ['text' => "Seriez-vous ouvert(e) à une future collaboration avec l'entreprise ?", 'type' => 'choice', 'options' => ['Oui, certainement', 'Peut-être', 'Non']],
-                ],
-                'translations' => [
-                    'titre' => ['en' => 'Exit Interview', 'de' => 'Austrittsgespräch', 'it' => 'Colloquio di uscita', 'es' => 'Entrevista de salida'],
-                    'description' => ['en' => 'Exit questionnaire to gather feedback from departing employees.', 'de' => 'Fragebogen beim Austritt zur Sammlung von Feedback.', 'it' => "Questionario di uscita per raccogliere il feedback del collaboratore.", 'es' => 'Cuestionario de salida para recoger el feedback del empleado.'],
+                    ['text' => "Quelles suggestions feriez-vous pour ameliorer l'experience des collaborateurs ?", 'type' => 'text'],
+                    ['text' => "Seriez-vous ouvert(e) a une future collaboration avec l'entreprise ?", 'type' => 'choice', 'options' => ['Oui, certainement', 'Peut-etre', 'Non']],
                 ],
             ],
         ];
