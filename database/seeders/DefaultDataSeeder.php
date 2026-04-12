@@ -759,7 +759,7 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Respect des valeurs et de la culture d'entreprise", 'type' => 'rating'],
                     ['text' => "Communication et relationnel", 'type' => 'rating'],
                     ['text' => "Assiduité et ponctualité", 'type' => 'rating'],
-                    ['text' => "Recommandation", 'type' => 'choice', 'options' => ['Confirmation en CDI', 'Renouvellement période d\'essai', 'Non-renouvellement']],
+                    ['text' => "Recommandation", 'type' => 'choice', 'options' => ['Confirmation en CDI', "Renouvellement période d'essai", 'Non-renouvellement']],
                     ['text' => "Points forts observés durant la période d'essai", 'type' => 'text'],
                     ['text' => "Axes d'amélioration identifiés", 'type' => 'text'],
                     ['text' => "Objectifs fixés pour les 6 prochains mois", 'type' => 'text'],
