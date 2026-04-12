@@ -607,6 +607,98 @@ class DefaultDataSeeder extends Seeder
             if ($vpnType) $pkgMgr->items()->create(['equipment_type_id' => $vpnType->id, 'quantite' => 1]);
         }
 
+        // ── 18c. Inventaire équipements par défaut ─────────────
+        if (\App\Models\Equipment::count() === 0) {
+            $types = \App\Models\EquipmentType::all()->keyBy('nom');
+            $collabs = \App\Models\Collaborateur::take(5)->get();
+
+            $inventory = [
+                // Ordinateurs portables
+                ['type' => 'Ordinateur portable', 'nom' => 'MacBook Pro 14" M3', 'marque' => 'Apple', 'modele' => 'MacBook Pro 14 2024', 'numero_serie' => 'C02ZN1KDLVCG', 'etat' => 'attribue', 'valeur' => 2499.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Ordinateur portable', 'nom' => 'MacBook Pro 14" M3', 'marque' => 'Apple', 'modele' => 'MacBook Pro 14 2024', 'numero_serie' => 'C02ZN1KDLVCH', 'etat' => 'attribue', 'valeur' => 2499.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Ordinateur portable', 'nom' => 'ThinkPad X1 Carbon G11', 'marque' => 'Lenovo', 'modele' => 'X1 Carbon Gen 11', 'numero_serie' => 'PF3XYRG2', 'etat' => 'disponible', 'valeur' => 1899.00, 'date_achat' => '2024-06-10'],
+                ['type' => 'Ordinateur portable', 'nom' => 'ThinkPad X1 Carbon G11', 'marque' => 'Lenovo', 'modele' => 'X1 Carbon Gen 11', 'numero_serie' => 'PF3XYRG3', 'etat' => 'disponible', 'valeur' => 1899.00, 'date_achat' => '2024-06-10'],
+                ['type' => 'Ordinateur portable', 'nom' => 'Dell Latitude 5540', 'marque' => 'Dell', 'modele' => 'Latitude 5540', 'numero_serie' => 'DL5540-2024-001', 'etat' => 'en_reparation', 'valeur' => 1299.00, 'date_achat' => '2024-01-20', 'notes' => 'Batterie à remplacer'],
+                ['type' => 'Ordinateur portable', 'nom' => 'MacBook Air M2', 'marque' => 'Apple', 'modele' => 'MacBook Air 13 2023', 'numero_serie' => 'C02YM3KDLVCF', 'etat' => 'attribue', 'valeur' => 1499.00, 'date_achat' => '2023-09-01'],
+
+                // Écrans
+                ['type' => 'Écran', 'nom' => 'Dell UltraSharp 27" 4K', 'marque' => 'Dell', 'modele' => 'U2723QE', 'numero_serie' => 'DU27-2024-001', 'etat' => 'attribue', 'valeur' => 549.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Écran', 'nom' => 'Dell UltraSharp 27" 4K', 'marque' => 'Dell', 'modele' => 'U2723QE', 'numero_serie' => 'DU27-2024-002', 'etat' => 'attribue', 'valeur' => 549.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Écran', 'nom' => 'Dell UltraSharp 27" 4K', 'marque' => 'Dell', 'modele' => 'U2723QE', 'numero_serie' => 'DU27-2024-003', 'etat' => 'disponible', 'valeur' => 549.00, 'date_achat' => '2024-06-10'],
+                ['type' => 'Écran', 'nom' => 'LG 34" UltraWide', 'marque' => 'LG', 'modele' => '34WN80C-B', 'numero_serie' => 'LG34-2024-001', 'etat' => 'attribue', 'valeur' => 699.00, 'date_achat' => '2024-02-20'],
+                ['type' => 'Écran', 'nom' => 'Samsung 24" FHD', 'marque' => 'Samsung', 'modele' => 'S24A600', 'numero_serie' => 'SS24-2024-001', 'etat' => 'disponible', 'valeur' => 289.00, 'date_achat' => '2024-04-01'],
+
+                // Téléphones
+                ['type' => 'Téléphone', 'nom' => 'iPhone 15 Pro', 'marque' => 'Apple', 'modele' => 'iPhone 15 Pro 256GB', 'numero_serie' => 'DNQXR3N0GR', 'etat' => 'attribue', 'valeur' => 1329.00, 'date_achat' => '2024-01-10'],
+                ['type' => 'Téléphone', 'nom' => 'Samsung Galaxy S24', 'marque' => 'Samsung', 'modele' => 'Galaxy S24 128GB', 'numero_serie' => 'R5CW30BN7MJ', 'etat' => 'disponible', 'valeur' => 899.00, 'date_achat' => '2024-05-15'],
+
+                // Casques
+                ['type' => 'Casque / Audio', 'nom' => 'Jabra Evolve2 75', 'marque' => 'Jabra', 'modele' => 'Evolve2 75 UC', 'numero_serie' => 'JAB-EV2-001', 'etat' => 'attribue', 'valeur' => 299.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Casque / Audio', 'nom' => 'Jabra Evolve2 75', 'marque' => 'Jabra', 'modele' => 'Evolve2 75 UC', 'numero_serie' => 'JAB-EV2-002', 'etat' => 'attribue', 'valeur' => 299.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Casque / Audio', 'nom' => 'Poly Voyager Focus 2', 'marque' => 'Poly', 'modele' => 'Voyager Focus 2 UC', 'numero_serie' => 'PLY-VF2-001', 'etat' => 'disponible', 'valeur' => 249.00, 'date_achat' => '2024-06-10'],
+
+                // Claviers / Souris
+                ['type' => 'Clavier / Souris', 'nom' => 'Logitech MX Keys + MX Master 3S', 'marque' => 'Logitech', 'modele' => 'MX Keys Combo', 'numero_serie' => 'LGT-MX-001', 'etat' => 'attribue', 'valeur' => 199.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Clavier / Souris', 'nom' => 'Logitech MX Keys + MX Master 3S', 'marque' => 'Logitech', 'modele' => 'MX Keys Combo', 'numero_serie' => 'LGT-MX-002', 'etat' => 'attribue', 'valeur' => 199.00, 'date_achat' => '2024-03-15'],
+                ['type' => 'Clavier / Souris', 'nom' => 'Apple Magic Keyboard + Trackpad', 'marque' => 'Apple', 'modele' => 'Magic Keyboard FR', 'numero_serie' => 'APL-MK-001', 'etat' => 'disponible', 'valeur' => 249.00, 'date_achat' => '2024-06-10'],
+
+                // Badges
+                ['type' => 'Badge / Clé', 'nom' => 'Badge accès siège', 'marque' => 'HID', 'modele' => 'iCLASS SE', 'numero_serie' => 'BDG-001', 'etat' => 'attribue', 'valeur' => 15.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Badge / Clé', 'nom' => 'Badge accès siège', 'marque' => 'HID', 'modele' => 'iCLASS SE', 'numero_serie' => 'BDG-002', 'etat' => 'attribue', 'valeur' => 15.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Badge / Clé', 'nom' => 'Badge accès siège', 'marque' => 'HID', 'modele' => 'iCLASS SE', 'numero_serie' => 'BDG-003', 'etat' => 'disponible', 'valeur' => 15.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Badge / Clé', 'nom' => 'Clé bureau B204', 'marque' => null, 'modele' => null, 'numero_serie' => 'KEY-B204-001', 'etat' => 'attribue', 'valeur' => 5.00, 'date_achat' => '2024-01-01'],
+
+                // Mobilier
+                ['type' => 'Mobilier', 'nom' => 'Bureau assis-debout', 'marque' => 'FlexiSpot', 'modele' => 'E7 Pro', 'numero_serie' => 'FSP-E7-001', 'etat' => 'attribue', 'valeur' => 599.00, 'date_achat' => '2024-02-01'],
+                ['type' => 'Mobilier', 'nom' => 'Chaise ergonomique', 'marque' => 'Herman Miller', 'modele' => 'Aeron Remastered', 'numero_serie' => 'HM-AER-001', 'etat' => 'attribue', 'valeur' => 1490.00, 'date_achat' => '2024-02-01'],
+                ['type' => 'Mobilier', 'nom' => 'Chaise ergonomique', 'marque' => 'Steelcase', 'modele' => 'Leap V2', 'numero_serie' => 'SC-LEAP-001', 'etat' => 'disponible', 'valeur' => 1199.00, 'date_achat' => '2024-04-15'],
+
+                // Licences
+                ['type' => 'Microsoft 365', 'nom' => 'Microsoft 365 Business Premium', 'marque' => 'Microsoft', 'modele' => 'Business Premium', 'numero_serie' => 'M365-BP-001', 'etat' => 'attribue', 'valeur' => 264.00, 'date_achat' => '2024-01-01', 'notes' => 'Abonnement annuel'],
+                ['type' => 'Microsoft 365', 'nom' => 'Microsoft 365 Business Premium', 'marque' => 'Microsoft', 'modele' => 'Business Premium', 'numero_serie' => 'M365-BP-002', 'etat' => 'attribue', 'valeur' => 264.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Microsoft 365', 'nom' => 'Microsoft 365 Business Premium', 'marque' => 'Microsoft', 'modele' => 'Business Premium', 'numero_serie' => 'M365-BP-003', 'etat' => 'disponible', 'valeur' => 264.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Slack', 'nom' => 'Slack Business+', 'marque' => 'Slack', 'modele' => 'Business+', 'numero_serie' => 'SLK-BP-001', 'etat' => 'attribue', 'valeur' => 150.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Slack', 'nom' => 'Slack Business+', 'marque' => 'Slack', 'modele' => 'Business+', 'numero_serie' => 'SLK-BP-002', 'etat' => 'attribue', 'valeur' => 150.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'GitHub / GitLab', 'nom' => 'GitHub Enterprise', 'marque' => 'GitHub', 'modele' => 'Enterprise Cloud', 'numero_serie' => 'GH-ENT-001', 'etat' => 'attribue', 'valeur' => 252.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'VPN', 'nom' => 'NordVPN Teams', 'marque' => 'NordVPN', 'modele' => 'Teams', 'numero_serie' => 'NVP-T-001', 'etat' => 'attribue', 'valeur' => 84.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'VPN', 'nom' => 'NordVPN Teams', 'marque' => 'NordVPN', 'modele' => 'Teams', 'numero_serie' => 'NVP-T-002', 'etat' => 'disponible', 'valeur' => 84.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'Jira / Confluence', 'nom' => 'Atlassian Cloud Premium', 'marque' => 'Atlassian', 'modele' => 'Cloud Premium', 'numero_serie' => 'ATL-CP-001', 'etat' => 'attribue', 'valeur' => 180.00, 'date_achat' => '2024-01-01'],
+                ['type' => 'ERP / CRM', 'nom' => 'HubSpot Sales Pro', 'marque' => 'HubSpot', 'modele' => 'Sales Hub Pro', 'numero_serie' => 'HS-SP-001', 'etat' => 'attribue', 'valeur' => 540.00, 'date_achat' => '2024-01-01'],
+
+                // Véhicule
+                ['type' => 'Véhicule', 'nom' => 'Tesla Model 3', 'marque' => 'Tesla', 'modele' => 'Model 3 Long Range 2024', 'numero_serie' => '5YJ3E1EA8RF', 'etat' => 'attribue', 'valeur' => 42990.00, 'date_achat' => '2024-04-01'],
+
+                // Retiré
+                ['type' => 'Ordinateur portable', 'nom' => 'MacBook Pro 13" 2019', 'marque' => 'Apple', 'modele' => 'MacBook Pro 13 2019', 'numero_serie' => 'C02YK1KDLVCA', 'etat' => 'retire', 'valeur' => 1799.00, 'date_achat' => '2019-11-15', 'notes' => 'Hors garantie, remplacé'],
+            ];
+
+            $assignIdx = 0;
+            foreach ($inventory as $item) {
+                $typeModel = $types->get($item['type']);
+                if (!$typeModel) continue;
+                $equip = \App\Models\Equipment::create([
+                    'equipment_type_id' => $typeModel->id,
+                    'nom' => $item['nom'],
+                    'marque' => $item['marque'] ?? null,
+                    'modele' => $item['modele'] ?? null,
+                    'numero_serie' => $item['numero_serie'] ?? null,
+                    'etat' => $item['etat'],
+                    'valeur' => $item['valeur'] ?? null,
+                    'date_achat' => $item['date_achat'] ?? null,
+                    'notes' => $item['notes'] ?? null,
+                ]);
+                // Assign some to collaborateurs
+                if ($item['etat'] === 'attribue' && $collabs->count() > 0) {
+                    $collab = $collabs[$assignIdx % $collabs->count()];
+                    $equip->update([
+                        'collaborateur_id' => $collab->id,
+                        'assigned_at' => now()->subDays(rand(10, 120)),
+                    ]);
+                    $assignIdx++;
+                }
+            }
+        }
+
         // ── 19. Signature Documents par défaut ─────────────────
         $signDocs = [
             ['titre' => 'Règlement intérieur', 'description' => 'Le collaborateur doit lire et accepter le règlement intérieur de l\'entreprise.', 'type' => 'lecture', 'obligatoire' => true],
