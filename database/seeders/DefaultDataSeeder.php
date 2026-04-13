@@ -728,6 +728,15 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Comment évaluez-vous l'accompagnement de votre manager ? (1-5)", 'type' => 'rating'],
                     ['text' => "Qu'est-ce qui pourrait être amélioré dans votre intégration ?", 'type' => 'text'],
                 ],
+                'translations' => [
+                    'titre' => ['en' => 'NPS Onboarding'],
+                    'description' => ['en' => 'NPS survey sent at the end of the onboarding process to measure overall satisfaction.'],
+                    'questions' => ['en' => [
+                        ['text' => 'On a scale of 0 to 10, would you recommend our onboarding process to a colleague?'],
+                        ['text' => "How would you rate your manager's support? (1-5)"],
+                        ['text' => 'What could be improved in your onboarding experience?'],
+                    ]],
+                ],
             ],
             [
                 'titre' => 'Satisfaction 3 mois',
@@ -740,6 +749,16 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Vous sentez-vous bien accompagné(e) par votre manager ? (1-5)", 'type' => 'rating'],
                     ['text' => "Les outils et ressources mis à disposition sont-ils suffisants ? (1-5)", 'type' => 'rating'],
                     ['text' => "Avez-vous des suggestions pour améliorer l'accueil des nouveaux arrivants ?", 'type' => 'text'],
+                ],
+                'translations' => [
+                    'titre' => ['en' => '3-Month Satisfaction'],
+                    'description' => ['en' => "Satisfaction survey sent 3 months after the employee's arrival."],
+                    'questions' => ['en' => [
+                        ['text' => 'How would you rate your overall integration? (1-5)'],
+                        ['text' => 'Do you feel well supported by your manager? (1-5)'],
+                        ['text' => 'Are the tools and resources provided sufficient? (1-5)'],
+                        ['text' => 'Do you have any suggestions to improve the onboarding experience for new employees?'],
+                    ]],
                 ],
             ],
             [
@@ -763,6 +782,25 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Objectifs fixés pour les 6 prochains mois", 'type' => 'text'],
                     ['text' => "Commentaire libre du manager", 'type' => 'text'],
                 ],
+                'translations' => [
+                    'titre' => ['en' => 'Probation Period Evaluation'],
+                    'description' => ['en' => 'Evaluation form filled by the manager at the end of the probation period.'],
+                    'questions' => ['en' => [
+                        ['text' => 'Mastery of technical skills required for the position'],
+                        ['text' => 'Adaptability and learning ability'],
+                        ['text' => 'Quality of work and meeting deadlines'],
+                        ['text' => 'Team integration and collaboration'],
+                        ['text' => 'Autonomy and initiative'],
+                        ['text' => 'Respect for company values and culture'],
+                        ['text' => 'Communication and interpersonal skills'],
+                        ['text' => 'Attendance and punctuality'],
+                        ['text' => 'Recommendation', 'options' => ['Confirm permanent contract', 'Extend probation period', 'Do not renew']],
+                        ['text' => 'Strengths observed during the probation period'],
+                        ['text' => 'Areas for improvement identified'],
+                        ['text' => 'Objectives set for the next 6 months'],
+                        ['text' => "Manager's comments"],
+                    ]],
+                ],
             ],
             [
                 'titre' => "Entretien de fin de contrat (Exit Interview)",
@@ -784,11 +822,29 @@ class DefaultDataSeeder extends Seeder
                     ['text' => "Quelles suggestions feriez-vous pour ameliorer l'experience des collaborateurs ?", 'type' => 'text'],
                     ['text' => "Seriez-vous ouvert(e) a une future collaboration avec l'entreprise ?", 'type' => 'choice', 'options' => ['Oui, certainement', 'Peut-etre', 'Non']],
                 ],
+                'translations' => [
+                    'titre' => ['en' => 'Exit Interview'],
+                    'description' => ['en' => 'Exit questionnaire to gather feedback from departing employees.'],
+                    'questions' => ['en' => [
+                        ['text' => 'How would you rate your overall experience at the company? (1-5)'],
+                        ['text' => 'How would you rate the relationship with your direct manager? (1-5)'],
+                        ['text' => 'How would you rate the company culture and atmosphere? (1-5)'],
+                        ['text' => 'How would you rate professional development opportunities? (1-5)'],
+                        ['text' => 'How would you rate the work-life balance? (1-5)'],
+                        ['text' => 'How would you rate compensation and benefits? (1-5)'],
+                        ['text' => 'Main reason for leaving', 'options' => ['New career opportunity', 'Compensation', 'Limited career growth', 'Management', 'Working conditions', 'Relocation / personal reasons', 'End of contract / mission', 'Other']],
+                        ['text' => 'Would you recommend this company as an employer? (0-10)'],
+                        ['text' => 'What did you appreciate most during your time at the company?'],
+                        ['text' => 'What could have made you stay?'],
+                        ['text' => "What suggestions would you make to improve the employee experience?"],
+                        ['text' => 'Would you be open to future collaboration with the company?', 'options' => ['Yes, definitely', 'Maybe', 'No']],
+                    ]],
+                ],
             ],
         ];
 
         foreach ($surveys as $s) {
-            \App\Models\NpsSurvey::firstOrCreate(['titre' => $s['titre']], $s);
+            \App\Models\NpsSurvey::updateOrCreate(['titre' => $s['titre']], $s);
         }
     }
 }
