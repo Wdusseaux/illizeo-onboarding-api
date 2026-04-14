@@ -18,6 +18,10 @@ class Role extends Model
         'is_default',
         'scope_type',
         'scope_values',
+        'scope_groups',
+        'exclude_self',
+        'exclusion_groups',
+        'security_2fa',
         'temporary',
         'expires_at',
         'permissions',
@@ -34,6 +38,9 @@ class Role extends Model
             'actif' => 'boolean',
             'permissions' => 'array',
             'scope_values' => 'array',
+            'scope_groups' => 'array',
+            'exclude_self' => 'boolean',
+            'exclusion_groups' => 'array',
             'expires_at' => 'datetime',
         ];
     }
