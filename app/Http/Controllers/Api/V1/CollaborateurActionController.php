@@ -210,4 +210,24 @@ class CollaborateurActionController extends Controller
 
         return response()->json($collaborateurAction->fresh());
     }
+
+    /**
+     * Reactivate my action (employee marks as not done)
+     */
+    public function reactivateMyAction(Request $request, CollaborateurAction $collaborateurAction): JsonResponse
+    {
+        $user = $request->user();
+        $collab = Collaborateur::where('user_id', $user->id)->first();
+
+        if (!$collab || $collaborateurAction->collaborateur_id !== $collab->id) {
+            return response()->json(['error' => 'Non autorisé'], 403);
+        }
+
+        $collaborateurAction->update([
+            'status' => 'a_faire',
+            'completed_at' => null,
+        ]);
+
+        return response()->json($collaborateurAction->fresh());
+    }
 }

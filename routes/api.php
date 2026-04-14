@@ -104,7 +104,19 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             if ($collab->parcours_id) {
                 $data['parcours_phases'] = \App\Models\Phase::whereHas('parcours', fn($q) => $q->where('parcours.id', $collab->parcours_id))
                     ->orderBy('ordre')->get();
-                $data['parcours_actions'] = \App\Models\Action::where('parcours_id', $collab->parcours_id)->get();
+                $actions = \App\Models\Action::where('parcours_id', $collab->parcours_id)->get();
+                // Enrich actions with assignment data (assignment_id, status, completed_at)
+                $assignments = \App\Models\CollaborateurAction::where('collaborateur_id', $collab->id)
+                    ->get()
+                    ->keyBy('action_id');
+                $data['parcours_actions'] = $actions->map(function ($action) use ($assignments) {
+                    $a = $action->toArray();
+                    $assignment = $assignments->get($action->id);
+                    $a['assignment_id'] = $assignment?->id;
+                    $a['assignment_status'] = $assignment?->status ?? 'a_faire';
+                    $a['completed_at'] = $assignment?->completed_at;
+                    return $a;
+                });
             }
             return response()->json($data);
         });
@@ -297,6 +309,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::delete('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'unassign'])->middleware('permission:parcours,edit');
         Route::get('my-actions', [CollaborateurActionController::class, 'myActions']);
         Route::post('my-actions/{collaborateurAction}/complete', [CollaborateurActionController::class, 'completeMyAction']);
+        Route::post('my-actions/{collaborateurAction}/reactivate', [CollaborateurActionController::class, 'reactivateMyAction']);
 
         // Company settings (appearance)
         Route::get('company-settings', [CompanySettingController::class, 'index']);
