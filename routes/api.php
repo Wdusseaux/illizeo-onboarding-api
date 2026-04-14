@@ -87,6 +87,15 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/logout', [AuthController::class, 'logout']);
 
+        // Current user permissions
+        Route::get('me/permissions', function (\Illuminate\Http\Request $request) {
+            return response()->json([
+                'permissions' => $request->user()->getEffectivePermissions(),
+                'roles' => $request->user()->customRoles()->where('actif', true)->pluck('slug'),
+                'is_super_admin' => $request->user()->customRoles()->where('slug', 'super_admin')->exists() || $request->user()->hasRole('super_admin'),
+            ]);
+        });
+
         // ── Super Admin (operates on central DB, auth via tenant token) ──
         Route::prefix('super-admin')->group(function () {
             Route::get('dashboard', [SuperAdminController::class, 'dashboard']);
@@ -114,133 +123,133 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('2fa/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes']);
 
         // ── Collaborateurs ──────────────────────────────────
-        Route::get('collaborateurs', [CollaborateurController::class, 'index'])->middleware('permission:collaborateurs.view');
-        Route::post('collaborateurs', [CollaborateurController::class, 'store'])->middleware('permission:collaborateurs.create');
-        Route::get('collaborateurs/{collaborateur}', [CollaborateurController::class, 'show'])->middleware('permission:collaborateurs.view');
-        Route::put('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs.edit');
-        Route::patch('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs.edit');
-        Route::delete('collaborateurs/{collaborateur}', [CollaborateurController::class, 'destroy'])->middleware('permission:collaborateurs.delete');
+        Route::get('collaborateurs', [CollaborateurController::class, 'index'])->middleware('permission:collaborateurs,view');
+        Route::post('collaborateurs', [CollaborateurController::class, 'store'])->middleware('permission:collaborateurs,edit');
+        Route::get('collaborateurs/{collaborateur}', [CollaborateurController::class, 'show'])->middleware('permission:collaborateurs,view');
+        Route::put('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs,edit');
+        Route::patch('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs,edit');
+        Route::delete('collaborateurs/{collaborateur}', [CollaborateurController::class, 'destroy'])->middleware('permission:collaborateurs,edit');
         Route::post('collaborateurs/purge-demo', [CollaborateurController::class, 'purgeDemo'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Parcours ────────────────────────────────────────
-        Route::get('parcours', [ParcoursController::class, 'index'])->middleware('permission:parcours.view');
-        Route::post('parcours', [ParcoursController::class, 'store'])->middleware('permission:parcours.create');
-        Route::get('parcours/{parcour}', [ParcoursController::class, 'show'])->middleware('permission:parcours.view');
-        Route::put('parcours/{parcour}', [ParcoursController::class, 'update'])->middleware('permission:parcours.edit');
-        Route::patch('parcours/{parcour}', [ParcoursController::class, 'update'])->middleware('permission:parcours.edit');
-        Route::delete('parcours/{parcour}', [ParcoursController::class, 'destroy'])->middleware('permission:parcours.delete');
-        Route::post('parcours/{parcour}/duplicate', [ParcoursController::class, 'duplicate'])->middleware('permission:parcours.create');
+        Route::get('parcours', [ParcoursController::class, 'index'])->middleware('permission:parcours,view');
+        Route::post('parcours', [ParcoursController::class, 'store'])->middleware('permission:parcours,edit');
+        Route::get('parcours/{parcour}', [ParcoursController::class, 'show'])->middleware('permission:parcours,view');
+        Route::put('parcours/{parcour}', [ParcoursController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::patch('parcours/{parcour}', [ParcoursController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::delete('parcours/{parcour}', [ParcoursController::class, 'destroy'])->middleware('permission:parcours,edit');
+        Route::post('parcours/{parcour}/duplicate', [ParcoursController::class, 'duplicate'])->middleware('permission:parcours,edit');
 
-        Route::get('parcours-categories', [ParcoursCategorieController::class, 'index'])->middleware('permission:parcours.view');
-        Route::get('parcours-categories/{parcoursCategorie}', [ParcoursCategorieController::class, 'show'])->middleware('permission:parcours.view');
+        Route::get('parcours-categories', [ParcoursCategorieController::class, 'index'])->middleware('permission:parcours,view');
+        Route::get('parcours-categories/{parcoursCategorie}', [ParcoursCategorieController::class, 'show'])->middleware('permission:parcours,view');
 
         // ── Phases ──────────────────────────────────────────
-        Route::get('phases', [PhaseController::class, 'index'])->middleware('permission:phases.view');
-        Route::post('phases', [PhaseController::class, 'store'])->middleware('permission:phases.create');
-        Route::get('phases/{phase}', [PhaseController::class, 'show'])->middleware('permission:phases.view');
-        Route::put('phases/{phase}', [PhaseController::class, 'update'])->middleware('permission:phases.edit');
-        Route::patch('phases/{phase}', [PhaseController::class, 'update'])->middleware('permission:phases.edit');
-        Route::delete('phases/{phase}', [PhaseController::class, 'destroy'])->middleware('permission:phases.delete');
+        Route::get('phases', [PhaseController::class, 'index'])->middleware('permission:parcours,view');
+        Route::post('phases', [PhaseController::class, 'store'])->middleware('permission:parcours,edit');
+        Route::get('phases/{phase}', [PhaseController::class, 'show'])->middleware('permission:parcours,view');
+        Route::put('phases/{phase}', [PhaseController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::patch('phases/{phase}', [PhaseController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::delete('phases/{phase}', [PhaseController::class, 'destroy'])->middleware('permission:parcours,edit');
 
         // ── Actions ─────────────────────────────────────────
-        Route::get('actions', [ActionController::class, 'index'])->middleware('permission:actions.view');
-        Route::post('actions', [ActionController::class, 'store'])->middleware('permission:actions.create');
-        Route::get('actions/{action}', [ActionController::class, 'show'])->middleware('permission:actions.view');
-        Route::put('actions/{action}', [ActionController::class, 'update'])->middleware('permission:actions.edit');
-        Route::patch('actions/{action}', [ActionController::class, 'update'])->middleware('permission:actions.edit');
-        Route::delete('actions/{action}', [ActionController::class, 'destroy'])->middleware('permission:actions.delete');
+        Route::get('actions', [ActionController::class, 'index'])->middleware('permission:parcours,view');
+        Route::post('actions', [ActionController::class, 'store'])->middleware('permission:parcours,edit');
+        Route::get('actions/{action}', [ActionController::class, 'show'])->middleware('permission:parcours,view');
+        Route::put('actions/{action}', [ActionController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::patch('actions/{action}', [ActionController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::delete('actions/{action}', [ActionController::class, 'destroy'])->middleware('permission:parcours,edit');
 
-        Route::get('action-types', [ActionTypeController::class, 'index'])->middleware('permission:actions.view');
-        Route::get('action-types/{actionType}', [ActionTypeController::class, 'show'])->middleware('permission:actions.view');
+        Route::get('action-types', [ActionTypeController::class, 'index'])->middleware('permission:parcours,view');
+        Route::get('action-types/{actionType}', [ActionTypeController::class, 'show'])->middleware('permission:parcours,view');
 
         // ── Groupes ─────────────────────────────────────────
-        Route::get('groupes', [GroupeController::class, 'index'])->middleware('permission:groupes.view');
-        Route::post('groupes', [GroupeController::class, 'store'])->middleware('permission:groupes.create');
-        Route::get('groupes/{groupe}', [GroupeController::class, 'show'])->middleware('permission:groupes.view');
-        Route::put('groupes/{groupe}', [GroupeController::class, 'update'])->middleware('permission:groupes.edit');
-        Route::patch('groupes/{groupe}', [GroupeController::class, 'update'])->middleware('permission:groupes.edit');
-        Route::delete('groupes/{groupe}', [GroupeController::class, 'destroy'])->middleware('permission:groupes.delete');
+        Route::get('groupes', [GroupeController::class, 'index'])->middleware('permission:parcours,view');
+        Route::post('groupes', [GroupeController::class, 'store'])->middleware('permission:parcours,edit');
+        Route::get('groupes/{groupe}', [GroupeController::class, 'show'])->middleware('permission:parcours,view');
+        Route::put('groupes/{groupe}', [GroupeController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::patch('groupes/{groupe}', [GroupeController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::delete('groupes/{groupe}', [GroupeController::class, 'destroy'])->middleware('permission:parcours,edit');
 
         // ── Documents ───────────────────────────────────────
-        Route::get('documents', [DocumentController::class, 'index'])->middleware('permission:documents.view');
-        Route::get('documents/summary', [DocumentController::class, 'summary'])->middleware('permission:documents.view');
-        Route::post('documents', [DocumentController::class, 'store'])->middleware('permission:documents.upload');
-        Route::post('documents/upload', [DocumentController::class, 'upload'])->middleware('permission:documents.upload');
-        Route::get('documents/{document}', [DocumentController::class, 'show'])->middleware('permission:documents.view');
-        Route::get('documents/{document}/download', [DocumentController::class, 'download'])->middleware('permission:documents.view');
-        Route::put('documents/{document}', [DocumentController::class, 'update'])->middleware('permission:documents.validate');
-        Route::patch('documents/{document}', [DocumentController::class, 'update'])->middleware('permission:documents.validate');
-        Route::post('documents/{document}/validate', [DocumentController::class, 'validateDocument'])->middleware('permission:documents.validate');
-        Route::post('documents/{document}/refuse', [DocumentController::class, 'refuse'])->middleware('permission:documents.validate');
-        Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->middleware('permission:documents.delete');
-        Route::get('document-categories', [DocumentController::class, 'categories'])->middleware('permission:documents.view');
+        Route::get('documents', [DocumentController::class, 'index'])->middleware('permission:documents,view');
+        Route::get('documents/summary', [DocumentController::class, 'summary'])->middleware('permission:documents,view');
+        Route::post('documents', [DocumentController::class, 'store'])->middleware('permission:documents,edit');
+        Route::post('documents/upload', [DocumentController::class, 'upload'])->middleware('permission:documents,edit');
+        Route::get('documents/{document}', [DocumentController::class, 'show'])->middleware('permission:documents,view');
+        Route::get('documents/{document}/download', [DocumentController::class, 'download'])->middleware('permission:documents,view');
+        Route::put('documents/{document}', [DocumentController::class, 'update'])->middleware('permission:documents,edit');
+        Route::patch('documents/{document}', [DocumentController::class, 'update'])->middleware('permission:documents,edit');
+        Route::post('documents/{document}/validate', [DocumentController::class, 'validateDocument'])->middleware('permission:documents,edit');
+        Route::post('documents/{document}/refuse', [DocumentController::class, 'refuse'])->middleware('permission:documents,edit');
+        Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->middleware('permission:documents,edit');
+        Route::get('document-categories', [DocumentController::class, 'categories'])->middleware('permission:documents,view');
 
         // ── Contrats ────────────────────────────────────────
-        Route::get('contrats', [ContratController::class, 'index'])->middleware('permission:contrats.view');
-        Route::post('contrats', [ContratController::class, 'store'])->middleware('permission:contrats.create');
-        Route::get('contrats/{contrat}', [ContratController::class, 'show'])->middleware('permission:contrats.view');
-        Route::put('contrats/{contrat}', [ContratController::class, 'update'])->middleware('permission:contrats.edit');
-        Route::patch('contrats/{contrat}', [ContratController::class, 'update'])->middleware('permission:contrats.edit');
-        Route::delete('contrats/{contrat}', [ContratController::class, 'destroy'])->middleware('permission:contrats.delete');
+        Route::get('contrats', [ContratController::class, 'index'])->middleware('permission:contrats,view');
+        Route::post('contrats', [ContratController::class, 'store'])->middleware('permission:contrats,edit');
+        Route::get('contrats/{contrat}', [ContratController::class, 'show'])->middleware('permission:contrats,view');
+        Route::put('contrats/{contrat}', [ContratController::class, 'update'])->middleware('permission:contrats,edit');
+        Route::patch('contrats/{contrat}', [ContratController::class, 'update'])->middleware('permission:contrats,edit');
+        Route::delete('contrats/{contrat}', [ContratController::class, 'destroy'])->middleware('permission:contrats,edit');
 
         // ── Workflows ───────────────────────────────────────
-        Route::get('workflows', [WorkflowController::class, 'index'])->middleware('permission:workflows.view');
-        Route::post('workflows', [WorkflowController::class, 'store'])->middleware('permission:workflows.create');
-        Route::get('workflows/{workflow}', [WorkflowController::class, 'show'])->middleware('permission:workflows.view');
-        Route::put('workflows/{workflow}', [WorkflowController::class, 'update'])->middleware('permission:workflows.edit');
-        Route::patch('workflows/{workflow}', [WorkflowController::class, 'update'])->middleware('permission:workflows.edit');
-        Route::delete('workflows/{workflow}', [WorkflowController::class, 'destroy'])->middleware('permission:workflows.delete');
+        Route::get('workflows', [WorkflowController::class, 'index'])->middleware('permission:workflows,view');
+        Route::post('workflows', [WorkflowController::class, 'store'])->middleware('permission:workflows,edit');
+        Route::get('workflows/{workflow}', [WorkflowController::class, 'show'])->middleware('permission:workflows,view');
+        Route::put('workflows/{workflow}', [WorkflowController::class, 'update'])->middleware('permission:workflows,edit');
+        Route::patch('workflows/{workflow}', [WorkflowController::class, 'update'])->middleware('permission:workflows,edit');
+        Route::delete('workflows/{workflow}', [WorkflowController::class, 'destroy'])->middleware('permission:workflows,edit');
 
         // ── Email Templates ─────────────────────────────────
-        Route::get('email-templates', [EmailTemplateController::class, 'index'])->middleware('permission:templates.view');
-        Route::post('email-templates', [EmailTemplateController::class, 'store'])->middleware('permission:templates.create');
-        Route::get('email-templates/{emailTemplate}', [EmailTemplateController::class, 'show'])->middleware('permission:templates.view');
-        Route::put('email-templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->middleware('permission:templates.edit');
-        Route::patch('email-templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->middleware('permission:templates.edit');
-        Route::delete('email-templates/{emailTemplate}', [EmailTemplateController::class, 'destroy'])->middleware('permission:templates.delete');
-        Route::post('email-templates/{emailTemplate}/duplicate', [EmailTemplateController::class, 'duplicate'])->middleware('permission:templates.create');
-        Route::post('email-templates/{emailTemplate}/send-test', [EmailTemplateController::class, 'sendTest'])->middleware('permission:templates.edit');
+        Route::get('email-templates', [EmailTemplateController::class, 'index'])->middleware('permission:workflows,view');
+        Route::post('email-templates', [EmailTemplateController::class, 'store'])->middleware('permission:workflows,edit');
+        Route::get('email-templates/{emailTemplate}', [EmailTemplateController::class, 'show'])->middleware('permission:workflows,view');
+        Route::put('email-templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->middleware('permission:workflows,edit');
+        Route::patch('email-templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->middleware('permission:workflows,edit');
+        Route::delete('email-templates/{emailTemplate}', [EmailTemplateController::class, 'destroy'])->middleware('permission:workflows,edit');
+        Route::post('email-templates/{emailTemplate}/duplicate', [EmailTemplateController::class, 'duplicate'])->middleware('permission:workflows,edit');
+        Route::post('email-templates/{emailTemplate}/send-test', [EmailTemplateController::class, 'sendTest'])->middleware('permission:workflows,edit');
         Route::get('mail-config', [EmailTemplateController::class, 'getMailConfig']);
 
         // ── Notifications Config ────────────────────────────
-        Route::get('notifications-config', [NotificationConfigController::class, 'index'])->middleware('permission:notifications.view');
-        Route::post('notifications-config', [NotificationConfigController::class, 'store'])->middleware('permission:notifications.manage');
-        Route::put('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'update'])->middleware('permission:notifications.manage');
-        Route::patch('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'update'])->middleware('permission:notifications.manage');
-        Route::delete('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'destroy'])->middleware('permission:notifications.manage');
+        Route::get('notifications-config', [NotificationConfigController::class, 'index'])->middleware('permission:workflows,view');
+        Route::post('notifications-config', [NotificationConfigController::class, 'store'])->middleware('permission:workflows,edit');
+        Route::put('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'update'])->middleware('permission:workflows,edit');
+        Route::patch('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'update'])->middleware('permission:workflows,edit');
+        Route::delete('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'destroy'])->middleware('permission:workflows,edit');
 
         // ── Intégrations ────────────────────────────────
-        Route::get('integrations', [IntegrationController::class, 'index'])->middleware('permission:integrations.view');
-        Route::post('integrations', [IntegrationController::class, 'store'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}', [IntegrationController::class, 'show'])->middleware('permission:integrations.view');
-        Route::put('integrations/{integration}', [IntegrationController::class, 'update'])->middleware('permission:integrations.manage');
-        Route::patch('integrations/{integration}', [IntegrationController::class, 'update'])->middleware('permission:integrations.manage');
-        Route::delete('integrations/{integration}', [IntegrationController::class, 'destroy'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/test', [IntegrationController::class, 'test'])->middleware('permission:integrations.manage');
+        Route::get('integrations', [IntegrationController::class, 'index'])->middleware('permission:integrations,view');
+        Route::post('integrations', [IntegrationController::class, 'store'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}', [IntegrationController::class, 'show'])->middleware('permission:integrations,view');
+        Route::put('integrations/{integration}', [IntegrationController::class, 'update'])->middleware('permission:integrations,admin');
+        Route::patch('integrations/{integration}', [IntegrationController::class, 'update'])->middleware('permission:integrations,admin');
+        Route::delete('integrations/{integration}', [IntegrationController::class, 'destroy'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/test', [IntegrationController::class, 'test'])->middleware('permission:integrations,admin');
 
         // Onboarding teams
-        Route::get('onboarding-teams', [OnboardingTeamController::class, 'index'])->middleware('permission:groupes.view');
-        Route::post('onboarding-teams', [OnboardingTeamController::class, 'store'])->middleware('permission:groupes.create');
-        Route::put('onboarding-teams/{onboardingTeam}', [OnboardingTeamController::class, 'update'])->middleware('permission:groupes.edit');
-        Route::delete('onboarding-teams/{onboardingTeam}', [OnboardingTeamController::class, 'destroy'])->middleware('permission:groupes.delete');
-        Route::post('collaborateurs/{collaborateur}/assign-team', [OnboardingTeamController::class, 'assignTeam'])->middleware('permission:collaborateurs.edit');
-        Route::post('collaborateurs/{collaborateur}/assign-accompagnant', [OnboardingTeamController::class, 'assignIndividual'])->middleware('permission:collaborateurs.edit');
-        Route::get('collaborateurs/{collaborateur}/accompagnants', [OnboardingTeamController::class, 'collabAccompagnants'])->middleware('permission:collaborateurs.view');
-        Route::delete('accompagnants/{collaborateurAccompagnant}', [OnboardingTeamController::class, 'removeAccompagnant'])->middleware('permission:collaborateurs.edit');
-        Route::get('onboarding-teams/workload', [OnboardingTeamController::class, 'workload'])->middleware('permission:collaborateurs.view');
+        Route::get('onboarding-teams', [OnboardingTeamController::class, 'index'])->middleware('permission:parcours,view');
+        Route::post('onboarding-teams', [OnboardingTeamController::class, 'store'])->middleware('permission:parcours,edit');
+        Route::put('onboarding-teams/{onboardingTeam}', [OnboardingTeamController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::delete('onboarding-teams/{onboardingTeam}', [OnboardingTeamController::class, 'destroy'])->middleware('permission:parcours,edit');
+        Route::post('collaborateurs/{collaborateur}/assign-team', [OnboardingTeamController::class, 'assignTeam'])->middleware('permission:collaborateurs,edit');
+        Route::post('collaborateurs/{collaborateur}/assign-accompagnant', [OnboardingTeamController::class, 'assignIndividual'])->middleware('permission:collaborateurs,edit');
+        Route::get('collaborateurs/{collaborateur}/accompagnants', [OnboardingTeamController::class, 'collabAccompagnants'])->middleware('permission:collaborateurs,view');
+        Route::delete('accompagnants/{collaborateurAccompagnant}', [OnboardingTeamController::class, 'removeAccompagnant'])->middleware('permission:collaborateurs,edit');
+        Route::get('onboarding-teams/workload', [OnboardingTeamController::class, 'workload'])->middleware('permission:collaborateurs,view');
 
         // Entra ID
-        Route::post('integrations/{integration}/entra/connect', [EntraIdController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/entra/disconnect', [EntraIdController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/entra/users', [EntraIdController::class, 'listADUsers'])->middleware('permission:integrations.view');
-        Route::get('integrations/{integration}/entra/groups', [EntraIdController::class, 'listADGroups'])->middleware('permission:integrations.view');
-        Route::get('integrations/{integration}/entra/groups/{groupId}/members', [EntraIdController::class, 'groupMembers'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/entra/connect', [EntraIdController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/entra/disconnect', [EntraIdController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/entra/users', [EntraIdController::class, 'listADUsers'])->middleware('permission:integrations,view');
+        Route::get('integrations/{integration}/entra/groups', [EntraIdController::class, 'listADGroups'])->middleware('permission:integrations,view');
+        Route::get('integrations/{integration}/entra/groups/{groupId}/members', [EntraIdController::class, 'groupMembers'])->middleware('permission:integrations,view');
         // AD Group mappings
-        Route::get('ad-group-mappings', [EntraIdController::class, 'listMappings'])->middleware('permission:integrations.view');
-        Route::post('ad-group-mappings', [EntraIdController::class, 'createMapping'])->middleware('permission:integrations.manage');
-        Route::put('ad-group-mappings/{adGroupMapping}', [EntraIdController::class, 'updateMapping'])->middleware('permission:integrations.manage');
-        Route::delete('ad-group-mappings/{adGroupMapping}', [EntraIdController::class, 'deleteMapping'])->middleware('permission:integrations.manage');
-        Route::post('ad-sync-users', [EntraIdController::class, 'syncUsers'])->middleware('permission:integrations.manage');
+        Route::get('ad-group-mappings', [EntraIdController::class, 'listMappings'])->middleware('permission:integrations,view');
+        Route::post('ad-group-mappings', [EntraIdController::class, 'createMapping'])->middleware('permission:integrations,admin');
+        Route::put('ad-group-mappings/{adGroupMapping}', [EntraIdController::class, 'updateMapping'])->middleware('permission:integrations,admin');
+        Route::delete('ad-group-mappings/{adGroupMapping}', [EntraIdController::class, 'deleteMapping'])->middleware('permission:integrations,admin');
+        Route::post('ad-sync-users', [EntraIdController::class, 'syncUsers'])->middleware('permission:integrations,admin');
 
         // Field config
         Route::get('field-config', [FieldConfigController::class, 'index']);
@@ -260,11 +269,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->middleware('role:super_admin|admin');
 
         // Action assignments
-        Route::post('assignments/assign', [CollaborateurActionController::class, 'assign'])->middleware('permission:actions.create');
-        Route::get('assignments/collaborateur/{collaborateur}', [CollaborateurActionController::class, 'forCollaborateur'])->middleware('permission:collaborateurs.view');
-        Route::get('assignments/action/{action}', [CollaborateurActionController::class, 'forAction'])->middleware('permission:actions.view');
-        Route::put('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'updateStatus'])->middleware('permission:actions.edit');
-        Route::delete('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'unassign'])->middleware('permission:actions.delete');
+        Route::post('assignments/assign', [CollaborateurActionController::class, 'assign'])->middleware('permission:parcours,edit');
+        Route::get('assignments/collaborateur/{collaborateur}', [CollaborateurActionController::class, 'forCollaborateur'])->middleware('permission:collaborateurs,view');
+        Route::get('assignments/action/{action}', [CollaborateurActionController::class, 'forAction'])->middleware('permission:parcours,view');
+        Route::put('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'updateStatus'])->middleware('permission:parcours,edit');
+        Route::delete('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'unassign'])->middleware('permission:parcours,edit');
         Route::get('my-actions', [CollaborateurActionController::class, 'myActions']);
         Route::post('my-actions/{collaborateurAction}/complete', [CollaborateurActionController::class, 'completeMyAction']);
 
@@ -274,11 +283,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // Company page blocks
         Route::get('company-blocks', [CompanyBlockController::class, 'activeBlocks']);
-        Route::get('company-blocks/all', [CompanyBlockController::class, 'index'])->middleware('permission:entreprise.manage');
-        Route::post('company-blocks', [CompanyBlockController::class, 'store'])->middleware('permission:entreprise.manage');
-        Route::put('company-blocks/{companyBlock}', [CompanyBlockController::class, 'update'])->middleware('permission:entreprise.manage');
-        Route::delete('company-blocks/{companyBlock}', [CompanyBlockController::class, 'destroy'])->middleware('permission:entreprise.manage');
-        Route::post('company-blocks/reorder', [CompanyBlockController::class, 'reorder'])->middleware('permission:entreprise.manage');
+        Route::get('company-blocks/all', [CompanyBlockController::class, 'index'])->middleware('permission:company_page,view');
+        Route::post('company-blocks', [CompanyBlockController::class, 'store'])->middleware('permission:company_page,edit');
+        Route::put('company-blocks/{companyBlock}', [CompanyBlockController::class, 'update'])->middleware('permission:company_page,edit');
+        Route::delete('company-blocks/{companyBlock}', [CompanyBlockController::class, 'destroy'])->middleware('permission:company_page,edit');
+        Route::post('company-blocks/reorder', [CompanyBlockController::class, 'reorder'])->middleware('permission:company_page,edit');
 
         // Notifications
         Route::get('user-notifications', [NotificationController::class, 'index']);
@@ -294,59 +303,59 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('messages/users', [MessageController::class, 'availableUsers']);
 
         // DocuSign
-        Route::get('integrations/docusign/redirect', [DocuSignController::class, 'redirect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/docusign/disconnect', [DocuSignController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::post('docusign/envelopes', [DocuSignController::class, 'createEnvelope'])->middleware('permission:actions.create');
-        Route::get('docusign/envelopes', [DocuSignController::class, 'listEnvelopes'])->middleware('permission:actions.view');
-        Route::get('docusign/envelopes/{envelopeId}', [DocuSignController::class, 'getEnvelope'])->middleware('permission:actions.view');
-        Route::post('docusign/envelopes/{envelopeId}/send', [DocuSignController::class, 'sendEnvelope'])->middleware('permission:actions.edit');
-        Route::post('docusign/envelopes/{envelopeId}/sender-view', [DocuSignController::class, 'senderView'])->middleware('permission:actions.edit');
-        Route::post('docusign/envelopes/{envelopeId}/void', [DocuSignController::class, 'voidEnvelope'])->middleware('permission:actions.delete');
+        Route::get('integrations/docusign/redirect', [DocuSignController::class, 'redirect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/docusign/disconnect', [DocuSignController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::post('docusign/envelopes', [DocuSignController::class, 'createEnvelope'])->middleware('permission:signatures,edit');
+        Route::get('docusign/envelopes', [DocuSignController::class, 'listEnvelopes'])->middleware('permission:signatures,view');
+        Route::get('docusign/envelopes/{envelopeId}', [DocuSignController::class, 'getEnvelope'])->middleware('permission:signatures,view');
+        Route::post('docusign/envelopes/{envelopeId}/send', [DocuSignController::class, 'sendEnvelope'])->middleware('permission:signatures,edit');
+        Route::post('docusign/envelopes/{envelopeId}/sender-view', [DocuSignController::class, 'senderView'])->middleware('permission:signatures,edit');
+        Route::post('docusign/envelopes/{envelopeId}/void', [DocuSignController::class, 'voidEnvelope'])->middleware('permission:signatures,edit');
 
         // UgoSign API Key
-        Route::post('integrations/{integration}/ugosign/connect', [UgoSignController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/ugosign/disconnect', [UgoSignController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/ugosign/envelopes', [UgoSignController::class, 'envelopes'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/ugosign/connect', [UgoSignController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/ugosign/disconnect', [UgoSignController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/ugosign/envelopes', [UgoSignController::class, 'envelopes'])->middleware('permission:integrations,view');
 
         // SuccessFactors
-        Route::post('integrations/{integration}/sap/connect', [SuccessFactorsController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/sap/disconnect', [SuccessFactorsController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/sap/employees', [SuccessFactorsController::class, 'employees'])->middleware('permission:integrations.view');
-        Route::get('integrations/{integration}/sap/new-hires', [SuccessFactorsController::class, 'newHires'])->middleware('permission:integrations.view');
-        Route::get('integrations/{integration}/sap/org-structure', [SuccessFactorsController::class, 'orgStructure'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/sap/connect', [SuccessFactorsController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/sap/disconnect', [SuccessFactorsController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/sap/employees', [SuccessFactorsController::class, 'employees'])->middleware('permission:integrations,view');
+        Route::get('integrations/{integration}/sap/new-hires', [SuccessFactorsController::class, 'newHires'])->middleware('permission:integrations,view');
+        Route::get('integrations/{integration}/sap/org-structure', [SuccessFactorsController::class, 'orgStructure'])->middleware('permission:integrations,view');
 
         // Teams
-        Route::post('integrations/{integration}/teams/connect-webhook', [TeamsController::class, 'connectWebhook'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/teams/connect-graph', [TeamsController::class, 'connectGraph'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/teams/disconnect', [TeamsController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/teams/test', [TeamsController::class, 'testNotification'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/teams/meetings', [TeamsController::class, 'createMeeting'])->middleware('permission:actions.create');
+        Route::post('integrations/{integration}/teams/connect-webhook', [TeamsController::class, 'connectWebhook'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/teams/connect-graph', [TeamsController::class, 'connectGraph'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/teams/disconnect', [TeamsController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/teams/test', [TeamsController::class, 'testNotification'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/teams/meetings', [TeamsController::class, 'createMeeting'])->middleware('permission:parcours,edit');
 
         // Personio
-        Route::post('integrations/{integration}/personio/connect', [PersonioController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/personio/disconnect', [PersonioController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/personio/employees', [PersonioController::class, 'employees'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/personio/connect', [PersonioController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/personio/disconnect', [PersonioController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/personio/employees', [PersonioController::class, 'employees'])->middleware('permission:integrations,view');
 
         // Lucca
-        Route::post('integrations/{integration}/lucca/connect', [LuccaController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/lucca/disconnect', [LuccaController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/lucca/users', [LuccaController::class, 'users'])->middleware('permission:integrations.view');
-        Route::get('integrations/{integration}/lucca/org-structure', [LuccaController::class, 'orgStructure'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/lucca/connect', [LuccaController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/lucca/disconnect', [LuccaController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/lucca/users', [LuccaController::class, 'users'])->middleware('permission:integrations,view');
+        Route::get('integrations/{integration}/lucca/org-structure', [LuccaController::class, 'orgStructure'])->middleware('permission:integrations,view');
 
         // Teamtailor
-        Route::post('integrations/{integration}/teamtailor/connect', [TeamtailorController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/teamtailor/disconnect', [TeamtailorController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/teamtailor/hired', [TeamtailorController::class, 'hiredCandidates'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/teamtailor/connect', [TeamtailorController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/teamtailor/disconnect', [TeamtailorController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/teamtailor/hired', [TeamtailorController::class, 'hiredCandidates'])->middleware('permission:integrations,view');
 
         // BambooHR
-        Route::post('integrations/{integration}/bamboohr/connect', [BambooHRController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/bamboohr/disconnect', [BambooHRController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/bamboohr/employees', [BambooHRController::class, 'employees'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/bamboohr/connect', [BambooHRController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/bamboohr/disconnect', [BambooHRController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/bamboohr/employees', [BambooHRController::class, 'employees'])->middleware('permission:integrations,view');
 
         // Workday
-        Route::post('integrations/{integration}/workday/connect', [WorkdayController::class, 'connect'])->middleware('permission:integrations.manage');
-        Route::post('integrations/{integration}/workday/disconnect', [WorkdayController::class, 'disconnect'])->middleware('permission:integrations.manage');
-        Route::get('integrations/{integration}/workday/workers', [WorkdayController::class, 'workers'])->middleware('permission:integrations.view');
+        Route::post('integrations/{integration}/workday/connect', [WorkdayController::class, 'connect'])->middleware('permission:integrations,admin');
+        Route::post('integrations/{integration}/workday/disconnect', [WorkdayController::class, 'disconnect'])->middleware('permission:integrations,admin');
+        Route::get('integrations/{integration}/workday/workers', [WorkdayController::class, 'workers'])->middleware('permission:integrations,view');
 
         // ── Cooptation ─────────────────────────────────────
         Route::apiResource('cooptations', CooptationController::class);
@@ -378,29 +387,34 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::delete('badges/{badge}', [BadgeController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── NPS & Satisfaction ──────────────────────────────
-        Route::apiResource('nps-surveys', NpsSurveyController::class);
-        Route::get('nps-stats', [NpsSurveyController::class, 'stats']);
-        Route::post('nps-surveys/{npsSurvey}/send', [NpsSurveyController::class, 'sendToCollaborateur']);
-        Route::post('nps-surveys/{npsSurvey}/send-all', [NpsSurveyController::class, 'sendToAll']);
+        Route::get('nps-surveys', [NpsSurveyController::class, 'index'])->middleware('permission:nps,view');
+        Route::post('nps-surveys', [NpsSurveyController::class, 'store'])->middleware('permission:nps,edit');
+        Route::get('nps-surveys/{npsSurvey}', [NpsSurveyController::class, 'show'])->middleware('permission:nps,view');
+        Route::put('nps-surveys/{npsSurvey}', [NpsSurveyController::class, 'update'])->middleware('permission:nps,edit');
+        Route::patch('nps-surveys/{npsSurvey}', [NpsSurveyController::class, 'update'])->middleware('permission:nps,edit');
+        Route::delete('nps-surveys/{npsSurvey}', [NpsSurveyController::class, 'destroy'])->middleware('permission:nps,edit');
+        Route::get('nps-stats', [NpsSurveyController::class, 'stats'])->middleware('permission:nps,view');
+        Route::post('nps-surveys/{npsSurvey}/send', [NpsSurveyController::class, 'sendToCollaborateur'])->middleware('permission:nps,edit');
+        Route::post('nps-surveys/{npsSurvey}/send-all', [NpsSurveyController::class, 'sendToAll'])->middleware('permission:nps,edit');
 
         // ── Equipment Management ──────────────────────────
-        Route::get('equipment-types', [EquipmentController::class, 'types']);
-        Route::post('equipment-types', [EquipmentController::class, 'storeType'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('equipment-types/{equipmentType}', [EquipmentController::class, 'updateType'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('equipment-types/{equipmentType}', [EquipmentController::class, 'destroyType'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('equipments', [EquipmentController::class, 'index']);
-        Route::get('equipments/stats', [EquipmentController::class, 'stats']);
-        Route::post('equipments', [EquipmentController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('equipments/{equipment}', [EquipmentController::class, 'show']);
-        Route::put('equipments/{equipment}', [EquipmentController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('equipments/{equipment}', [EquipmentController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('equipments/{equipment}/assign', [EquipmentController::class, 'assign'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('equipments/{equipment}/unassign', [EquipmentController::class, 'unassign'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('equipment-packages', [EquipmentController::class, 'packages']);
-        Route::post('equipment-packages', [EquipmentController::class, 'storePackage'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('equipment-packages/{equipmentPackage}', [EquipmentController::class, 'updatePackage'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('equipment-packages/{equipmentPackage}', [EquipmentController::class, 'destroyPackage'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('equipment-packages/{equipmentPackage}/provision', [EquipmentController::class, 'provisionPackage'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('equipment-types', [EquipmentController::class, 'types'])->middleware('permission:equipements,view');
+        Route::post('equipment-types', [EquipmentController::class, 'storeType'])->middleware('permission:equipements,edit');
+        Route::put('equipment-types/{equipmentType}', [EquipmentController::class, 'updateType'])->middleware('permission:equipements,edit');
+        Route::delete('equipment-types/{equipmentType}', [EquipmentController::class, 'destroyType'])->middleware('permission:equipements,edit');
+        Route::get('equipments', [EquipmentController::class, 'index'])->middleware('permission:equipements,view');
+        Route::get('equipments/stats', [EquipmentController::class, 'stats'])->middleware('permission:equipements,view');
+        Route::post('equipments', [EquipmentController::class, 'store'])->middleware('permission:equipements,edit');
+        Route::get('equipments/{equipment}', [EquipmentController::class, 'show'])->middleware('permission:equipements,view');
+        Route::put('equipments/{equipment}', [EquipmentController::class, 'update'])->middleware('permission:equipements,edit');
+        Route::delete('equipments/{equipment}', [EquipmentController::class, 'destroy'])->middleware('permission:equipements,edit');
+        Route::post('equipments/{equipment}/assign', [EquipmentController::class, 'assign'])->middleware('permission:equipements,edit');
+        Route::post('equipments/{equipment}/unassign', [EquipmentController::class, 'unassign'])->middleware('permission:equipements,edit');
+        Route::get('equipment-packages', [EquipmentController::class, 'packages'])->middleware('permission:equipements,view');
+        Route::post('equipment-packages', [EquipmentController::class, 'storePackage'])->middleware('permission:equipements,edit');
+        Route::put('equipment-packages/{equipmentPackage}', [EquipmentController::class, 'updatePackage'])->middleware('permission:equipements,edit');
+        Route::delete('equipment-packages/{equipmentPackage}', [EquipmentController::class, 'destroyPackage'])->middleware('permission:equipements,edit');
+        Route::post('equipment-packages/{equipmentPackage}/provision', [EquipmentController::class, 'provisionPackage'])->middleware('permission:equipements,edit');
 
         // ── Signature Documents (lecture + signature) ─────
         Route::get('signature-documents', [SignatureDocumentController::class, 'index']);
@@ -429,13 +443,13 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion']);
 
         // ── Roles & Permissions ────────────────────────────
-        Route::apiResource('roles', RoleController::class)->middleware('role:super_admin|admin|admin_rh');
-        Route::post('roles/{role}/assign', [RoleController::class, 'assignUser'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('roles/{role}/remove', [RoleController::class, 'removeUser'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('permissions/schema', [RoleController::class, 'permissions'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('permissions/effective', [RoleController::class, 'effectivePermissions'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('permissions/logs', [RoleController::class, 'logs'])->middleware('role:super_admin|admin|admin_rh');
+        Route::apiResource('roles', RoleController::class)->middleware('permission:settings,admin');
+        Route::post('roles/{role}/assign', [RoleController::class, 'assignUser'])->middleware('permission:settings,admin');
+        Route::post('roles/{role}/remove', [RoleController::class, 'removeUser'])->middleware('permission:settings,admin');
+        Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->middleware('permission:settings,admin');
+        Route::get('permissions/schema', [RoleController::class, 'permissions'])->middleware('permission:settings,admin');
+        Route::get('permissions/effective', [RoleController::class, 'effectivePermissions'])->middleware('permission:settings,admin');
+        Route::get('permissions/logs', [RoleController::class, 'logs'])->middleware('permission:settings,admin');
 
         // ── Subscription management ────────────────────────
         Route::get('my-subscription', [SubscriptionController::class, 'mySubscription']);

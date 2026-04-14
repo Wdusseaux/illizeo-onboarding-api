@@ -44,4 +44,76 @@ class User extends Authenticatable
             ->withPivot('assigned_by', 'assigned_at', 'expires_at')
             ->withTimestamps();
     }
+
+    /**
+     * Permission level hierarchy (higher index = more access).
+     */
+    private const PERMISSION_LEVELS = [
+        'none'  => 0,
+        'view'  => 1,
+        'edit'  => 2,
+        'admin' => 3,
+    ];
+
+    /**
+     * Compute effective permissions by merging all active, non-expired custom roles.
+     * For each module, the highest permission level wins.
+     *
+     * @return array<string, string>  e.g. ['parcours' => 'admin', 'collaborateurs' => 'view']
+     */
+    public function getEffectivePermissions(): array
+    {
+        $roles = $this->customRoles()
+            ->where('actif', true)
+            ->get();
+
+        $effective = [];
+
+        foreach ($roles as $role) {
+            // Skip expired temporary roles (check pivot expires_at or role-level expires_at)
+            $pivotExpires = $role->pivot->expires_at;
+            if ($pivotExpires && now()->greaterThan($pivotExpires)) {
+                continue;
+            }
+            if ($role->temporary && $role->expires_at && now()->greaterThan($role->expires_at)) {
+                continue;
+            }
+
+            $rolePermissions = $role->permissions ?? [];
+
+            foreach ($rolePermissions as $module => $level) {
+                $currentIndex = self::PERMISSION_LEVELS[$effective[$module] ?? 'none'] ?? 0;
+                $newIndex     = self::PERMISSION_LEVELS[$level] ?? 0;
+
+                if ($newIndex > $currentIndex) {
+                    $effective[$module] = $level;
+                }
+            }
+        }
+
+        return $effective;
+    }
+
+    /**
+     * Check if the user has at least the given permission level on a module.
+     * Super admins always return true.
+     */
+    public function hasModulePermission(string $module, string $requiredLevel = 'view'): bool
+    {
+        // Super admin custom role
+        if ($this->customRoles()->where('slug', 'super_admin')->where('actif', true)->exists()) {
+            return true;
+        }
+
+        // Backward compatibility: Spatie super_admin or admin role
+        if ($this->hasRole('super_admin') || $this->hasRole('admin')) {
+            return true;
+        }
+
+        $effective = $this->getEffectivePermissions();
+        $userLevel = self::PERMISSION_LEVELS[$effective[$module] ?? 'none'] ?? 0;
+        $required  = self::PERMISSION_LEVELS[$requiredLevel] ?? 0;
+
+        return $userLevel >= $required;
+    }
 }
