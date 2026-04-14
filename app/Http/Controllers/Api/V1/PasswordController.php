@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class PasswordController extends Controller
 {
@@ -35,6 +36,11 @@ class PasswordController extends Controller
         }
         if ($policy['special'] ?? false) {
             $rules[] = 'regex:/[!@#$%^&*(),.?":{}|<>]/';
+        }
+
+        // Check against Have I Been Pwned API (k-anonymity — safe, no full password sent)
+        if ($policy['no_common'] ?? true) {
+            $rules[] = Password::min(1)->uncompromised(3); // reject if seen 3+ times in breaches
         }
 
         return $rules;
