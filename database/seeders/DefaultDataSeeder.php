@@ -855,7 +855,7 @@ class DefaultDataSeeder extends Seeder
             'cooptation', 'contrats', 'signatures', 'gamification',
         ], 'admin');
 
-        Role::firstOrCreate(['slug' => 'super_admin'], [
+        Role::updateOrCreate(['name' => 'super_admin'], [
             'name' => 'super_admin', 'guard_name' => 'web',
             'nom' => 'Super Admin',
             'slug' => 'super_admin',
@@ -869,7 +869,7 @@ class DefaultDataSeeder extends Seeder
             'actif' => true,
         ]);
 
-        Role::firstOrCreate(['slug' => 'admin_rh'], [
+        Role::updateOrCreate(['name' => 'admin_rh'], [
             'name' => 'admin_rh', 'guard_name' => 'web',
             'nom' => 'Admin RH',
             'slug' => 'admin_rh',
@@ -886,7 +886,7 @@ class DefaultDataSeeder extends Seeder
             'actif' => true,
         ]);
 
-        Role::firstOrCreate(['slug' => 'manager'], [
+        Role::updateOrCreate(['name' => 'manager'], [
             'name' => 'manager', 'guard_name' => 'web',
             'nom' => 'Manager',
             'slug' => 'manager',
@@ -915,7 +915,7 @@ class DefaultDataSeeder extends Seeder
             'actif' => true,
         ]);
 
-        Role::firstOrCreate(['slug' => 'hrbp'], [
+        Role::updateOrCreate(['name' => 'hrbp'], [
             'name' => 'hrbp', 'guard_name' => 'web',
             'nom' => 'HRBP',
             'slug' => 'hrbp',
@@ -944,7 +944,7 @@ class DefaultDataSeeder extends Seeder
             'actif' => true,
         ]);
 
-        Role::firstOrCreate(['slug' => 'collaborateur'], [
+        Role::updateOrCreate(['name' => 'collaborateur'], [
             'name' => 'collaborateur', 'guard_name' => 'web',
             'nom' => 'Collaborateur',
             'slug' => 'collaborateur',
@@ -973,7 +973,7 @@ class DefaultDataSeeder extends Seeder
             'actif' => true,
         ]);
 
-        Role::firstOrCreate(['slug' => 'auditeur'], [
+        Role::updateOrCreate(['name' => 'auditeur'], [
             'name' => 'auditeur', 'guard_name' => 'web',
             'nom' => 'Auditeur',
             'slug' => 'auditeur',
