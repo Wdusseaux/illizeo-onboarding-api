@@ -994,6 +994,110 @@ class DefaultDataSeeder extends Seeder
             }
         }
 
+        // ── 23. Enrich collaborateurs with progression data ─────
+        $collabs = \App\Models\Collaborateur::all();
+        if ($collabs->isNotEmpty()) {
+            $statuses = ['en_cours', 'en_cours', 'en_retard', 'termine', 'en_cours', 'en_retard'];
+            $progressions = [15, 45, 80, 100, 0, 25];
+            foreach ($collabs as $i => $c) {
+                $idx = $i % count($statuses);
+                $prog = $progressions[$idx];
+                $c->update([
+                    'status' => $statuses[$idx],
+                    'progression' => $prog,
+                    'actions_completes' => intval(($prog / 100) * 10),
+                    'actions_total' => 10,
+                    'docs_valides' => intval(($prog / 100) * 5),
+                    'docs_total' => 5,
+                ]);
+            }
+        }
+
+        // ── 24. Document submissions per collaborateur ────────
+        $docCollabs = \App\Models\Collaborateur::take(6)->get();
+        $docCategories = \App\Models\DocumentCategorie::all();
+        if ($docCollabs->isNotEmpty() && $docCategories->isNotEmpty()) {
+            $docStatuses = ['valide', 'soumis', 'manquant', 'refuse', 'valide', 'soumis'];
+            $docNames = [
+                "Pièce d'identité", 'RIB / IBAN', 'Attestation sécurité sociale',
+                'Certificat de travail', 'Justificatif de domicile', 'Carte vitale',
+            ];
+            foreach ($docCollabs as $ci => $collab) {
+                foreach (array_slice($docNames, 0, 3) as $di => $docNom) {
+                    $statusIdx = ($ci + $di) % count($docStatuses);
+                    $status = $docStatuses[$statusIdx];
+                    \App\Models\Document::firstOrCreate(
+                        ['nom' => $docNom . ' — ' . $collab->prenom, 'collaborateur_id' => $collab->id],
+                        [
+                            'nom' => $docNom,
+                            'obligatoire' => $di < 2,
+                            'type' => 'upload',
+                            'categorie_id' => $docCategories->first()->id,
+                            'status' => $status,
+                            'collaborateur_id' => $collab->id,
+                            'validated_at' => $status === 'valide' ? now()->subDays(rand(1, 20)) : null,
+                            'refuse_motif' => $status === 'refuse' ? 'Document illisible, merci de renvoyer une copie nette.' : null,
+                            'notes' => $status === 'soumis' ? 'En attente de validation par le RH.' : null,
+                        ]
+                    );
+                }
+            }
+        }
+
+        // ── 25. Action completions per collaborateur ──────────
+        $actionCollabs = \App\Models\Collaborateur::take(6)->get();
+        $actions = \App\Models\Action::take(10)->get();
+        if ($actionCollabs->isNotEmpty() && $actions->isNotEmpty()) {
+            $actionStatuses = ['completed', 'completed', 'in_progress', 'pending', 'completed', 'in_progress'];
+            foreach ($actionCollabs as $ci => $collab) {
+                foreach ($actions->take(5) as $ai => $action) {
+                    $statusIdx = ($ci + $ai) % count($actionStatuses);
+                    $status = $actionStatuses[$statusIdx];
+                    \App\Models\CollaborateurAction::firstOrCreate(
+                        ['collaborateur_id' => $collab->id, 'action_id' => $action->id],
+                        [
+                            'status' => $status,
+                            'started_at' => now()->subDays(rand(5, 40)),
+                            'completed_at' => $status === 'completed' ? now()->subDays(rand(1, 10)) : null,
+                            'note' => $status === 'completed' ? 'Terminé avec succès.' : null,
+                        ]
+                    );
+                }
+            }
+        }
+
+        // ── 26. NPS responses ─────────────────────────────────
+        $npsSurveys = \App\Models\NpsSurvey::all();
+        $npsCollabs = \App\Models\Collaborateur::take(6)->get();
+        if ($npsSurveys->isNotEmpty() && $npsCollabs->isNotEmpty()) {
+            $comments = [
+                'Très satisfait de mon intégration, équipe accueillante.',
+                'Bon processus, quelques améliorations possibles sur la documentation.',
+                'Excellent accompagnement de mon manager.',
+                'Un peu perdu les premiers jours, mais vite rattrapé grâce au buddy.',
+                'Outils bien préparés, formation claire et complète.',
+                'Je recommande vivement, expérience top !',
+            ];
+            foreach ($npsSurveys->take(2) as $survey) {
+                foreach ($npsCollabs->take(4) as $ci => $collab) {
+                    \App\Models\NpsResponse::firstOrCreate(
+                        ['survey_id' => $survey->id, 'collaborateur_id' => $collab->id],
+                        [
+                            'score' => rand(6, 10),
+                            'rating' => rand(3, 5),
+                            'answers' => [],
+                            'comment' => $comments[$ci % count($comments)],
+                            'completed_at' => now()->subDays(rand(1, 30)),
+                            'token' => \Illuminate\Support\Str::random(32),
+                        ]
+                    );
+                }
+            }
+        }
+
+        // ── 27. Demo data loaded flag ─────────────────────────
+        \App\Models\CompanySetting::set('demo_data_loaded', 'true');
+
         // ── 22. Roles par defaut ────────────────────────────────
         // Clean up legacy Spatie-only roles (admin, onboardee) that don't have custom columns
         Role::whereIn('name', ['admin', 'onboardee'])->where(function ($q) {
