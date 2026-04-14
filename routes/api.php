@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\V1\SuperAdminController;
 use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SignatureDocumentController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -396,6 +397,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('nps-stats', [NpsSurveyController::class, 'stats'])->middleware('permission:nps,view');
         Route::post('nps-surveys/{npsSurvey}/send', [NpsSurveyController::class, 'sendToCollaborateur'])->middleware('permission:nps,edit');
         Route::post('nps-surveys/{npsSurvey}/send-all', [NpsSurveyController::class, 'sendToAll'])->middleware('permission:nps,edit');
+
+        // ── Analytics ───────────────────────────────────────
+        Route::get('analytics/dashboard', [AnalyticsController::class, 'dashboard'])->middleware('permission:reports,view');
 
         // ── Equipment Management ──────────────────────────
         Route::get('equipment-types', [EquipmentController::class, 'types'])->middleware('permission:equipements,view');
