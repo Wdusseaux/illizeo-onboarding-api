@@ -17,6 +17,7 @@ use App\Models\Parcours;
 use App\Models\ParcoursCategorie;
 use App\Models\Phase;
 use App\Models\BadgeTemplate;
+use App\Models\Role;
 use App\Models\Workflow;
 use Illuminate\Database\Seeder;
 
@@ -846,5 +847,142 @@ class DefaultDataSeeder extends Seeder
         foreach ($surveys as $s) {
             \App\Models\NpsSurvey::updateOrCreate(['titre' => $s['titre']], $s);
         }
+
+        // ── 20. Roles par defaut ────────────────────────────────
+        $allAdmin = array_fill_keys([
+            'parcours', 'collaborateurs', 'documents', 'equipements', 'nps',
+            'workflows', 'company_page', 'integrations', 'settings', 'reports',
+            'cooptation', 'contrats', 'signatures', 'gamification',
+        ], 'admin');
+
+        Role::firstOrCreate(['slug' => 'super_admin'], [
+            'nom' => 'Super Admin',
+            'slug' => 'super_admin',
+            'description' => 'Acces complet a toutes les fonctionnalites de la plateforme.',
+            'couleur' => '#E53935',
+            'is_system' => true,
+            'is_default' => false,
+            'scope_type' => 'global',
+            'permissions' => $allAdmin,
+            'ordre' => 0,
+            'actif' => true,
+        ]);
+
+        Role::firstOrCreate(['slug' => 'admin_rh'], [
+            'nom' => 'Admin RH',
+            'slug' => 'admin_rh',
+            'description' => 'Administration des ressources humaines avec acces etendu.',
+            'couleur' => '#C2185B',
+            'is_system' => true,
+            'is_default' => false,
+            'scope_type' => 'global',
+            'permissions' => array_merge($allAdmin, [
+                'integrations' => 'view',
+                'settings' => 'view',
+            ]),
+            'ordre' => 1,
+            'actif' => true,
+        ]);
+
+        Role::firstOrCreate(['slug' => 'manager'], [
+            'nom' => 'Manager',
+            'slug' => 'manager',
+            'description' => 'Gestion des equipes et suivi des collaborateurs.',
+            'couleur' => '#1A73E8',
+            'is_system' => true,
+            'is_default' => false,
+            'scope_type' => 'equipe',
+            'permissions' => [
+                'parcours' => 'view',
+                'collaborateurs' => 'view',
+                'documents' => 'view',
+                'equipements' => 'none',
+                'nps' => 'view',
+                'workflows' => 'none',
+                'company_page' => 'none',
+                'integrations' => 'none',
+                'settings' => 'none',
+                'reports' => 'view',
+                'cooptation' => 'none',
+                'contrats' => 'none',
+                'signatures' => 'none',
+                'gamification' => 'view',
+            ],
+            'ordre' => 2,
+            'actif' => true,
+        ]);
+
+        Role::firstOrCreate(['slug' => 'hrbp'], [
+            'nom' => 'HRBP',
+            'slug' => 'hrbp',
+            'description' => 'HR Business Partner avec droits etendus sur les modules RH.',
+            'couleur' => '#7B5EA7',
+            'is_system' => false,
+            'is_default' => false,
+            'scope_type' => 'global',
+            'permissions' => [
+                'parcours' => 'edit',
+                'collaborateurs' => 'edit',
+                'documents' => 'edit',
+                'equipements' => 'view',
+                'nps' => 'edit',
+                'workflows' => 'edit',
+                'company_page' => 'view',
+                'integrations' => 'none',
+                'settings' => 'none',
+                'reports' => 'edit',
+                'cooptation' => 'edit',
+                'contrats' => 'edit',
+                'signatures' => 'edit',
+                'gamification' => 'edit',
+            ],
+            'ordre' => 3,
+            'actif' => true,
+        ]);
+
+        Role::firstOrCreate(['slug' => 'collaborateur'], [
+            'nom' => 'Collaborateur',
+            'slug' => 'collaborateur',
+            'description' => 'Role par defaut pour les nouveaux utilisateurs.',
+            'couleur' => '#4CAF50',
+            'is_system' => true,
+            'is_default' => true,
+            'scope_type' => 'global',
+            'permissions' => [
+                'parcours' => 'none',
+                'collaborateurs' => 'view',
+                'documents' => 'none',
+                'equipements' => 'none',
+                'nps' => 'none',
+                'workflows' => 'none',
+                'company_page' => 'view',
+                'integrations' => 'none',
+                'settings' => 'none',
+                'reports' => 'none',
+                'cooptation' => 'none',
+                'contrats' => 'none',
+                'signatures' => 'none',
+                'gamification' => 'view',
+            ],
+            'ordre' => 4,
+            'actif' => true,
+        ]);
+
+        Role::firstOrCreate(['slug' => 'auditeur'], [
+            'nom' => 'Auditeur',
+            'slug' => 'auditeur',
+            'description' => 'Acces en lecture seule a l\'ensemble de la plateforme.',
+            'couleur' => '#78909C',
+            'is_system' => false,
+            'is_default' => false,
+            'scope_type' => 'global',
+            'permissions' => array_fill_keys([
+                'parcours', 'collaborateurs', 'documents', 'equipements', 'nps',
+                'workflows', 'company_page', 'integrations', 'settings', 'reports',
+                'cooptation', 'contrats', 'signatures', 'gamification',
+            ], 'view'),
+            'ordre' => 5,
+            'actif' => true,
+        ]);
     }
 }

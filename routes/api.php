@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\SubscriptionController;
 use App\Http\Controllers\Api\V1\SuperAdminController;
 use App\Http\Controllers\Api\V1\EquipmentController;
+use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SignatureDocumentController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
@@ -426,6 +427,15 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog']);
         Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData']);
         Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion']);
+
+        // ── Roles & Permissions ────────────────────────────
+        Route::apiResource('roles', RoleController::class)->middleware('role:super_admin|admin|admin_rh');
+        Route::post('roles/{role}/assign', [RoleController::class, 'assignUser'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('roles/{role}/remove', [RoleController::class, 'removeUser'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('permissions/schema', [RoleController::class, 'permissions'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('permissions/effective', [RoleController::class, 'effectivePermissions'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('permissions/logs', [RoleController::class, 'logs'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Subscription management ────────────────────────
         Route::get('my-subscription', [SubscriptionController::class, 'mySubscription']);
