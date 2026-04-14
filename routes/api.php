@@ -94,12 +94,19 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // Current user permissions
         Route::get('me/collaborateur', function (\Illuminate\Http\Request $request) {
-            $collab = \App\Models\Collaborateur::with(['parcours', 'manager:id,prenom,nom', 'hrManager:id,prenom,nom'])
+            $collab = \App\Models\Collaborateur::with(['parcours.categorie', 'manager:id,prenom,nom', 'hrManager:id,prenom,nom'])
                 ->where('user_id', $request->user()->id)
                 ->orWhere('email', $request->user()->email)
                 ->first();
             if (!$collab) return response()->json(null);
-            return response()->json($collab);
+            $data = $collab->toArray();
+            // Include phases and actions for the assigned parcours
+            if ($collab->parcours_id) {
+                $data['parcours_phases'] = \App\Models\Phase::whereHas('parcours', fn($q) => $q->where('parcours.id', $collab->parcours_id))
+                    ->orderBy('ordre')->get();
+                $data['parcours_actions'] = \App\Models\Action::where('parcours_id', $collab->parcours_id)->get();
+            }
+            return response()->json($data);
         });
 
         Route::get('me/permissions', function (\Illuminate\Http\Request $request) {
