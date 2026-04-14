@@ -1007,14 +1007,24 @@ class DefaultDataSeeder extends Seeder
                 ['civilite' => 'Mme', 'date_naissance' => '1993-05-18', 'nationalite' => 'Allemande', 'telephone' => '+41 76 543 21 09', 'adresse' => 'Bahnhofstrasse 42', 'ville' => 'Lausanne', 'code_postal' => '1003', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5295 9', 'numero_avs' => '756.5555.1234.56', 'type_contrat' => 'CDD', 'salaire_brut' => '72000', 'devise' => 'CHF', 'taux_activite' => '80', 'periode_essai' => '1 mois', 'matricule' => 'ILZ-2026-005', 'job_title' => 'Consultante', 'job_family' => 'Consulting', 'job_code' => 'CON-01', 'job_level' => 'Senior', 'employment_type' => 'CDD', 'motif_embauche' => "Surcroît d'activité", 'date_fin_contrat' => '2026-12-31', 'position_title' => 'Consultante Senior', 'position_code' => 'POS-CON-005', 'business_unit' => 'Consulting', 'division' => 'Strategy', 'cost_center' => 'CC-500', 'location_code' => 'LAU-01', 'work_schedule' => 'Temps partiel', 'fte' => '0.8'],
                 ['civilite' => 'Mme', 'date_naissance' => '1991-09-25', 'nationalite' => 'Française', 'telephone' => '+41 78 111 22 33', 'adresse' => 'Place du Molard 3', 'ville' => 'Genève', 'code_postal' => '1204', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5296 0', 'numero_avs' => '756.3333.4444.55', 'type_contrat' => 'CDI', 'salaire_brut' => '85000', 'devise' => 'CHF', 'taux_activite' => '100', 'periode_essai' => '3 mois', 'matricule' => 'ILZ-2026-006', 'job_title' => 'Développeuse', 'job_family' => 'Engineering', 'job_code' => 'DEV-03', 'job_level' => 'Confirmé', 'employment_type' => 'CDI', 'motif_embauche' => 'Création de poste', 'position_title' => 'Développeuse Backend', 'position_code' => 'POS-DEV-006', 'business_unit' => 'Tech', 'division' => 'R&D', 'cost_center' => 'CC-200', 'location_code' => 'GVA-01', 'work_schedule' => 'Horaires flexibles', 'fte' => '1.0'],
             ];
-            // Assign parcours to collaborateurs
-            $defaultParcours = \App\Models\Parcours::first();
-            $allParcours = \App\Models\Parcours::all();
+            // Assign specific parcours to collaborateurs (varied categories)
+            $parcoursOnboarding = \App\Models\Parcours::where('nom', 'Onboarding Standard')->first();
+            $parcoursOffboarding = \App\Models\Parcours::where('nom', 'Départ standard')->first();
+            $parcoursCrossboarding = \App\Models\Parcours::where('nom', 'Mobilité interne standard')->first();
+            $parcoursReboarding = \App\Models\Parcours::where('nom', 'Retour congé maternité/parental')->first();
+            $parcoursAssign = [
+                $parcoursOnboarding,   // Nadia — onboarding en cours
+                $parcoursOnboarding,   // Antoine — onboarding en cours
+                $parcoursCrossboarding, // Inès — mobilité interne
+                $parcoursOnboarding,   // Youssef — onboarding terminé
+                $parcoursOffboarding,  // Clara — offboarding
+                $parcoursReboarding,   // Marie — reboarding
+            ];
             foreach ($collabs as $i => $c) {
                 $idx = $i % count($statuses);
                 $prog = $progressions[$idx];
                 $extra = $enrichData[$i % count($enrichData)] ?? [];
-                $assignedParcours = $allParcours->count() > 0 ? $allParcours[$i % $allParcours->count()] : $defaultParcours;
+                $assignedParcours = $parcoursAssign[$i] ?? $parcoursOnboarding;
                 $c->update(array_merge([
                     'status' => $statuses[$idx],
                     'progression' => $prog,
@@ -1059,13 +1069,16 @@ class DefaultDataSeeder extends Seeder
             }
         }
 
-        // ── 25. Action completions per collaborateur ──────────
+        // ── 25. Action completions per collaborateur (from their parcours) ──
         $actionCollabs = \App\Models\Collaborateur::take(6)->get();
-        $actions = \App\Models\Action::take(10)->get();
-        if ($actionCollabs->isNotEmpty() && $actions->isNotEmpty()) {
+        if ($actionCollabs->isNotEmpty()) {
             $actionStatuses = ['termine', 'termine', 'en_cours', 'a_faire', 'termine', 'en_cours'];
             foreach ($actionCollabs as $ci => $collab) {
-                foreach ($actions->take(5) as $ai => $action) {
+                // Get actions for this collab's parcours
+                $collabParcours = $collab->parcours;
+                $actions = $collabParcours ? \App\Models\Action::where('parcours_id', $collabParcours->id)->take(5)->get() : \App\Models\Action::take(5)->get();
+                if ($actions->isEmpty()) $actions = \App\Models\Action::take(5)->get();
+                foreach ($actions as $ai => $action) {
                     $statusIdx = ($ci + $ai) % count($actionStatuses);
                     $status = $actionStatuses[$statusIdx];
                     \App\Models\CollaborateurAction::firstOrCreate(
