@@ -849,6 +849,11 @@ class DefaultDataSeeder extends Seeder
         }
 
         // ── 20. Roles par defaut ────────────────────────────────
+        // Clean up legacy Spatie-only roles (admin, onboardee) that don't have custom columns
+        Role::whereIn('name', ['admin', 'onboardee'])->where(function ($q) {
+            $q->whereNull('slug')->orWhere('slug', '');
+        })->delete();
+
         $allAdmin = array_fill_keys([
             'parcours', 'collaborateurs', 'documents', 'equipements', 'nps',
             'workflows', 'company_page', 'integrations', 'settings', 'reports',
