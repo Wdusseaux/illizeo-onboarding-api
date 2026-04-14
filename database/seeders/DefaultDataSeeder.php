@@ -539,7 +539,7 @@ class DefaultDataSeeder extends Seeder
             ['field_key' => 'division', 'label' => 'Division', 'label_en' => 'Division', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 4],
             ['field_key' => 'cost_center', 'label' => 'Centre de coût', 'label_en' => 'Cost center', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 5],
             ['field_key' => 'location_code', 'label' => 'Code site', 'label_en' => 'Location code', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 6],
-            ['field_key' => 'manager_id', 'label' => 'Manager (ID)', 'label_en' => 'Manager ID', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 7],
+            ['field_key' => 'manager_id', 'label' => 'Manager (ID)', 'label_en' => 'Manager ID', 'section' => 'position', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 7],
             ['field_key' => 'dotted_line_manager', 'label' => 'Manager fonctionnel', 'label_en' => 'Dotted-line manager', 'section' => 'position', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 8],
             ['field_key' => 'work_schedule', 'label' => 'Horaire de travail', 'label_en' => 'Work schedule', 'section' => 'position', 'field_type' => 'list', 'list_values' => ['Temps plein', 'Temps partiel', 'Horaires flexibles', 'Travail posté'], 'actif' => true, 'obligatoire' => false, 'ordre' => 9],
             ['field_key' => 'fte', 'label' => 'FTE (équivalent temps plein)', 'label_en' => 'FTE', 'section' => 'position', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
@@ -1007,10 +1007,14 @@ class DefaultDataSeeder extends Seeder
                 ['civilite' => 'Mme', 'date_naissance' => '1993-05-18', 'nationalite' => 'Allemande', 'telephone' => '+41 76 543 21 09', 'adresse' => 'Bahnhofstrasse 42', 'ville' => 'Lausanne', 'code_postal' => '1003', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5295 9', 'numero_avs' => '756.5555.1234.56', 'type_contrat' => 'CDD', 'salaire_brut' => '72000', 'devise' => 'CHF', 'taux_activite' => '80', 'periode_essai' => '1 mois', 'matricule' => 'ILZ-2026-005', 'job_title' => 'Consultante', 'job_family' => 'Consulting', 'job_code' => 'CON-01', 'job_level' => 'Senior', 'employment_type' => 'CDD', 'motif_embauche' => "Surcroît d'activité", 'date_fin_contrat' => '2026-12-31', 'position_title' => 'Consultante Senior', 'position_code' => 'POS-CON-005', 'business_unit' => 'Consulting', 'division' => 'Strategy', 'cost_center' => 'CC-500', 'location_code' => 'LAU-01', 'work_schedule' => 'Temps partiel', 'fte' => '0.8'],
                 ['civilite' => 'Mme', 'date_naissance' => '1991-09-25', 'nationalite' => 'Française', 'telephone' => '+41 78 111 22 33', 'adresse' => 'Place du Molard 3', 'ville' => 'Genève', 'code_postal' => '1204', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5296 0', 'numero_avs' => '756.3333.4444.55', 'type_contrat' => 'CDI', 'salaire_brut' => '85000', 'devise' => 'CHF', 'taux_activite' => '100', 'periode_essai' => '3 mois', 'matricule' => 'ILZ-2026-006', 'job_title' => 'Développeuse', 'job_family' => 'Engineering', 'job_code' => 'DEV-03', 'job_level' => 'Confirmé', 'employment_type' => 'CDI', 'motif_embauche' => 'Création de poste', 'position_title' => 'Développeuse Backend', 'position_code' => 'POS-DEV-006', 'business_unit' => 'Tech', 'division' => 'R&D', 'cost_center' => 'CC-200', 'location_code' => 'GVA-01', 'work_schedule' => 'Horaires flexibles', 'fte' => '1.0'],
             ];
+            // Assign parcours to collaborateurs
+            $defaultParcours = \App\Models\Parcours::first();
+            $allParcours = \App\Models\Parcours::all();
             foreach ($collabs as $i => $c) {
                 $idx = $i % count($statuses);
                 $prog = $progressions[$idx];
                 $extra = $enrichData[$i % count($enrichData)] ?? [];
+                $assignedParcours = $allParcours->count() > 0 ? $allParcours[$i % $allParcours->count()] : $defaultParcours;
                 $c->update(array_merge([
                     'status' => $statuses[$idx],
                     'progression' => $prog,
@@ -1018,6 +1022,8 @@ class DefaultDataSeeder extends Seeder
                     'actions_total' => 10,
                     'docs_valides' => intval(($prog / 100) * 5),
                     'docs_total' => 5,
+                    'parcours_id' => $assignedParcours?->id,
+                    'phase' => $prog >= 100 ? '3 premiers mois' : ($prog >= 50 ? 'Première semaine' : ($prog > 0 ? 'Avant le premier jour' : 'Avant date d\'arrivée')),
                 ], $extra));
             }
         }
