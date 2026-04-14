@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanySetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,56 @@ use Illuminate\Support\Str;
 
 class PasswordController extends Controller
 {
+    /**
+     * Build dynamic password validation rules from company settings.
+     */
+    public static function getPasswordRules(): array
+    {
+        $raw = CompanySetting::get('password_policy');
+        $policy = is_string($raw) ? json_decode($raw, true) : ($raw ?? []);
+
+        $rules = ['required', 'string', 'min:' . ($policy['min_length'] ?? 8)];
+
+        if ($policy['uppercase'] ?? true) {
+            $rules[] = 'regex:/[A-Z]/';
+        }
+        if ($policy['lowercase'] ?? true) {
+            $rules[] = 'regex:/[a-z]/';
+        }
+        if ($policy['number'] ?? true) {
+            $rules[] = 'regex:/[0-9]/';
+        }
+        if ($policy['special'] ?? false) {
+            $rules[] = 'regex:/[!@#$%^&*(),.?":{}|<>]/';
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Return the current password policy (public, no auth).
+     */
+    public static function getPolicy(): JsonResponse
+    {
+        $raw = CompanySetting::get('password_policy');
+        $policy = is_string($raw) ? json_decode($raw, true) : ($raw ?? []);
+
+        $defaults = [
+            'min_length' => 8,
+            'uppercase' => true,
+            'lowercase' => true,
+            'number' => true,
+            'special' => false,
+            'no_common' => true,
+            'no_name' => false,
+            'max_attempts' => 5,
+            'history_count' => 3,
+            'expiry_days' => 0,
+        ];
+
+        return response()->json(array_merge($defaults, $policy));
+    }
+
     /**
      * Request password reset — generates a token
      * In production, this would send an email. For now, returns the token.
@@ -82,10 +133,11 @@ HTML;
      */
     public function resetPassword(Request $request): JsonResponse
     {
+        $pwdRules = array_merge(self::getPasswordRules(), ['confirmed']);
         $request->validate([
             'email' => 'required|email',
             'token' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => $pwdRules,
         ]);
 
         $record = DB::table('password_reset_tokens')->where('email', $request->email)->first();
@@ -116,9 +168,10 @@ HTML;
      */
     public function changePassword(Request $request): JsonResponse
     {
+        $pwdRules = array_merge(self::getPasswordRules(), ['confirmed']);
         $request->validate([
             'current_password' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => $pwdRules,
         ]);
 
         $user = $request->user();
@@ -138,7 +191,7 @@ HTML;
     public function adminResetPassword(Request $request, User $user): JsonResponse
     {
         $request->validate([
-            'password' => 'required|string|min:8',
+            'password' => self::getPasswordRules(),
         ]);
 
         $user->update(['password' => Hash::make($request->password)]);

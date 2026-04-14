@@ -75,6 +75,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
     Route::post('/forgot-password', [PasswordController::class, 'forgotPassword']);
     Route::post('/reset-password', [PasswordController::class, 'resetPassword']);
 
+    // Password policy (public — needed before auth for register/reset forms)
+    Route::get('/password-policy', [PasswordController::class, 'getPolicy']);
+
     // 2FA verify (no auth required — called after login when 2FA is enabled)
     Route::post('2fa/verify', [TwoFactorController::class, 'verify']);
 

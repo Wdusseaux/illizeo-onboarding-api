@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\V1\PasswordController;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,10 +15,11 @@ class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
+        $pwdRules = array_merge(PasswordController::getPasswordRules(), ['confirmed']);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => $pwdRules,
         ]);
 
         $user = User::create([
