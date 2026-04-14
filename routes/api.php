@@ -359,33 +359,37 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('integrations/{integration}/workday/workers', [WorkdayController::class, 'workers'])->middleware('permission:integrations,view');
 
         // ── Cooptation ─────────────────────────────────────
-        Route::apiResource('cooptations', CooptationController::class);
-        Route::post('cooptations/{cooptation}/mark-hired', [CooptationController::class, 'markHired']);
-        Route::post('cooptations/{cooptation}/validate', [CooptationController::class, 'validate']);
-        Route::post('cooptations/{cooptation}/mark-rewarded', [CooptationController::class, 'markRewarded']);
-        Route::post('cooptations/{cooptation}/refuse', [CooptationController::class, 'refuse']);
-        Route::post('cooptations/{cooptation}/upload-cv', [CooptationController::class, 'uploadCV']);
-        Route::get('cooptation-stats', [CooptationController::class, 'stats']);
-        Route::get('cooptation-settings', [CooptationController::class, 'getSettings']);
-        Route::put('cooptation-settings', [CooptationController::class, 'updateSettings']);
+        Route::get('cooptations', [CooptationController::class, 'index'])->middleware('permission:cooptation,view');
+        Route::get('cooptations/{cooptation}', [CooptationController::class, 'show'])->middleware('permission:cooptation,view');
+        Route::post('cooptations', [CooptationController::class, 'store'])->middleware('permission:cooptation,edit');
+        Route::put('cooptations/{cooptation}', [CooptationController::class, 'update'])->middleware('permission:cooptation,edit');
+        Route::delete('cooptations/{cooptation}', [CooptationController::class, 'destroy'])->middleware('permission:cooptation,edit');
+        Route::post('cooptations/{cooptation}/mark-hired', [CooptationController::class, 'markHired'])->middleware('permission:cooptation,edit');
+        Route::post('cooptations/{cooptation}/validate', [CooptationController::class, 'validate'])->middleware('permission:cooptation,edit');
+        Route::post('cooptations/{cooptation}/mark-rewarded', [CooptationController::class, 'markRewarded'])->middleware('permission:cooptation,edit');
+        Route::post('cooptations/{cooptation}/refuse', [CooptationController::class, 'refuse'])->middleware('permission:cooptation,edit');
+        Route::post('cooptations/{cooptation}/upload-cv', [CooptationController::class, 'uploadCV'])->middleware('permission:cooptation,edit');
+        Route::get('cooptation-stats', [CooptationController::class, 'stats'])->middleware('permission:cooptation,view');
+        Route::get('cooptation-settings', [CooptationController::class, 'getSettings'])->middleware('permission:cooptation,view');
+        Route::put('cooptation-settings', [CooptationController::class, 'updateSettings'])->middleware('permission:cooptation,edit');
 
         // Cooptation campaigns
-        Route::get('cooptation-campaigns', [CooptationController::class, 'listCampaigns']);
-        Route::post('cooptation-campaigns', [CooptationController::class, 'createCampaign']);
-        Route::put('cooptation-campaigns/{campaign}', [CooptationController::class, 'updateCampaign']);
-        Route::delete('cooptation-campaigns/{campaign}', [CooptationController::class, 'deleteCampaign']);
-        Route::get('cooptation-leaderboard', [CooptationController::class, 'leaderboard']);
+        Route::get('cooptation-campaigns', [CooptationController::class, 'listCampaigns'])->middleware('permission:cooptation,view');
+        Route::post('cooptation-campaigns', [CooptationController::class, 'createCampaign'])->middleware('permission:cooptation,edit');
+        Route::put('cooptation-campaigns/{campaign}', [CooptationController::class, 'updateCampaign'])->middleware('permission:cooptation,edit');
+        Route::delete('cooptation-campaigns/{campaign}', [CooptationController::class, 'deleteCampaign'])->middleware('permission:cooptation,edit');
+        Route::get('cooptation-leaderboard', [CooptationController::class, 'leaderboard'])->middleware('permission:cooptation,view');
 
         // ── Badges & Gamification ───────────────────────────
-        Route::get('badges', [BadgeController::class, 'earned']);
-        Route::get('badges/my', [BadgeController::class, 'myBadges']);
-        Route::get('badges/user/{userId}', [BadgeController::class, 'userBadges']);
-        Route::get('badge-templates', [BadgeController::class, 'templates']);
-        Route::post('badge-templates', [BadgeController::class, 'storeTemplate'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('badge-templates/{badgeTemplate}', [BadgeController::class, 'updateTemplate'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('badge-templates/{badgeTemplate}', [BadgeController::class, 'destroyTemplate'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('badges/award', [BadgeController::class, 'award'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('badges/{badge}', [BadgeController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('badges', [BadgeController::class, 'earned'])->middleware('permission:gamification,view');
+        Route::get('badges/my', [BadgeController::class, 'myBadges'])->middleware('permission:gamification,view');
+        Route::get('badges/user/{userId}', [BadgeController::class, 'userBadges'])->middleware('permission:gamification,view');
+        Route::get('badge-templates', [BadgeController::class, 'templates'])->middleware('permission:gamification,view');
+        Route::post('badge-templates', [BadgeController::class, 'storeTemplate'])->middleware('permission:gamification,edit');
+        Route::put('badge-templates/{badgeTemplate}', [BadgeController::class, 'updateTemplate'])->middleware('permission:gamification,edit');
+        Route::delete('badge-templates/{badgeTemplate}', [BadgeController::class, 'destroyTemplate'])->middleware('permission:gamification,edit');
+        Route::post('badges/award', [BadgeController::class, 'award'])->middleware('permission:gamification,edit');
+        Route::delete('badges/{badge}', [BadgeController::class, 'revoke'])->middleware('permission:gamification,edit');
 
         // ── NPS & Satisfaction ──────────────────────────────
         Route::get('nps-surveys', [NpsSurveyController::class, 'index'])->middleware('permission:nps,view');
