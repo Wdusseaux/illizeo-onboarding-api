@@ -310,6 +310,21 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('my-actions', [CollaborateurActionController::class, 'myActions']);
         Route::post('my-actions/{collaborateurAction}/complete', [CollaborateurActionController::class, 'completeMyAction']);
         Route::post('my-actions/{collaborateurAction}/reactivate', [CollaborateurActionController::class, 'reactivateMyAction']);
+        Route::post('my-actions/by-action/{action_id}/complete', function (\Illuminate\Http\Request $request, $actionId) {
+            $collab = \App\Models\Collaborateur::where('user_id', $request->user()->id)->orWhere('email', $request->user()->email)->first();
+            if (!$collab) return response()->json(['error' => 'No collaborateur'], 404);
+            $a = \App\Models\CollaborateurAction::firstOrCreate(['collaborateur_id' => $collab->id, 'action_id' => $actionId], ['status' => 'a_faire']);
+            $a->update(['status' => 'termine', 'completed_at' => now()]);
+            return response()->json($a);
+        });
+        Route::post('my-actions/by-action/{action_id}/reactivate', function (\Illuminate\Http\Request $request, $actionId) {
+            $collab = \App\Models\Collaborateur::where('user_id', $request->user()->id)->orWhere('email', $request->user()->email)->first();
+            if (!$collab) return response()->json(['error' => 'No collaborateur'], 404);
+            $a = \App\Models\CollaborateurAction::where('collaborateur_id', $collab->id)->where('action_id', $actionId)->first();
+            if (!$a) return response()->json(['error' => 'Not found'], 404);
+            $a->update(['status' => 'a_faire', 'completed_at' => null]);
+            return response()->json($a);
+        });
 
         // Company settings (appearance)
         Route::get('company-settings', [CompanySettingController::class, 'index']);
