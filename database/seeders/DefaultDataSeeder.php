@@ -952,7 +952,49 @@ class DefaultDataSeeder extends Seeder
             }
         }
 
-        // ── 21. Roles par defaut ────────────────────────────────
+        // ── 21. Buddy Pairs ────────────────────────────────────
+        if (\App\Models\BuddyPair::count() === 0) {
+            $collabs = \App\Models\Collaborateur::take(6)->get();
+            if ($collabs->count() >= 4) {
+                \App\Models\BuddyPair::create([
+                    'newcomer_id' => $collabs[0]->id,
+                    'buddy_id' => $collabs[2]->id,
+                    'status' => 'active',
+                    'checklist' => [true, true, true, true, false, false, false, false],
+                    'notes' => [
+                        ['text' => 'Très bonne intégration, motivé et curieux', 'date' => now()->subDays(10)->toISOString()],
+                        ['text' => 'A posé beaucoup de questions pertinentes sur les process', 'date' => now()->subDays(5)->toISOString()],
+                    ],
+                ]);
+                \App\Models\BuddyPair::create([
+                    'newcomer_id' => $collabs[1]->id,
+                    'buddy_id' => $collabs[3]->id,
+                    'status' => 'active',
+                    'checklist' => [true, true, true, true, true, true, true, false],
+                    'notes' => [
+                        ['text' => 'Bonne adaptation, autonome rapidement', 'date' => now()->subDays(30)->toISOString()],
+                        ['text' => 'RAS, tout se passe bien', 'date' => now()->subDays(15)->toISOString()],
+                    ],
+                ]);
+                if ($collabs->count() >= 6) {
+                    \App\Models\BuddyPair::create([
+                        'newcomer_id' => $collabs[4]->id,
+                        'buddy_id' => $collabs[2]->id,
+                        'status' => 'completed',
+                        'checklist' => [true, true, true, true, true, true, true, true],
+                        'notes' => [
+                            ['text' => 'Excellent accompagnement', 'date' => now()->subDays(60)->toISOString()],
+                            ['text' => 'Intégration réussie, autonome', 'date' => now()->subDays(45)->toISOString()],
+                        ],
+                        'rating' => 4.5,
+                        'feedback_comment' => 'Super parrain, toujours disponible et de bon conseil.',
+                        'completed_at' => now()->subDays(30),
+                    ]);
+                }
+            }
+        }
+
+        // ── 22. Roles par defaut ────────────────────────────────
         // Clean up legacy Spatie-only roles (admin, onboardee) that don't have custom columns
         Role::whereIn('name', ['admin', 'onboardee'])->where(function ($q) {
             $q->whereNull('slug')->orWhere('slug', '');

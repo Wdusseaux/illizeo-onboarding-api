@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SignatureDocumentController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\BuddyPairController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -449,6 +450,16 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog']);
         Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData']);
         Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion']);
+
+        // ── Buddy / Mentor Pairing ─────────────────────────
+        Route::get('buddy-pairs', [BuddyPairController::class, 'index'])->middleware('permission:parcours,view');
+        Route::get('buddy-pairs/{buddy_pair}', [BuddyPairController::class, 'show'])->middleware('permission:parcours,view');
+        Route::post('buddy-pairs', [BuddyPairController::class, 'store'])->middleware('permission:parcours,edit');
+        Route::put('buddy-pairs/{buddy_pair}', [BuddyPairController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::patch('buddy-pairs/{buddy_pair}', [BuddyPairController::class, 'update'])->middleware('permission:parcours,edit');
+        Route::delete('buddy-pairs/{buddy_pair}', [BuddyPairController::class, 'destroy'])->middleware('permission:parcours,edit');
+        Route::post('buddy-pairs/{buddy_pair}/note', [BuddyPairController::class, 'addNote'])->middleware('permission:parcours,edit');
+        Route::post('buddy-pairs/{buddy_pair}/complete', [BuddyPairController::class, 'complete'])->middleware('permission:parcours,edit');
 
         // ── Roles & Permissions ────────────────────────────
         Route::apiResource('roles', RoleController::class)->middleware('permission:settings,admin');
