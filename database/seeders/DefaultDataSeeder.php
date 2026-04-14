@@ -478,6 +478,7 @@ class DefaultDataSeeder extends Seeder
             // ATS
             ['provider' => 'smartrecruiters', 'categorie' => 'ats', 'nom' => 'SmartRecruiters', 'config' => ['api_key' => '', 'company_id' => ''], 'actif' => false, 'connecte' => false],
             ['provider' => 'teamtailor', 'categorie' => 'ats', 'nom' => 'Teamtailor', 'config' => ['api_key' => ''], 'actif' => false, 'connecte' => false],
+            ['provider' => 'taleez', 'categorie' => 'ats', 'nom' => 'Taleez', 'config' => ['api_key' => '', 'company_slug' => ''], 'actif' => false, 'connecte' => false],
             // SIRH
             ['provider' => 'sap', 'categorie' => 'sirh', 'nom' => 'SAP SuccessFactors', 'config' => ['base_url' => '', 'company_id' => '', 'username' => '', 'password' => ''], 'actif' => false, 'connecte' => false],
             ['provider' => 'personio', 'categorie' => 'sirh', 'nom' => 'Personio', 'config' => ['client_id' => '', 'client_secret' => ''], 'actif' => false, 'connecte' => false],
