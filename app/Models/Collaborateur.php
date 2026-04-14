@@ -24,8 +24,9 @@ class Collaborateur extends Model
         'job_title', 'job_family', 'job_code', 'job_level',
         'employment_type', 'date_fin_contrat', 'motif_embauche',
         // Position Information
+        'manager_id', 'hr_manager_id',
         'position_title', 'position_code', 'business_unit', 'division',
-        'cost_center', 'location_code', 'manager_id', 'dotted_line_manager',
+        'cost_center', 'location_code', 'dotted_line_manager',
         'work_schedule', 'fte',
         'custom_fields',
         'dossier_status', 'dossier_validated_at', 'dossier_validated_by',
@@ -70,5 +71,25 @@ class Collaborateur extends Model
         return $this->belongsToMany(User::class, 'collaborateur_accompagnants')
             ->withPivot('role', 'team_id')
             ->withTimestamps();
+    }
+
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(Collaborateur::class, 'manager_id');
+    }
+
+    public function hrManager(): BelongsTo
+    {
+        return $this->belongsTo(Collaborateur::class, 'hr_manager_id');
+    }
+
+    public function directReports(): HasMany
+    {
+        return $this->hasMany(Collaborateur::class, 'manager_id');
+    }
+
+    public function hrPopulation(): HasMany
+    {
+        return $this->hasMany(Collaborateur::class, 'hr_manager_id');
     }
 }

@@ -930,7 +930,29 @@ class DefaultDataSeeder extends Seeder
             \App\Models\NpsSurvey::updateOrCreate(['titre' => $s['titre']], $s);
         }
 
-        // ── 20. Roles par defaut ────────────────────────────────
+        // ── 20. Assign managers based on department ────────────
+        $allCollabs = \App\Models\Collaborateur::all();
+        if ($allCollabs->count() >= 2) {
+            $departments = $allCollabs->groupBy('departement');
+            $hrManagerIds = [];
+
+            foreach ($departments as $dept => $collabs) {
+                if ($collabs->count() < 2) continue;
+                $manager = $collabs->first();
+                $hrManagerIds[] = $manager->id;
+                foreach ($collabs->skip(1) as $collab) {
+                    $collab->update(['manager_id' => $manager->id]);
+                }
+            }
+
+            // Assign HR managers (first department manager becomes HR manager for everyone)
+            if (count($hrManagerIds) >= 1) {
+                $primaryHR = $hrManagerIds[0];
+                \App\Models\Collaborateur::whereNull('hr_manager_id')->update(['hr_manager_id' => $primaryHR]);
+            }
+        }
+
+        // ── 21. Roles par defaut ────────────────────────────────
         // Clean up legacy Spatie-only roles (admin, onboardee) that don't have custom columns
         Role::whereIn('name', ['admin', 'onboardee'])->where(function ($q) {
             $q->whereNull('slug')->orWhere('slug', '');

@@ -15,7 +15,7 @@ class CollaborateurController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Collaborateur::with(['parcours', 'groupes']);
+        $query = Collaborateur::with(['parcours', 'groupes', 'manager:id,prenom,nom', 'hrManager:id,prenom,nom']);
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -41,6 +41,8 @@ class CollaborateurController extends Controller
             'departement' => 'nullable|string',
             'date_debut' => 'nullable|date',
             'parcours_id' => 'nullable|exists:parcours,id',
+            'manager_id' => 'nullable|integer|exists:collaborateurs,id',
+            'hr_manager_id' => 'nullable|integer|exists:collaborateurs,id',
         ]);
 
         $validated['initials'] = strtoupper(mb_substr($validated['prenom'], 0, 1) . mb_substr($validated['nom'], 0, 1));
@@ -65,7 +67,7 @@ class CollaborateurController extends Controller
     public function show(Collaborateur $collaborateur): JsonResponse
     {
         return response()->json(
-            $collaborateur->load(['parcours.categorie', 'groupes', 'documents.categorie'])
+            $collaborateur->load(['parcours.categorie', 'groupes', 'documents.categorie', 'manager:id,prenom,nom', 'hrManager:id,prenom,nom'])
         );
     }
 
@@ -83,6 +85,8 @@ class CollaborateurController extends Controller
             'progression' => 'nullable|integer|min:0|max:100',
             'status' => 'nullable|in:en_cours,en_retard,termine',
             'parcours_id' => 'nullable|exists:parcours,id',
+            'manager_id' => 'nullable|integer|exists:collaborateurs,id',
+            'hr_manager_id' => 'nullable|integer|exists:collaborateurs,id',
         ]);
 
         $previousProgression = $collaborateur->progression;
