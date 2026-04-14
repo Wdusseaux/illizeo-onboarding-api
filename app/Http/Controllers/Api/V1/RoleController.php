@@ -78,6 +78,10 @@ class RoleController extends Controller
             $validated['slug'] = Str::slug($validated['nom'], '_');
         }
 
+        // Spatie compatibility: set name and guard_name
+        $validated['name'] = $validated['slug'];
+        $validated['guard_name'] = 'web';
+
         // If this role is marked as default, unset others
         if (!empty($validated['is_default'])) {
             Role::where('is_default', true)->update(['is_default' => false]);
@@ -294,6 +298,8 @@ class RoleController extends Controller
         $newRole = $role->replicate(['id']);
         $newRole->nom = $role->nom . ' (copie)';
         $newRole->slug = $role->slug . '_copie_' . Str::random(4);
+        $newRole->name = $newRole->slug;
+        $newRole->guard_name = 'web';
         $newRole->is_system = false;
         $newRole->is_default = false;
         $newRole->save();

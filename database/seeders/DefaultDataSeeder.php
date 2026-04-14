@@ -856,6 +856,7 @@ class DefaultDataSeeder extends Seeder
         ], 'admin');
 
         Role::firstOrCreate(['slug' => 'super_admin'], [
+            'name' => 'super_admin', 'guard_name' => 'web',
             'nom' => 'Super Admin',
             'slug' => 'super_admin',
             'description' => 'Acces complet a toutes les fonctionnalites de la plateforme.',
@@ -869,6 +870,7 @@ class DefaultDataSeeder extends Seeder
         ]);
 
         Role::firstOrCreate(['slug' => 'admin_rh'], [
+            'name' => 'admin_rh', 'guard_name' => 'web',
             'nom' => 'Admin RH',
             'slug' => 'admin_rh',
             'description' => 'Administration des ressources humaines avec acces etendu.',
@@ -885,6 +887,7 @@ class DefaultDataSeeder extends Seeder
         ]);
 
         Role::firstOrCreate(['slug' => 'manager'], [
+            'name' => 'manager', 'guard_name' => 'web',
             'nom' => 'Manager',
             'slug' => 'manager',
             'description' => 'Gestion des equipes et suivi des collaborateurs.',
@@ -913,6 +916,7 @@ class DefaultDataSeeder extends Seeder
         ]);
 
         Role::firstOrCreate(['slug' => 'hrbp'], [
+            'name' => 'hrbp', 'guard_name' => 'web',
             'nom' => 'HRBP',
             'slug' => 'hrbp',
             'description' => 'HR Business Partner avec droits etendus sur les modules RH.',
@@ -941,6 +945,7 @@ class DefaultDataSeeder extends Seeder
         ]);
 
         Role::firstOrCreate(['slug' => 'collaborateur'], [
+            'name' => 'collaborateur', 'guard_name' => 'web',
             'nom' => 'Collaborateur',
             'slug' => 'collaborateur',
             'description' => 'Role par defaut pour les nouveaux utilisateurs.',
@@ -969,6 +974,7 @@ class DefaultDataSeeder extends Seeder
         ]);
 
         Role::firstOrCreate(['slug' => 'auditeur'], [
+            'name' => 'auditeur', 'guard_name' => 'web',
             'nom' => 'Auditeur',
             'slug' => 'auditeur',
             'description' => 'Acces en lecture seule a l\'ensemble de la plateforme.',
