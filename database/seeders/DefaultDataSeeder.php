@@ -352,6 +352,7 @@ class DefaultDataSeeder extends Seeder
             ['nom' => 'Désactivation accès offboarding', 'declencheur' => 'Fin de parcours offboarding', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
             ['nom' => "Envoi formulaire fin de période d'essai", 'declencheur' => "Période d'essai terminée", 'action' => 'Envoyer formulaire évaluation', 'destinataire' => 'Manager direct', 'actif' => true],
             ['nom' => 'Envoi entretien de sortie', 'declencheur' => 'Parcours offboarding créé', 'action' => 'Envoyer questionnaire exit interview', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => "Envoi rapport d'étonnement J+30", 'declencheur' => 'J+30 après arrivée', 'action' => "Envoyer questionnaire rapport d'étonnement", 'destinataire' => 'Collaborateur', 'actif' => true],
         ];
 
         foreach ($workflowsData as $w) {
@@ -370,6 +371,7 @@ class DefaultDataSeeder extends Seeder
             ['nom' => 'Fin de parcours', 'sujet' => 'Félicitations – Parcours terminé', 'declencheur' => 'Parcours complété à 100%', 'variables' => ['{{prenom}}', '{{parcours_nom}}'], 'actif' => true],
             ['nom' => "Évaluation fin de période d'essai", 'sujet' => "Évaluation de fin de période d'essai — {{collab_nom}}", 'declencheur' => 'Parcours complété à 100%', 'variables' => ['{{manager}}', '{{collab_nom}}', '{{date_fin_essai}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{manager}},</h2><p>La période d'essai de <strong>{{collab_nom}}</strong> arrive à son terme le <strong>{{date_fin_essai}}</strong>.</p><p>Merci de compléter le formulaire d'évaluation afin de confirmer ou non la poursuite du contrat.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Compléter l'évaluation</a></p>"],
             ['nom' => 'Entretien de sortie (Exit Interview)', 'sujet' => 'Votre avis compte — Entretien de sortie', 'declencheur' => 'Création du parcours', 'variables' => ['{{prenom}}', '{{date_depart}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Votre départ est prévu le <strong>{{date_depart}}</strong>. Nous aimerions recueillir votre retour d'expérience.</p><p>Ce questionnaire est confidentiel et prend environ 5 minutes.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Répondre au questionnaire</a></p>"],
+            ['nom' => "Rapport d'étonnement (1 mois)", 'sujet' => "Votre regard compte — Rapport d'étonnement", 'declencheur' => 'J+30', 'variables' => ['{{prenom}}', '{{parcours_nom}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Cela fait maintenant 1 mois que vous avez rejoint l'équipe. Nous aimerions recueillir votre regard neuf sur notre entreprise et notre processus d'intégration.</p><p>Ce questionnaire est confidentiel et prend environ 5 minutes.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Partager mon retour</a></p>"],
         ];
 
         foreach ($emailTemplatesData as $et) {
@@ -839,6 +841,45 @@ class DefaultDataSeeder extends Seeder
                         ['text' => 'What could have made you stay?'],
                         ['text' => "What suggestions would you make to improve the employee experience?"],
                         ['text' => 'Would you be open to future collaboration with the company?', 'options' => ['Yes, definitely', 'Maybe', 'No']],
+                    ]],
+                ],
+            ],
+            [
+                'titre' => "Rapport d'étonnement (1 mois)",
+                'description' => "Formulaire structuré que le nouvel employé remplit après 1 mois pour partager son regard neuf sur l'entreprise.",
+                'type' => 'custom',
+                'declencheur' => 'date_specifique',
+                'actif' => true,
+                'questions' => [
+                    ['text' => "Qu'est-ce qui vous a le plus surpris positivement depuis votre arrivée ?", 'type' => 'text'],
+                    ['text' => "Qu'est-ce qui vous a le plus surpris négativement ou déçu ?", 'type' => 'text'],
+                    ['text' => "Le poste correspond-il à ce qui vous a été présenté lors du recrutement ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous la qualité de votre accueil le premier jour ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Votre poste de travail et vos outils étaient-ils prêts à votre arrivée ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Comment évaluez-vous l'accompagnement de votre manager ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Vous sentez-vous intégré(e) dans votre équipe ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Les formations et ressources mises à disposition sont-elles suffisantes ? (1-5)", 'type' => 'rating'],
+                    ['text' => "Avez-vous une visibilité claire sur vos objectifs et vos responsabilités ?", 'type' => 'choice', 'options' => ['Oui, très clair', 'Partiellement', 'Non, pas encore']],
+                    ['text' => "Si vous pouviez changer une chose dans le processus d'intégration, ce serait :", 'type' => 'text'],
+                    ['text' => "Recommanderiez-vous cette entreprise comme employeur ? (0-10)", 'type' => 'nps'],
+                    ['text' => "Commentaire libre", 'type' => 'text'],
+                ],
+                'translations' => [
+                    'titre' => ['en' => 'Newcomer Feedback Report (1 month)'],
+                    'description' => ['en' => 'Structured form that new employees fill after 1 month to share their fresh perspective on the company.'],
+                    'questions' => ['en' => [
+                        ['text' => 'What surprised you most positively since your arrival?'],
+                        ['text' => 'What surprised you most negatively or disappointed you?'],
+                        ['text' => 'Does the position match what was presented during recruitment? (1-5)'],
+                        ['text' => 'How would you rate the quality of your welcome on day one? (1-5)'],
+                        ['text' => 'Were your workstation and tools ready when you arrived? (1-5)'],
+                        ['text' => "How would you rate your manager's support? (1-5)"],
+                        ['text' => 'Do you feel integrated into your team? (1-5)'],
+                        ['text' => 'Are the training and resources provided sufficient? (1-5)'],
+                        ['text' => 'Do you have clear visibility on your objectives and responsibilities?', 'options' => ['Yes, very clear', 'Partially', 'Not yet']],
+                        ['text' => 'If you could change one thing about the onboarding process, it would be:'],
+                        ['text' => 'Would you recommend this company as an employer? (0-10)'],
+                        ['text' => 'Any other comments'],
                     ]],
                 ],
             ],
