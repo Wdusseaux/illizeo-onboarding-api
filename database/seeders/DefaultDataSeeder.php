@@ -994,22 +994,31 @@ class DefaultDataSeeder extends Seeder
             }
         }
 
-        // ── 23. Enrich collaborateurs with progression data ─────
+        // ── 23. Enrich collaborateurs with full profile data ─────
         $collabs = \App\Models\Collaborateur::all();
         if ($collabs->isNotEmpty()) {
             $statuses = ['en_cours', 'en_cours', 'en_retard', 'termine', 'en_cours', 'en_retard'];
             $progressions = [15, 45, 80, 100, 0, 25];
+            $enrichData = [
+                ['civilite' => 'Mme', 'date_naissance' => '1992-03-15', 'nationalite' => 'Portugaise', 'telephone' => '+41 78 123 45 67', 'adresse' => 'Rue du Marché 12', 'ville' => 'Genève', 'code_postal' => '1204', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5295 7', 'numero_avs' => '756.1234.5678.90', 'type_contrat' => 'CDI', 'salaire_brut' => '95000', 'devise' => 'CHF', 'taux_activite' => '100', 'periode_essai' => '3 mois', 'matricule' => 'ILZ-2026-001', 'job_title' => 'Chef de Projet', 'job_family' => 'Management', 'job_code' => 'PM-01', 'job_level' => 'Senior', 'employment_type' => 'Temps plein', 'position_title' => 'Chef de Projet Digital', 'position_code' => 'POS-PM-001', 'business_unit' => 'Digital', 'division' => 'Consulting', 'cost_center' => 'CC-100', 'location_code' => 'GVA-01', 'work_schedule' => 'Lun-Ven 8h30-17h30', 'fte' => '1.0'],
+                ['civilite' => 'M.', 'date_naissance' => '1988-07-22', 'nationalite' => 'Française', 'telephone' => '+33 6 12 34 56 78', 'adresse' => '15 Avenue des Champs', 'ville' => 'Paris', 'code_postal' => '75008', 'pays' => 'France', 'iban' => 'FR76 3000 6000 0112 3456 7890 189', 'numero_avs' => '', 'type_contrat' => 'CDI', 'salaire_brut' => '52000', 'devise' => 'EUR', 'taux_activite' => '100', 'periode_essai' => '4 mois', 'matricule' => 'ILZ-2026-002', 'job_title' => 'Développeur Full Stack', 'job_family' => 'Engineering', 'job_code' => 'DEV-02', 'job_level' => 'Confirmé', 'employment_type' => 'Temps plein', 'position_title' => 'Développeur Full Stack', 'position_code' => 'POS-DEV-002', 'business_unit' => 'Tech', 'division' => 'R&D', 'cost_center' => 'CC-200', 'location_code' => 'PAR-01', 'work_schedule' => 'Flexible', 'fte' => '1.0'],
+                ['civilite' => 'Mme', 'date_naissance' => '1995-11-08', 'nationalite' => 'Française', 'telephone' => '+33 7 98 76 54 32', 'adresse' => '8 Rue de la République', 'ville' => 'Lyon', 'code_postal' => '69002', 'pays' => 'France', 'iban' => 'FR76 1234 5000 0112 3456 7890 123', 'numero_avs' => '', 'type_contrat' => 'CDI', 'salaire_brut' => '45000', 'devise' => 'EUR', 'taux_activite' => '100', 'periode_essai' => '3 mois', 'matricule' => 'ILZ-2026-003', 'job_title' => 'UX Designer', 'job_family' => 'Design', 'job_code' => 'UX-01', 'job_level' => 'Junior', 'employment_type' => 'Temps plein', 'position_title' => 'UX/UI Designer', 'position_code' => 'POS-UX-003', 'business_unit' => 'Produit', 'division' => 'Design', 'cost_center' => 'CC-300', 'location_code' => 'LYO-01', 'work_schedule' => 'Lun-Ven 9h-18h', 'fte' => '1.0'],
+                ['civilite' => 'M.', 'date_naissance' => '1990-01-30', 'nationalite' => 'Suisse', 'telephone' => '+41 79 876 54 32', 'adresse' => 'Chemin des Vignes 5', 'ville' => 'Genève', 'code_postal' => '1209', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5295 8', 'numero_avs' => '756.9876.5432.10', 'type_contrat' => 'CDI', 'salaire_brut' => '88000', 'devise' => 'CHF', 'taux_activite' => '100', 'periode_essai' => '3 mois', 'matricule' => 'ILZ-2026-004', 'job_title' => 'Data Analyst', 'job_family' => 'Data', 'job_code' => 'DA-01', 'job_level' => 'Confirmé', 'employment_type' => 'Temps plein', 'position_title' => 'Data Analyst Senior', 'position_code' => 'POS-DA-004', 'business_unit' => 'Data', 'division' => 'Analytics', 'cost_center' => 'CC-400', 'location_code' => 'GVA-01', 'work_schedule' => 'Lun-Ven 8h-17h', 'fte' => '1.0'],
+                ['civilite' => 'Mme', 'date_naissance' => '1993-05-18', 'nationalite' => 'Allemande', 'telephone' => '+41 76 543 21 09', 'adresse' => 'Bahnhofstrasse 42', 'ville' => 'Lausanne', 'code_postal' => '1003', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5295 9', 'numero_avs' => '756.5555.1234.56', 'type_contrat' => 'CDD', 'salaire_brut' => '72000', 'devise' => 'CHF', 'taux_activite' => '80', 'periode_essai' => '1 mois', 'matricule' => 'ILZ-2026-005', 'job_title' => 'Consultante', 'job_family' => 'Consulting', 'job_code' => 'CON-01', 'job_level' => 'Senior', 'employment_type' => 'Temps partiel', 'date_fin_contrat' => '2026-12-31', 'position_title' => 'Consultante Senior', 'position_code' => 'POS-CON-005', 'business_unit' => 'Consulting', 'division' => 'Strategy', 'cost_center' => 'CC-500', 'location_code' => 'LAU-01', 'work_schedule' => 'Lun-Jeu 8h30-17h', 'fte' => '0.8'],
+                ['civilite' => 'Mme', 'date_naissance' => '1991-09-25', 'nationalite' => 'Française', 'telephone' => '+41 78 111 22 33', 'adresse' => 'Place du Molard 3', 'ville' => 'Genève', 'code_postal' => '1204', 'pays' => 'Suisse', 'iban' => 'CH93 0076 2011 6238 5296 0', 'numero_avs' => '756.3333.4444.55', 'type_contrat' => 'CDI', 'salaire_brut' => '85000', 'devise' => 'CHF', 'taux_activite' => '100', 'periode_essai' => '3 mois', 'matricule' => 'ILZ-2026-006', 'job_title' => 'Développeuse', 'job_family' => 'Engineering', 'job_code' => 'DEV-03', 'job_level' => 'Confirmé', 'employment_type' => 'Temps plein', 'position_title' => 'Développeuse Backend', 'position_code' => 'POS-DEV-006', 'business_unit' => 'Tech', 'division' => 'R&D', 'cost_center' => 'CC-200', 'location_code' => 'GVA-01', 'work_schedule' => 'Flexible', 'fte' => '1.0'],
+            ];
             foreach ($collabs as $i => $c) {
                 $idx = $i % count($statuses);
                 $prog = $progressions[$idx];
-                $c->update([
+                $extra = $enrichData[$i % count($enrichData)] ?? [];
+                $c->update(array_merge([
                     'status' => $statuses[$idx],
                     'progression' => $prog,
                     'actions_completes' => intval(($prog / 100) * 10),
                     'actions_total' => 10,
                     'docs_valides' => intval(($prog / 100) * 5),
                     'docs_total' => 5,
-                ]);
+                ], $extra));
             }
         }
 
