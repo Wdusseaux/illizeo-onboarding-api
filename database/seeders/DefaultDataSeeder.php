@@ -1048,7 +1048,7 @@ class DefaultDataSeeder extends Seeder
         $actionCollabs = \App\Models\Collaborateur::take(6)->get();
         $actions = \App\Models\Action::take(10)->get();
         if ($actionCollabs->isNotEmpty() && $actions->isNotEmpty()) {
-            $actionStatuses = ['completed', 'completed', 'in_progress', 'pending', 'completed', 'in_progress'];
+            $actionStatuses = ['termine', 'termine', 'en_cours', 'a_faire', 'termine', 'en_cours'];
             foreach ($actionCollabs as $ci => $collab) {
                 foreach ($actions->take(5) as $ai => $action) {
                     $statusIdx = ($ci + $ai) % count($actionStatuses);
@@ -1058,8 +1058,8 @@ class DefaultDataSeeder extends Seeder
                         [
                             'status' => $status,
                             'started_at' => now()->subDays(rand(5, 40)),
-                            'completed_at' => $status === 'completed' ? now()->subDays(rand(1, 10)) : null,
-                            'note' => $status === 'completed' ? 'Terminé avec succès.' : null,
+                            'completed_at' => $status === 'termine' ? now()->subDays(rand(1, 10)) : null,
+                            'note' => $status === 'termine' ? 'Terminé avec succès.' : null,
                         ]
                     );
                 }
