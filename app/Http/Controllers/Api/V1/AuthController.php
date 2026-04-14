@@ -18,7 +18,7 @@ class AuthController extends Controller
         $pwdRules = array_merge(PasswordController::getPasswordRules(), ['confirmed']);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => ['required', 'email', 'unique:users,email', new \App\Rules\NotDisposableEmail],
             'password' => $pwdRules,
         ]);
 
