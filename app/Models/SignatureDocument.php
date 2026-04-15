@@ -21,4 +21,9 @@ class SignatureDocument extends Model
     {
         return $this->hasMany(SignatureLog::class);
     }
+
+    public function acknowledgements(): HasMany
+    {
+        return $this->hasMany(DocumentAcknowledgement::class);
+    }
 }

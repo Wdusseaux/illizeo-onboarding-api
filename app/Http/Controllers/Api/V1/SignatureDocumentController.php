@@ -16,8 +16,8 @@ class SignatureDocumentController extends Controller
     public function index(): JsonResponse
     {
         $docs = SignatureDocument::withCount([
-            'logs as total_envois',
-            'logs as total_signes' => fn ($q) => $q->whereIn('statut', ['lu', 'signe']),
+            'acknowledgements as total_envois',
+            'acknowledgements as total_signes' => fn ($q) => $q->whereIn('statut', ['lu', 'signe']),
         ])->orderByDesc('created_at')->get();
 
         return response()->json($docs);

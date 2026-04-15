@@ -26,8 +26,17 @@ class ActionController extends Controller
         return response()->json($query->get());
     }
 
+    private function resolveActionTypeId(Request $request): void
+    {
+        if (!$request->action_type_id && $request->action_type_slug) {
+            $type = \App\Models\ActionType::where('slug', $request->action_type_slug)->first();
+            if ($type) $request->merge(['action_type_id' => $type->id]);
+        }
+    }
+
     public function store(Request $request): JsonResponse
     {
+        $this->resolveActionTypeId($request);
         $validated = $request->validate([
             'titre' => 'required|string|max:255',
             'action_type_id' => 'required|exists:action_types,id',
@@ -56,6 +65,7 @@ class ActionController extends Controller
 
     public function update(Request $request, Action $action): JsonResponse
     {
+        $this->resolveActionTypeId($request);
         $validated = $request->validate([
             'titre' => 'sometimes|string|max:255',
             'action_type_id' => 'sometimes|exists:action_types,id',

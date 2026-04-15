@@ -224,6 +224,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::put('contrats/{contrat}', [ContratController::class, 'update'])->middleware('permission:contrats,edit');
         Route::patch('contrats/{contrat}', [ContratController::class, 'update'])->middleware('permission:contrats,edit');
         Route::delete('contrats/{contrat}', [ContratController::class, 'destroy'])->middleware('permission:contrats,edit');
+        Route::post('contrats/{contrat}/upload', [ContratController::class, 'uploadFile'])->middleware('permission:contrats,edit');
+        Route::get('contrats/{contrat}/template', [ContratController::class, 'downloadTemplate'])->middleware('permission:contrats,view');
+        Route::get('contrats/{contrat}/generate', [ContratController::class, 'generateForCollaborateur']);
 
         // ── Workflows ───────────────────────────────────────
         Route::get('workflows', [WorkflowController::class, 'index'])->middleware('permission:workflows,view');

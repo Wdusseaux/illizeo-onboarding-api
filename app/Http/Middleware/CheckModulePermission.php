@@ -37,8 +37,8 @@ class CheckModulePermission
             return $next($request);
         }
 
-        // Backward compatibility: Spatie super_admin or admin role
-        if ($user->hasRole('super_admin') || $user->hasRole('admin')) {
+        // Backward compatibility: Spatie super_admin, admin, or admin_rh role
+        if ($user->hasRole('super_admin') || $user->hasRole('admin') || $user->hasRole('admin_rh')) {
             return $next($request);
         }
 
