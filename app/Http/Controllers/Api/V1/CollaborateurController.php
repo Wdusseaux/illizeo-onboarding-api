@@ -121,7 +121,27 @@ class CollaborateurController extends Controller
      */
     public function purgeDemo(): JsonResponse
     {
-        $deleted = Collaborateur::where('email', 'like', '%@illizeo.com')->delete();
-        return response()->json(['deleted' => $deleted]);
+        // Delete all demo employee data but keep configuration
+        $collabIds = Collaborateur::pluck('id');
+
+        // Purge employee-linked data
+        \App\Models\CollaborateurAction::whereIn('collaborateur_id', $collabIds)->delete();
+        \App\Models\CollaborateurAccompagnant::whereIn('collaborateur_id', $collabIds)->delete();
+        \App\Models\DocumentAcknowledgement::whereIn('collaborateur_id', $collabIds)->delete();
+        \App\Models\Message::query()->delete();
+        \App\Models\Conversation::query()->delete();
+        \App\Models\UserNotification::query()->delete();
+
+        // Delete demo collaborateurs
+        $deleted = Collaborateur::delete();
+
+        // Delete non-admin users (keep super_admin and admin_rh)
+        $adminUserIds = \App\Models\User::whereHas('roles', fn ($q) => $q->whereIn('name', ['super_admin', 'admin_rh', 'admin']))->pluck('id');
+        \App\Models\User::whereNotIn('id', $adminUserIds)->delete();
+
+        // Set demo_mode to false
+        \App\Models\CompanySetting::updateOrCreate(['key' => 'demo_mode'], ['value' => 'false']);
+
+        return response()->json(['deleted_collaborateurs' => $deleted, 'demo_mode' => false]);
     }
 }

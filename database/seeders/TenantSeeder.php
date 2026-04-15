@@ -31,6 +31,7 @@ class TenantSeeder extends Seeder
             'time_format' => '24h',
             'timezone' => 'Europe/Zurich',
             'active_languages' => '["fr","en"]',
+            'demo_mode' => $tenantId === 'illizeo' ? 'true' : 'false',
         ];
         foreach ($defaults as $key => $value) {
             \App\Models\CompanySetting::updateOrCreate(['key' => $key], ['value' => $value]);
