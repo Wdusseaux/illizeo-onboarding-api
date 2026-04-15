@@ -263,9 +263,9 @@ class IllizeoSeeder extends Seeder
         $collabsData = [
             ['prenom' => 'Nadia', 'nom' => 'FERREIRA', 'email' => 'nadia.ferreira@illizeo.com', 'poste' => 'Chef de Projet', 'site' => 'Genève', 'departement' => 'B030-Switzerland', 'date_debut' => '2026-06-01', 'phase' => "Avant date d'arrivée", 'progression' => 15, 'status' => 'en_retard', 'docs_valides' => 1, 'docs_total' => 5, 'actions_completes' => 0, 'actions_total' => 7, 'initials' => 'NF', 'couleur' => '#C2185B', 'parcours' => 'Onboarding Standard'],
             ['prenom' => 'Antoine', 'nom' => 'MOREL', 'email' => 'antoine.morel@illizeo.com', 'poste' => 'Développeur Full Stack', 'site' => 'Paris', 'departement' => 'Tech-France', 'date_debut' => '2026-06-15', 'phase' => "Avant date d'arrivée", 'progression' => 45, 'status' => 'en_cours', 'docs_valides' => 3, 'docs_total' => 4, 'actions_completes' => 2, 'actions_total' => 5, 'initials' => 'AM', 'couleur' => '#1A73E8', 'parcours' => 'Onboarding Standard'],
-            ['prenom' => 'Inès', 'nom' => 'CARPENTIER', 'email' => 'ines.carpentier@illizeo.com', 'poste' => 'UX Designer', 'site' => 'Lyon', 'departement' => 'Design-France', 'date_debut' => '2026-07-01', 'phase' => "Avant date d'arrivée", 'progression' => 80, 'status' => 'en_cours', 'docs_valides' => 4, 'docs_total' => 4, 'actions_completes' => 4, 'actions_total' => 5, 'initials' => 'IC', 'couleur' => '#4CAF50', 'parcours' => 'Onboarding Standard'],
+            ['prenom' => 'Inès', 'nom' => 'CARPENTIER', 'email' => 'ines.carpentier@illizeo.com', 'poste' => 'UX Designer', 'site' => 'Lyon', 'departement' => 'Design-France', 'date_debut' => '2026-07-01', 'phase' => 'Annonce mobilité', 'progression' => 80, 'status' => 'en_cours', 'docs_valides' => 4, 'docs_total' => 4, 'actions_completes' => 4, 'actions_total' => 5, 'initials' => 'IC', 'couleur' => '#4CAF50', 'parcours' => 'Mobilité interne standard'],
             ['prenom' => 'Youssef', 'nom' => 'HADJ', 'email' => 'youssef.hadj@illizeo.com', 'poste' => 'Data Analyst', 'site' => 'Genève', 'departement' => 'Data-Switzerland', 'date_debut' => '2026-03-10', 'phase' => 'Première semaine', 'progression' => 100, 'status' => 'termine', 'docs_valides' => 5, 'docs_total' => 5, 'actions_completes' => 7, 'actions_total' => 7, 'initials' => 'YH', 'couleur' => '#7B5EA7', 'parcours' => 'Onboarding Standard'],
-            ['prenom' => 'Clara', 'nom' => 'VOGEL', 'email' => 'clara.vogel@illizeo.com', 'poste' => 'Consultante', 'site' => 'Lausanne', 'departement' => 'Consulting-CH', 'date_debut' => '2026-06-20', 'phase' => "Avant date d'arrivée", 'progression' => 0, 'status' => 'en_retard', 'docs_valides' => 0, 'docs_total' => 6, 'actions_completes' => 0, 'actions_total' => 8, 'initials' => 'CV', 'couleur' => '#F9A825', 'parcours' => 'Onboarding Standard'],
+            ['prenom' => 'Clara', 'nom' => 'VOGEL', 'email' => 'clara.vogel@illizeo.com', 'poste' => 'Consultante', 'site' => 'Lausanne', 'departement' => 'Consulting-CH', 'date_debut' => '2026-06-20', 'phase' => "Annonce", 'progression' => 0, 'status' => 'en_retard', 'docs_valides' => 0, 'docs_total' => 6, 'actions_completes' => 0, 'actions_total' => 8, 'initials' => 'CV', 'couleur' => '#F9A825', 'parcours' => 'Départ standard'],
         ];
 
         $collabs = [];
@@ -365,6 +365,25 @@ class IllizeoSeeder extends Seeder
 
         foreach ($signatureDocsData as $sd) {
             SignatureDocument::create($sd);
+        }
+
+        // ── 9b. Link signature actions to signature documents ──
+        $sigLinkMap = [
+            'Signer la charte informatique' => 'Charte informatique',
+            'Signer le contrat de travail' => 'Accord de confidentialité (NDA)',
+            'Solde de tout compte' => 'Accord de confidentialité (NDA)',
+            'Avenant au contrat' => 'Avenant télétravail',
+            'Lire le règlement intérieur' => 'Règlement intérieur',
+            'Lire la politique de confidentialité' => 'Politique de protection des données (RGPD)',
+        ];
+        foreach ($sigLinkMap as $actionTitle => $docTitle) {
+            $doc = SignatureDocument::where('titre', $docTitle)->first();
+            $action = Action::where('titre', $actionTitle)->first();
+            if ($doc && $action) {
+                $opts = $action->options ?? [];
+                $opts['signature_document_id'] = $doc->id;
+                $action->update(['options' => $opts]);
+            }
         }
 
         // ── 10. Workflows ───────────────────────────────────────

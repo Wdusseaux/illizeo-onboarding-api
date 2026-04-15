@@ -41,6 +41,8 @@ class ActionController extends Controller
             'pieces_requises' => 'nullable|array',
             'assignation_mode' => 'nullable|in:tous,individuel,groupe,site,departement,contrat,parcours,phase',
             'assignation_valeurs' => 'nullable|array',
+            'options' => 'nullable|array',
+            'translations' => 'nullable|array',
         ]);
 
         $action = Action::create($validated);
@@ -67,6 +69,8 @@ class ActionController extends Controller
             'pieces_requises' => 'nullable|array',
             'assignation_mode' => 'nullable|in:tous,individuel,groupe,site,departement,contrat,parcours,phase',
             'assignation_valeurs' => 'nullable|array',
+            'options' => 'nullable|array',
+            'translations' => 'nullable|array',
         ]);
 
         $action->update($validated);

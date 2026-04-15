@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\SignatureDocument;
 use App\Models\DocumentAcknowledgement;
+use App\Models\Action;
+use App\Models\CollaborateurAction;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -140,6 +142,17 @@ class SignatureDocumentController extends Controller
             'commentaire' => $request->commentaire,
         ]);
 
+        // Auto-complete any linked signature action for this collaborateur
+        $docId = $acknowledgement->signature_document_id;
+        $collabId = $acknowledgement->collaborateur_id;
+        $linkedActions = Action::where('options->signature_document_id', $docId)->pluck('id');
+        if ($linkedActions->isNotEmpty()) {
+            CollaborateurAction::where('collaborateur_id', $collabId)
+                ->whereIn('action_id', $linkedActions)
+                ->where('status', '!=', 'termine')
+                ->update(['status' => 'termine', 'completed_at' => now()]);
+        }
+
         return response()->json($acknowledgement->load('document'));
     }
 
@@ -178,5 +191,20 @@ class SignatureDocumentController extends Controller
                 ->with('document')
                 ->get()
         );
+    }
+
+    // Get or create acknowledgement for a specific document + current user
+    public function myAcknowledgement(SignatureDocument $signatureDocument): JsonResponse
+    {
+        $userId = auth()->id();
+        $collab = \App\Models\Collaborateur::where('user_id', $userId)->first();
+        if (!$collab) return response()->json(['error' => 'No collaborateur'], 404);
+
+        $ack = DocumentAcknowledgement::firstOrCreate(
+            ['signature_document_id' => $signatureDocument->id, 'collaborateur_id' => $collab->id],
+            ['user_id' => $userId, 'statut' => 'en_attente']
+        );
+
+        return response()->json($ack->load('document'));
     }
 }

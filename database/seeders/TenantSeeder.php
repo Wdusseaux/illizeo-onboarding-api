@@ -48,34 +48,37 @@ class TenantSeeder extends Seeder
                 ['email' => "collaborateur@{$tenantId}.com"],
                 ['name' => 'Lucas Moreau', 'password' => \Illuminate\Support\Facades\Hash::make('password')]
             );
-            if ($onboardee->roles->isEmpty()) $onboardee->assignRole('onboardee');
+            if ($onboardee->roles->isEmpty()) $onboardee->assignRole('collaborateur');
         }
 
         // Create demo users only for the illizeo tenant
         if ($tenantId === 'illizeo') {
-            $superAdmin = \App\Models\User::factory()->create([
-                'name' => 'Super Admin',
-                'email' => 'super@illizeo.com',
-            ]);
+            $pw = \Illuminate\Support\Facades\Hash::make('password');
+
+            $superAdmin = \App\Models\User::create(['name' => 'Super Admin', 'email' => 'super@illizeo.com', 'password' => $pw]);
             $superAdmin->assignRole('super_admin');
 
-            $adminRH = \App\Models\User::factory()->create([
-                'name' => 'Wilfrid Dusseaux',
-                'email' => 'wilfrid@illizeo.com',
-            ]);
+            $adminRH = \App\Models\User::create(['name' => 'Wilfrid Dusseaux', 'email' => 'wilfrid@illizeo.com', 'password' => $pw]);
             $adminRH->assignRole('admin_rh');
 
-            $manager = \App\Models\User::factory()->create([
-                'name' => 'Mehdi Kessler',
-                'email' => 'manager@illizeo.com',
-            ]);
+            $manager = \App\Models\User::create(['name' => 'Mehdi Kessler', 'email' => 'manager@illizeo.com', 'password' => $pw]);
             $manager->assignRole('manager');
 
-            $onboardee = \App\Models\User::factory()->create([
-                'name' => 'Nadia Ferreira',
-                'email' => 'nadia.ferreira@illizeo.com',
-            ]);
-            $onboardee->assignRole('onboardee');
+            $onboardee = \App\Models\User::create(['name' => 'Nadia Ferreira', 'email' => 'nadia.ferreira@illizeo.com', 'password' => $pw]);
+            $onboardee->assignRole('collaborateur');
+
+            // Extra onboardee users linked to collaborateurs
+            foreach ([
+                ['name' => 'Inès Carpentier', 'email' => 'ines.carpentier@illizeo.com'],
+                ['name' => 'Antoine Morel', 'email' => 'antoine.morel@illizeo.com'],
+                ['name' => 'Youssef Hadj', 'email' => 'youssef.hadj@illizeo.com'],
+                ['name' => 'Clara Vogel', 'email' => 'clara.vogel@illizeo.com'],
+            ] as $userData) {
+                $u = \App\Models\User::create(['name' => $userData['name'], 'email' => $userData['email'], 'password' => $pw]);
+                $u->assignRole('collaborateur');
+                $c = \App\Models\Collaborateur::where('email', $userData['email'])->first();
+                if ($c) $c->update(['user_id' => $u->id]);
+            }
 
             $collab = \App\Models\Collaborateur::where('email', 'nadia.ferreira@illizeo.com')->first();
             if ($collab) {
@@ -96,16 +99,21 @@ class TenantSeeder extends Seeder
             \App\Models\CollaborateurAccompagnant::create(['collaborateur_id' => $collab->id, 'user_id' => $manager->id, 'role' => 'manager', 'team_id' => $teamGE->id]);
         }
 
-        // Assign actions to Nadia (first 10 actions of Onboarding Standard)
-        if ($collab) {
-            $onboardingActions = \App\Models\Action::whereHas('parcours', fn ($q) => $q->where('nom', 'Onboarding Standard'))->limit(10)->get();
-            foreach ($onboardingActions as $i => $action) {
+        // Assign actions to all collaborateurs based on their parcours
+        foreach (\App\Models\Collaborateur::all() as $c) {
+            if (!$c->parcours_id) continue;
+            $parcours = \App\Models\Parcours::find($c->parcours_id);
+            if (!$parcours) continue;
+            $actions = \App\Models\Action::where('parcours_id', $parcours->id)->get();
+            foreach ($actions->values() as $i => $action) {
+                $done = $i < $c->actions_completes;
+                $inProgress = !$done && $i < ($c->actions_completes + 2);
                 \App\Models\CollaborateurAction::create([
-                    'collaborateur_id' => $collab->id,
+                    'collaborateur_id' => $c->id,
                     'action_id' => $action->id,
-                    'status' => $i < 3 ? 'termine' : ($i < 5 ? 'en_cours' : 'a_faire'),
-                    'started_at' => $i < 5 ? now()->subDays(10 - $i) : null,
-                    'completed_at' => $i < 3 ? now()->subDays(7 - $i) : null,
+                    'status' => $done ? 'termine' : ($inProgress ? 'en_cours' : 'a_faire'),
+                    'started_at' => ($done || $inProgress) ? now()->subDays(10 - $i) : null,
+                    'completed_at' => $done ? now()->subDays(7 - $i) : null,
                 ]);
             }
         }

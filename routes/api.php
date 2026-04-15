@@ -484,6 +484,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('acknowledgements/{acknowledgement}/sign', [SignatureDocumentController::class, 'acknowledge']);
         Route::post('acknowledgements/{acknowledgement}/refuse', [SignatureDocumentController::class, 'refuse']);
         Route::get('my-pending-signatures', [SignatureDocumentController::class, 'myPending']);
+        Route::get('signature-documents/{signatureDocument}/my-acknowledgement', [SignatureDocumentController::class, 'myAcknowledgement']);
 
         // ── Dossier Validation & SIRH Export ───────────────
         Route::get('collaborateurs/{collaborateur}/dossier-check', [\App\Http\Controllers\Api\V1\DossierController::class, 'check']);
