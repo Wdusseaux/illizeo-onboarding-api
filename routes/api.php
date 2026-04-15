@@ -104,13 +104,17 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             if ($collab->parcours_id) {
                 $data['parcours_phases'] = \App\Models\Phase::whereHas('parcours', fn($q) => $q->where('parcours.id', $collab->parcours_id))
                     ->orderBy('ordre')->get();
-                $actions = \App\Models\Action::where('parcours_id', $collab->parcours_id)->get();
+                $actions = \App\Models\Action::where('parcours_id', $collab->parcours_id)
+                    ->with(['actionType', 'phase'])
+                    ->get();
                 // Enrich actions with assignment data (assignment_id, status, completed_at)
                 $assignments = \App\Models\CollaborateurAction::where('collaborateur_id', $collab->id)
                     ->get()
                     ->keyBy('action_id');
                 $data['parcours_actions'] = $actions->map(function ($action) use ($assignments) {
                     $a = $action->toArray();
+                    $a['phase_nom'] = $action->phase?->nom;
+                    $a['type'] = $action->actionType?->slug ?? 'tache';
                     $assignment = $assignments->get($action->id);
                     $a['assignment_id'] = $assignment?->id;
                     $a['assignment_status'] = $assignment?->status ?? 'a_faire';
@@ -118,6 +122,13 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
                     return $a;
                 });
             }
+            // Include team/accompagnants
+            $accompagnants = \App\Models\CollaborateurAccompagnant::where('collaborateur_id', $collab->id)
+                ->with('user')
+                ->get()
+                ->map(fn ($a) => ['user_id' => $a->user_id, 'name' => $a->user?->name, 'role' => $a->role]);
+            $data['accompagnants'] = $accompagnants;
+
             return response()->json($data);
         });
 

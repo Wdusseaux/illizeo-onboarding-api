@@ -93,10 +93,16 @@ class TenantSeeder extends Seeder
         $teamParis = \App\Models\OnboardingTeam::create(['nom' => 'Team Paris', 'description' => "Équipe d'accompagnement pour le site de Paris", 'site' => 'Paris']);
         \App\Models\OnboardingTeamMember::create(['team_id' => $teamParis->id, 'user_id' => $adminRH->id, 'role' => 'hrbp']);
 
-        // Assign team to Nadia
-        if ($collab) {
-            \App\Models\CollaborateurAccompagnant::create(['collaborateur_id' => $collab->id, 'user_id' => $adminRH->id, 'role' => 'hrbp', 'team_id' => $teamGE->id]);
-            \App\Models\CollaborateurAccompagnant::create(['collaborateur_id' => $collab->id, 'user_id' => $manager->id, 'role' => 'manager', 'team_id' => $teamGE->id]);
+        // Assign accompagnants to ALL collaborateurs
+        foreach (\App\Models\Collaborateur::all() as $c) {
+            \App\Models\CollaborateurAccompagnant::firstOrCreate(
+                ['collaborateur_id' => $c->id, 'user_id' => $adminRH->id],
+                ['role' => 'hrbp', 'team_id' => $teamGE->id]
+            );
+            \App\Models\CollaborateurAccompagnant::firstOrCreate(
+                ['collaborateur_id' => $c->id, 'user_id' => $manager->id],
+                ['role' => 'manager', 'team_id' => $teamGE->id]
+            );
         }
 
         // Assign actions to all collaborateurs based on their parcours
