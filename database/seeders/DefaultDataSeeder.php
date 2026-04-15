@@ -166,6 +166,8 @@ class DefaultDataSeeder extends Seeder
             ['titre' => 'Lire la politique de confidentialité', 'type' => 'lecture', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => "Politique de protection des données personnelles", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'lien' => 'https://illizeo.com/privacy',
              'options' => ['confirmationRequise' => true]],
             // rdv
+            ['titre' => "Informations d'arrivée", 'type' => 'rdv', 'phase' => 'Avant le premier jour', 'delai' => 'J-3', 'oblig' => true, 'desc' => "Date, lieu et personne à demander le premier jour. À renseigner par le RH ou le manager pour chaque collaborateur.", 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '',
+             'options' => ['lieu' => '', 'contact' => '', 'instructions' => '', 'a_renseigner' => true]],
             ['titre' => 'Visite des locaux', 'type' => 'rdv', 'phase' => 'Premier jour', 'delai' => 'J+0', 'oblig' => true, 'desc' => 'Visite guidée des bureaux et espaces communs', 'parcours' => 'Onboarding Standard', 'mode' => 'site', 'valeurs' => ['Genève'], 'duree' => '45 min',
              'options' => ['lieu' => 'Accueil — Bâtiment A', 'participants' => 'Buddy, Office Manager']],
             ['titre' => 'Planifier le point manager', 'type' => 'rdv', 'phase' => 'Première semaine', 'delai' => 'J+3', 'oblig' => true, 'desc' => 'Créneau de 30 min avec votre manager direct', 'parcours' => 'Onboarding Standard', 'mode' => 'tous', 'valeurs' => [], 'duree' => '30 min',

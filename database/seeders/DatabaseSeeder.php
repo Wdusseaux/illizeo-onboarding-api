@@ -52,7 +52,7 @@ class DatabaseSeeder extends Seeder
             'ordre' => 2,
         ]);
 
-        foreach (['onboarding', 'offboarding', 'crossboarding', 'cooptation', 'nps', 'signature'] as $module) {
+        foreach (['onboarding', 'offboarding', 'crossboarding', 'nps', 'signature'] as $module) {
             $business->modules()->create(['module' => $module, 'actif' => true]);
         }
 
@@ -72,7 +72,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $allModules = [
-            'onboarding', 'offboarding', 'crossboarding', 'cooptation',
+            'onboarding', 'offboarding', 'crossboarding',
             'nps', 'signature', 'sso', 'provisioning', 'api',
             'white_label', 'gamification',
         ];
