@@ -124,20 +124,27 @@ class CollaborateurController extends Controller
         // Delete all demo employee data but keep configuration
         $collabIds = Collaborateur::pluck('id');
 
+        // Identify non-admin users to delete
+        $adminUserIds = \App\Models\User::whereHas('roles', fn ($q) => $q->whereIn('name', ['super_admin', 'admin_rh', 'admin']))->pluck('id');
+        $demoUserIds = \App\Models\User::whereNotIn('id', $adminUserIds)->pluck('id');
+
         // Purge employee-linked data
         \App\Models\CollaborateurAction::whereIn('collaborateur_id', $collabIds)->delete();
         \App\Models\CollaborateurAccompagnant::whereIn('collaborateur_id', $collabIds)->delete();
         \App\Models\DocumentAcknowledgement::whereIn('collaborateur_id', $collabIds)->delete();
-        \App\Models\Message::query()->delete();
-        \App\Models\Conversation::query()->delete();
-        \App\Models\UserNotification::query()->delete();
+
+        // Only delete messages/conversations/notifications involving demo users
+        \App\Models\Message::whereIn('sender_id', $demoUserIds)->delete();
+        \App\Models\Conversation::where(function ($q) use ($demoUserIds) {
+            $q->whereIn('user_a_id', $demoUserIds)->orWhereIn('user_b_id', $demoUserIds);
+        })->delete();
+        \App\Models\UserNotification::whereIn('user_id', $demoUserIds)->delete();
 
         // Delete demo collaborateurs
         $deleted = Collaborateur::delete();
 
-        // Delete non-admin users (keep super_admin and admin_rh)
-        $adminUserIds = \App\Models\User::whereHas('roles', fn ($q) => $q->whereIn('name', ['super_admin', 'admin_rh', 'admin']))->pluck('id');
-        \App\Models\User::whereNotIn('id', $adminUserIds)->delete();
+        // Delete non-admin users
+        \App\Models\User::whereIn('id', $demoUserIds)->delete();
 
         // Set demo_mode to false
         \App\Models\CompanySetting::updateOrCreate(['key' => 'demo_mode'], ['value' => 'false']);
