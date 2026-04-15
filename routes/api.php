@@ -507,11 +507,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('collaborateurs/{collaborateur}/dossier-reset', [\App\Http\Controllers\Api\V1\DossierController::class, 'reset'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Data export & RGPD ─────────────────────────────
-        Route::get('export/all', [DataExportController::class, 'exportAll']);
-        Route::get('export/collaborateurs', [DataExportController::class, 'exportCollaborateurs']);
-        Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog']);
-        Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData']);
-        Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion']);
+        Route::get('export/all', [DataExportController::class, 'exportAll'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('export/collaborateurs', [DataExportController::class, 'exportCollaborateurs'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Buddy / Mentor Pairing ─────────────────────────
         Route::get('buddy-pairs', [BuddyPairController::class, 'index'])->middleware('permission:parcours,view');
