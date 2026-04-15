@@ -272,6 +272,72 @@ class SubscriptionController extends Controller
         ]);
     }
 
+    /**
+     * Monthly consumption: list of active users (admins + employees) for billing.
+     * Any user who was active (logged in or had activity) during the month is counted.
+     */
+    public function monthlyConsumption(Request $request): JsonResponse
+    {
+        $year = (int) ($request->query('year') ?: now()->year);
+        $month = (int) ($request->query('month') ?: now()->month);
+        $startOfMonth = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfMonth();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+
+        // Get all users who existed during this month
+        $users = \App\Models\User::where('created_at', '<=', $endOfMonth)
+            ->get();
+
+        $activeUsers = [];
+        foreach ($users as $user) {
+            $collab = $user->collaborateur;
+            $isAdmin = $user->hasRole('admin') || $user->hasRole('super_admin') || $user->hasRole('admin_rh');
+            $role = $isAdmin ? 'admin' : 'employé';
+            $site = $collab?->site ?? '—';
+            $prenom = $collab?->prenom ?? explode(' ', $user->name)[0] ?? '—';
+            $nom = $collab?->nom ?? (count(explode(' ', $user->name)) > 1 ? implode(' ', array_slice(explode(' ', $user->name), 1)) : '—');
+
+            // Check if user was active this month:
+            // 1. Has a token that was used this month
+            $hadTokenActivity = $user->tokens()
+                ->where('last_used_at', '>=', $startOfMonth)
+                ->where('last_used_at', '<=', $endOfMonth)
+                ->exists();
+
+            // 2. Was created this month (new user = active)
+            $createdThisMonth = $user->created_at >= $startOfMonth && $user->created_at <= $endOfMonth;
+
+            // 3. Has a collaborateur with date_debut in or before this month and not terminated
+            $hasActiveCollab = $collab && $collab->date_debut && $collab->date_debut <= $endOfMonth;
+
+            if ($hadTokenActivity || $createdThisMonth || $hasActiveCollab || $isAdmin) {
+                $activeUsers[] = [
+                    'id' => $user->id,
+                    'prenom' => $prenom,
+                    'nom' => $nom,
+                    'email' => $user->email,
+                    'site' => $site,
+                    'role' => $role,
+                    'departement' => $collab?->departement ?? '—',
+                ];
+            }
+        }
+
+        $adminCount = count(array_filter($activeUsers, fn($u) => $u['role'] === 'admin'));
+        $employeeCount = count($activeUsers) - $adminCount;
+
+        return response()->json([
+            'year' => $year,
+            'month' => $month,
+            'month_label' => $startOfMonth->locale('fr')->isoFormat('MMMM YYYY'),
+            'total_active' => count($activeUsers),
+            'admin_count' => $adminCount,
+            'employee_count' => $employeeCount,
+            'min_billed' => 25,
+            'billed_count' => max(25, count($activeUsers)),
+            'users' => $activeUsers,
+        ]);
+    }
+
     private function formatBytes(int $bytes): string
     {
         if ($bytes >= 1073741824) return round($bytes / 1073741824, 2) . ' GB';

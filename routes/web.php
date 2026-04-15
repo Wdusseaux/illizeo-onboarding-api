@@ -10,4 +10,4 @@ Route::get('/{any?}', function () {
     }
     // Fallback if frontend not built yet
     return response()->json(['message' => 'Illizeo Onboarding API', 'frontend' => 'Build the frontend and place in public/build/']);
-})->where('any', '^(?!api/).*$');
+})->where('any', '(?!api/).*');

@@ -81,6 +81,24 @@ class DatabaseSeeder extends Seeder
             $enterprise->modules()->create(['module' => $module, 'actif' => true]);
         }
 
+        // ─── Cooptation add-on plan ─────────────────────────────
+        $cooptation = Plan::create([
+            'nom' => 'Cooptation',
+            'slug' => 'cooptation',
+            'description' => 'Programme de cooptation et parrainage',
+            'prix_eur_mensuel' => 3.60,
+            'prix_chf_mensuel' => 3.99,
+            'min_mensuel_eur' => 90,
+            'min_mensuel_chf' => 99.75,
+            'max_collaborateurs' => null,
+            'max_admins' => null,
+            'max_parcours' => null,
+            'max_integrations' => null,
+            'max_workflows' => null,
+            'ordre' => 10,
+        ]);
+        $cooptation->modules()->create(['module' => 'cooptation', 'actif' => true]);
+
         // ─── Demo tenant ────────────────────────────────────────
         $tenant = \App\Models\Tenant::create([
             'id' => 'illizeo',

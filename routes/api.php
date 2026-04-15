@@ -540,6 +540,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('active-modules', [SubscriptionController::class, 'activeModules']);
         Route::get('storage-usage', [SubscriptionController::class, 'storageUsage']);
         Route::get('signature-usage', [SubscriptionController::class, 'signatureUsage']);
+        Route::get('monthly-consumption', [SubscriptionController::class, 'monthlyConsumption']);
         Route::get('check-module/{module}', [SubscriptionController::class, 'checkModule']);
     });
 });
