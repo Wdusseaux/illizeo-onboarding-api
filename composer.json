@@ -18,6 +18,7 @@
         "railsware/mailtrap-php": "^3.11",
         "spatie/laravel-permission": "^7.2",
         "stancl/tenancy": "^3.10",
+        "stripe/stripe-php": "*",
         "symfony/http-client": "^8.0"
     },
     "require-dev": {

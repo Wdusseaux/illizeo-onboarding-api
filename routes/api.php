@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\TeamtailorController;
 use App\Http\Controllers\Api\V1\BambooHRController;
 use App\Http\Controllers\Api\V1\WorkdayController;
 use App\Http\Controllers\Api\V1\OcrController;
+use App\Http\Controllers\Api\V1\StripeController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\CollaborateurActionController;
@@ -560,6 +561,16 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('ai/usage', [OcrController::class, 'getUsage']);
         Route::get('ai/quota', [OcrController::class, 'getQuota']);
         Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
+
+        // ── Stripe / Payments ─────────────────────────────────
+        Route::post('stripe/setup-intent', [StripeController::class, 'createSetupIntent']);
+        Route::get('stripe/payment-methods', [StripeController::class, 'getPaymentMethods']);
+        Route::post('stripe/default-payment-method', [StripeController::class, 'setDefaultPaymentMethod']);
+        Route::post('stripe/delete-payment-method', [StripeController::class, 'deletePaymentMethod']);
+        Route::get('payment-config', [StripeController::class, 'getPaymentConfig']);
+        Route::post('payment/invoice-config', [StripeController::class, 'saveInvoiceConfig']);
+        Route::post('billing/contact', [StripeController::class, 'saveBillingContact']);
+        Route::post('billing/info', [StripeController::class, 'saveBillingInfo']);
         Route::get('check-module/{module}', [SubscriptionController::class, 'checkModule']);
 
         // ── Module Projets ─────────────────────────────────
