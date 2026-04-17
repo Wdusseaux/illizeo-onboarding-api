@@ -548,6 +548,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);
         Route::get('ai/usage', [OcrController::class, 'getUsage']);
         Route::get('ai/quota', [OcrController::class, 'getQuota']);
+        Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
         Route::get('check-module/{module}', [SubscriptionController::class, 'checkModule']);
     });
 });

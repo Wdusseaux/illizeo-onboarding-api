@@ -25,15 +25,24 @@ class OcrController extends Controller
         // Check AI quota
         $aiQuota = $this->getAiQuota();
         if (!$aiQuota) {
-            return response()->json(['error' => 'Aucun plan IA actif. Souscrivez un add-on IA pour utiliser cette fonctionnalité.', 'quota_exceeded' => true], 403);
+            return response()->json(['error' => 'Aucun plan IA actif. Souscrivez un add-on IA pour utiliser cette fonctionnalité.', 'quota_exceeded' => true, 'no_plan' => true], 403);
         }
-        if ($aiQuota['ocr_limit'] > 0 && AiUsage::isQuotaExceeded('ocr_scan', $aiQuota['ocr_limit'])) {
-            $used = AiUsage::monthlyCount('ocr_scan');
+        $used = AiUsage::monthlyCount('ocr_scan');
+        $limit = $aiQuota['ocr_limit'];
+        $extraCredits = $this->getExtraCredits('ocr_scan');
+        $totalAllowed = $limit + $extraCredits;
+        $atWarning = $limit > 0 && $used >= (int)($limit * 0.9) && $used < $totalAllowed;
+        $atLimit = $limit > 0 && $used >= $totalAllowed;
+
+        if ($atLimit) {
             return response()->json([
-                'error' => "Quota OCR atteint ({$used}/{$aiQuota['ocr_limit']} scans ce mois). Upgradez votre plan IA ou attendez le mois prochain.",
+                'error' => "Quota OCR atteint ({$used}/{$limit} scans + {$extraCredits} crédits supplémentaires). Achetez un pack supplémentaire ou passez au plan supérieur.",
                 'quota_exceeded' => true,
                 'used' => $used,
-                'limit' => $aiQuota['ocr_limit'],
+                'limit' => $limit,
+                'extra_credits' => $extraCredits,
+                'extra_scan_price' => $aiQuota['extra_scan_price'],
+                'plan_name' => $aiQuota['plan_name'],
             ], 429);
         }
 
@@ -138,14 +147,25 @@ class OcrController extends Controller
                 'metadata' => ['document_type' => $extracted['document_type'], 'confidence' => $extracted['confidence']],
             ]);
 
-            $quota = $this->getAiQuota();
-            $used = AiUsage::monthlyCount('ocr_scan');
+            $usedAfter = AiUsage::monthlyCount('ocr_scan');
+            $warningThreshold = (int)($limit * 0.9);
 
             return response()->json([
                 'success' => true,
                 'data' => $extracted,
                 'confidence' => $extracted['confidence'] ?? 'medium',
-                'usage' => ['used' => $used, 'limit' => $quota['ocr_limit'] ?? 0],
+                'usage' => [
+                    'used' => $usedAfter,
+                    'limit' => $limit,
+                    'extra_credits' => $extraCredits,
+                    'percent' => $limit > 0 ? round(($usedAfter / $limit) * 100) : 0,
+                ],
+                'warning' => $usedAfter >= $warningThreshold ? [
+                    'message' => "Vous avez utilisé {$usedAfter}/{$limit} scans OCR ce mois ({$usedAfter}%). Pensez à upgrader votre plan IA.",
+                    'remaining' => max(0, $limit + $extraCredits - $usedAfter),
+                    'upgrade_available' => true,
+                    'extra_scan_price' => $aiQuota['extra_scan_price'],
+                ] : null,
             ]);
 
         } catch (\Exception $e) {
@@ -288,6 +308,61 @@ PROMPT;
                 'contrat_generations' => max(0, $quota['contrat_limit'] - $usage['contrat_generations']),
             ],
         ]);
+    }
+
+    /**
+     * Buy extra scan credits for the current month.
+     */
+    public function buyExtraCredits(Request $request): JsonResponse
+    {
+        $request->validate([
+            'type' => 'required|in:ocr_scan,bot_message,contrat_generation',
+            'quantity' => 'required|integer|min:10|max:1000',
+        ]);
+
+        $aiQuota = $this->getAiQuota();
+        if (!$aiQuota) {
+            return response()->json(['error' => 'Aucun plan IA actif'], 403);
+        }
+
+        $type = $request->type;
+        $quantity = $request->quantity;
+
+        // Price per unit based on type
+        $prices = [
+            'ocr_scan' => $aiQuota['extra_scan_price'],
+            'bot_message' => 0.02, // CHF per message
+            'contrat_generation' => 0.15, // CHF per generation
+        ];
+
+        $unitPrice = $prices[$type] ?? 0.10;
+        $totalPrice = round($quantity * $unitPrice, 2);
+
+        // Store extra credits as a company setting
+        $key = "ai_extra_{$type}_" . now()->format('Y_m');
+        $current = (int) (\App\Models\CompanySetting::where('key', $key)->value('value') ?? 0);
+        \App\Models\CompanySetting::updateOrCreate(
+            ['key' => $key],
+            ['value' => (string)($current + $quantity)]
+        );
+
+        return response()->json([
+            'success' => true,
+            'type' => $type,
+            'added' => $quantity,
+            'total_extra' => $current + $quantity,
+            'unit_price_chf' => $unitPrice,
+            'total_price_chf' => $totalPrice,
+        ]);
+    }
+
+    /**
+     * Get extra credits purchased for a given type this month.
+     */
+    private function getExtraCredits(string $type): int
+    {
+        $key = "ai_extra_{$type}_" . now()->format('Y_m');
+        return (int) (\App\Models\CompanySetting::where('key', $key)->value('value') ?? 0);
     }
 
     /**
