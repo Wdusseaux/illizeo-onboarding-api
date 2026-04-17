@@ -238,6 +238,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('contrats/{contrat}/upload', [ContratController::class, 'uploadFile'])->middleware('permission:contrats,edit');
         Route::get('contrats/{contrat}/template', [ContratController::class, 'downloadTemplate'])->middleware('permission:contrats,view');
         Route::get('contrats/{contrat}/generate', [ContratController::class, 'generateForCollaborateur']);
+        Route::get('contrats/{contrat}/download', [ContratController::class, 'downloadMerged']);
 
         // ── Workflows ───────────────────────────────────────
         Route::get('workflows', [WorkflowController::class, 'index'])->middleware('permission:workflows,view');

@@ -275,7 +275,7 @@ class DefaultDataSeeder extends Seeder
         // ── 8. Document Categories & Documents ──────────────────
         $docCatsData = [
             ['slug' => 'complementaires', 'titre' => 'Documents administratifs complémentaires', 'pieces' => [
-                ['nom' => 'IBAN/BIC Suisse', 'obligatoire' => true, 'type' => 'upload'],
+                ['nom' => 'IBAN/BIC', 'obligatoire' => true, 'type' => 'upload'],
                 ['nom' => 'Certificats De Travail et Diplômes', 'obligatoire' => true, 'type' => 'upload'],
             ]],
             ['slug' => 'formulaires', 'titre' => 'Formulaires à remplir et à renvoyer', 'pieces' => [
@@ -286,7 +286,7 @@ class DefaultDataSeeder extends Seeder
             ]],
             ['slug' => 'suisse', 'titre' => 'Documents administratifs – Suisse', 'pieces' => [
                 ['nom' => 'Pièce d\'identité / Passeport', 'obligatoire' => true, 'type' => 'upload'],
-                ['nom' => 'Carte AVS', 'obligatoire' => false, 'type' => 'upload'],
+                ['nom' => 'Carte d'assuré social', 'obligatoire' => false, 'type' => 'upload'],
                 ['nom' => 'Permis de travail ou de résidence', 'obligatoire' => false, 'type' => 'upload'],
                 ['nom' => 'Photo d\'identité', 'obligatoire' => true, 'type' => 'upload'],
             ]],

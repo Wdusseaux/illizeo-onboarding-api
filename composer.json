@@ -8,10 +8,12 @@
     "require": {
         "php": "^8.3",
         "bacon/bacon-qr-code": "*",
+        "dompdf/dompdf": "^3.1",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "nyholm/psr7": "^1.8",
+        "phpoffice/phpword": "^1.4",
         "pragmarx/google2fa-laravel": "*",
         "railsware/mailtrap-php": "^3.11",
         "spatie/laravel-permission": "^7.2",
