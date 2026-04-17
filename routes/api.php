@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\LuccaController;
 use App\Http\Controllers\Api\V1\TeamtailorController;
 use App\Http\Controllers\Api\V1\BambooHRController;
 use App\Http\Controllers\Api\V1\WorkdayController;
+use App\Http\Controllers\Api\V1\OcrController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\CollaborateurActionController;
@@ -542,6 +543,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('storage-usage', [SubscriptionController::class, 'storageUsage']);
         Route::get('signature-usage', [SubscriptionController::class, 'signatureUsage']);
         Route::get('monthly-consumption', [SubscriptionController::class, 'monthlyConsumption']);
+
+        // ── OCR / AI ───────────────────────────────────────────
+        Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);
         Route::get('check-module/{module}', [SubscriptionController::class, 'checkModule']);
     });
 });
