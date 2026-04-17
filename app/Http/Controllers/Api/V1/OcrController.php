@@ -77,7 +77,7 @@ class OcrController extends Controller
                 'anthropic-version' => '2023-06-01',
                 'Content-Type' => 'application/json',
             ])->timeout(30)->post('https://api.anthropic.com/v1/messages', [
-                'model' => config('services.anthropic.model', 'claude-haiku-4-5-20251001'),
+                'model' => config('services.anthropic.model', 'claude-sonnet-4-6'),
                 'max_tokens' => 1024,
                 'messages' => [
                     [
@@ -120,9 +120,16 @@ class OcrController extends Controller
     private function getExtractionPrompt(): string
     {
         return <<<'PROMPT'
-Analyze this identity document (passport, national ID card, residence permit, or driver's license) and extract the following information.
+You are an expert document analyst. Analyze this identity document carefully.
 
-Return ONLY a valid JSON object with these fields (use null for fields you cannot read or that don't exist on the document):
+CRITICAL INSTRUCTIONS:
+1. The document may be rotated (90°, 180°, 270°). Mentally rotate it to read it correctly.
+2. If there is an MRZ (Machine Readable Zone) — the 2 lines of characters at the bottom with <<< — READ THE MRZ FIRST. It is the most reliable source for name, nationality, birth date, document number, and expiry date.
+3. MRZ format for passports: Line 1 = P<COUNTRY_CODE + LAST_NAME<<FIRST_NAME<MIDDLE_NAMES. Line 2 = DOC_NUMBER + CHECK + NATIONALITY + BIRTH_DATE(YYMMDD) + CHECK + SEX + EXPIRY(YYMMDD) + CHECK + ...
+4. Cross-check MRZ data with the visual fields on the document. If they conflict, prefer the MRZ.
+5. Read EVERY field on the document precisely. Do not guess or invent data.
+
+Return ONLY a valid JSON object:
 
 {
   "document_type": "passport" | "cni" | "residence_permit" | "driver_license" | "other",
@@ -144,13 +151,11 @@ Return ONLY a valid JSON object with these fields (use null for fields you canno
   "confidence": "high" | "medium" | "low"
 }
 
-Important rules:
-- Dates must be in YYYY-MM-DD format
-- Names should be in their original case (not all caps)
-- For nationality, use the full country name in French (e.g. "Suisse", "Française", "Marocaine")
-- If the document is in a non-Latin script, transliterate to Latin
-- Set confidence to "high" if all key fields are clearly readable, "medium" if some are uncertain, "low" if the image is poor quality
-- Return ONLY the JSON, no explanation or markdown
+Rules:
+- Dates MUST be in YYYY-MM-DD format. Convert 2-digit years: 00-30 = 2000s, 31-99 = 1900s
+- Names: use original case (capitalize first letter, e.g. "Dusseaux" not "DUSSEAUX")
+- Nationality: full name in French (e.g. "Française", "Suisse", "Belge")
+- Return ONLY the JSON, no explanation, no markdown code blocks
 PROMPT;
     }
 
