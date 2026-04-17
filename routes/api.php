@@ -48,6 +48,14 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SignatureDocumentController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\BuddyPairController;
+use App\Http\Controllers\Api\V1\ProjetController;
+use App\Http\Controllers\Api\V1\TacheController;
+use App\Http\Controllers\Api\V1\SousProjetController;
+use App\Http\Controllers\Api\V1\SousTacheController;
+use App\Http\Controllers\Api\V1\CommentaireTacheController;
+use App\Http\Controllers\Api\V1\JalonController;
+use App\Http\Controllers\Api\V1\LigneCoutController;
+use App\Http\Controllers\Api\V1\TauxHoraireController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -553,6 +561,73 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('ai/quota', [OcrController::class, 'getQuota']);
         Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
         Route::get('check-module/{module}', [SubscriptionController::class, 'checkModule']);
+
+        // ── Module Projets ─────────────────────────────────
+
+        // Lecture (permission:projets,view)
+        Route::middleware('permission:projets,view')->group(function () {
+            Route::get('projets', [ProjetController::class, 'index']);
+            Route::get('projets/{projet}', [ProjetController::class, 'show']);
+            Route::get('taches', [TacheController::class, 'index']);
+            Route::get('taches/{tache}', [TacheController::class, 'show']);
+            Route::get('sous-projets', [SousProjetController::class, 'index']);
+            Route::get('sous-taches', [SousTacheController::class, 'index']);
+            Route::get('commentaires-taches', [CommentaireTacheController::class, 'index']);
+            Route::get('jalons', [JalonController::class, 'index']);
+            Route::get('lignes-couts', [LigneCoutController::class, 'index']);
+            Route::get('taux-horaires', [TauxHoraireController::class, 'index']);
+        });
+
+        // Écriture (permission:projets,edit)
+        Route::middleware('permission:projets,edit')->group(function () {
+            // Projets — CRUD + actions custom
+            Route::post('projets', [ProjetController::class, 'store']);
+            Route::put('projets/{projet}', [ProjetController::class, 'update']);
+            Route::delete('projets/{projet}', [ProjetController::class, 'destroy']);
+            Route::patch('projets/{projet}/desactiver', [ProjetController::class, 'desactiver']);
+            Route::patch('projets/{projet}/reactiver', [ProjetController::class, 'reactiver']);
+
+            // Membres du projet
+            Route::post('projets/{projet}/membres', [ProjetController::class, 'ajouterMembre']);
+            Route::delete('projets/{projet}/membres/{user}', [ProjetController::class, 'retirerMembre']);
+            Route::patch('projets/{projet}/membres/{user}/role', [ProjetController::class, 'changerRoleMembre']);
+
+            // Tâches — CRUD
+            Route::post('taches', [TacheController::class, 'store']);
+            Route::put('taches/{tache}', [TacheController::class, 'update']);
+            Route::delete('taches/{tache}', [TacheController::class, 'destroy']);
+
+            // Sous-projets — CRUD + réassignation
+            Route::post('sous-projets', [SousProjetController::class, 'store']);
+            Route::put('sous-projets/{sousProjet}', [SousProjetController::class, 'update']);
+            Route::delete('sous-projets/{sousProjet}', [SousProjetController::class, 'destroy']);
+            Route::post('sous-projets/{sousProjet}/reassigner-taches', [SousProjetController::class, 'reassignerTaches']);
+
+            // Sous-tâches — CRUD
+            Route::post('sous-taches', [SousTacheController::class, 'store']);
+            Route::put('sous-taches/{sousTache}', [SousTacheController::class, 'update']);
+            Route::delete('sous-taches/{sousTache}', [SousTacheController::class, 'destroy']);
+
+            // Commentaires — CRUD
+            Route::post('commentaires-taches', [CommentaireTacheController::class, 'store']);
+            Route::put('commentaires-taches/{commentaire}', [CommentaireTacheController::class, 'update']);
+            Route::delete('commentaires-taches/{commentaire}', [CommentaireTacheController::class, 'destroy']);
+
+            // Jalons — CRUD
+            Route::post('jalons', [JalonController::class, 'store']);
+            Route::put('jalons/{jalon}', [JalonController::class, 'update']);
+            Route::delete('jalons/{jalon}', [JalonController::class, 'destroy']);
+
+            // Lignes coûts — CRUD
+            Route::post('lignes-couts', [LigneCoutController::class, 'store']);
+            Route::put('lignes-couts/{ligneCout}', [LigneCoutController::class, 'update']);
+            Route::delete('lignes-couts/{ligneCout}', [LigneCoutController::class, 'destroy']);
+
+            // Taux horaires — CRUD
+            Route::post('taux-horaires', [TauxHoraireController::class, 'store']);
+            Route::put('taux-horaires/{tauxHoraire}', [TauxHoraireController::class, 'update']);
+            Route::delete('taux-horaires/{tauxHoraire}', [TauxHoraireController::class, 'destroy']);
+        });
     });
 });
 

@@ -103,7 +103,7 @@ class OcrController extends Controller
                 'anthropic-version' => '2023-06-01',
                 'Content-Type' => 'application/json',
             ])->timeout(30)->post('https://api.anthropic.com/v1/messages', [
-                'model' => config('services.anthropic.model', 'claude-opus-4-6'),
+                'model' => $aiQuota['model'] ?? config('services.anthropic.model', 'claude-opus-4-6'),
                 'max_tokens' => 1024,
                 'messages' => [
                     [
@@ -134,7 +134,7 @@ class OcrController extends Controller
             // Track usage
             $inputTokens = $result['usage']['input_tokens'] ?? 0;
             $outputTokens = $result['usage']['output_tokens'] ?? 0;
-            $model = config('services.anthropic.model', 'claude-opus-4-6');
+            $model = $aiQuota['model'] ?? config('services.anthropic.model', 'claude-opus-4-6');
             $costUsd = $this->estimateCost($model, $inputTokens, $outputTokens);
 
             AiUsage::create([

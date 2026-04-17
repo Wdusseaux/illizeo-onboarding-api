@@ -36,6 +36,7 @@ class RoleController extends Controller
         'contrats',
         'signatures',
         'gamification',
+        'projets',
     ];
 
     /**
