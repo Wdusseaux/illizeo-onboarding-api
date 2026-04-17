@@ -158,6 +158,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::get('invoices', [SuperAdminController::class, 'listInvoices']);
             Route::get('stripe-config', [SuperAdminController::class, 'getStripeConfig']);
             Route::put('stripe-config', [SuperAdminController::class, 'updateStripeConfig']);
+            Route::get('ai-config', [SuperAdminController::class, 'getAiConfig']);
+            Route::post('ai-config', [SuperAdminController::class, 'updateAiConfig']);
+            Route::get('ai-usage', [SuperAdminController::class, 'getAiUsage']);
         });
 
         // 2FA management (auth required)

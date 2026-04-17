@@ -332,4 +332,99 @@ class SuperAdminController extends Controller
 
         return response()->json(['message' => 'Configuration Stripe mise à jour.']);
     }
+
+    // ── AI / Claude Configuration ────────────────────────────
+
+    public function getAiConfig(): JsonResponse
+    {
+        $key = env('ANTHROPIC_API_KEY', '');
+        $model = config('services.anthropic.model', 'claude-opus-4-6');
+
+        return response()->json([
+            'key_set' => !empty($key),
+            'key_preview' => $key ? substr($key, -6) : '',
+            'model' => $model,
+        ]);
+    }
+
+    public function updateAiConfig(Request $request): JsonResponse
+    {
+        $envPath = base_path('.env');
+        $envContent = file_get_contents($envPath);
+
+        if ($request->has('api_key') && $request->api_key) {
+            $newKey = $request->api_key;
+            if (str_contains($envContent, 'ANTHROPIC_API_KEY=')) {
+                $envContent = preg_replace('/ANTHROPIC_API_KEY=.*/', "ANTHROPIC_API_KEY={$newKey}", $envContent);
+            } else {
+                $envContent .= "\nANTHROPIC_API_KEY={$newKey}";
+            }
+        }
+
+        if ($request->has('model') && $request->model) {
+            $newModel = $request->model;
+            if (str_contains($envContent, 'ANTHROPIC_MODEL=')) {
+                $envContent = preg_replace('/ANTHROPIC_MODEL=.*/', "ANTHROPIC_MODEL={$newModel}", $envContent);
+            } else {
+                $envContent .= "\nANTHROPIC_MODEL={$newModel}";
+            }
+        }
+
+        file_put_contents($envPath, $envContent);
+
+        // Clear config cache
+        \Artisan::call('config:clear');
+
+        return response()->json(['message' => 'Configuration IA mise à jour.']);
+    }
+
+    public function getAiUsage(): JsonResponse
+    {
+        $tenants = Tenant::all();
+        $result = [];
+
+        foreach ($tenants as $tenant) {
+            try {
+                $tenant->run(function () use ($tenant, &$result) {
+                    // Check if tenant has AI subscription
+                    $aiSub = Subscription::where('tenant_id', $tenant->id)
+                        ->whereIn('status', ['active', 'trialing'])
+                        ->whereHas('plan', fn($q) => $q->where('addon_type', 'ai'))
+                        ->with('plan')
+                        ->first();
+
+                    if (!$aiSub) return;
+
+                    $year = now()->year;
+                    $month = now()->month;
+
+                    $ocrScans = \App\Models\AiUsage::where('type', 'ocr_scan')
+                        ->whereYear('created_at', $year)->whereMonth('created_at', $month)->count();
+                    $botMessages = \App\Models\AiUsage::where('type', 'bot_message')
+                        ->whereYear('created_at', $year)->whereMonth('created_at', $month)->count();
+                    $contratGens = \App\Models\AiUsage::where('type', 'contrat_generation')
+                        ->whereYear('created_at', $year)->whereMonth('created_at', $month)->count();
+                    $totalCost = (float) \App\Models\AiUsage::whereYear('created_at', $year)
+                        ->whereMonth('created_at', $month)->sum('cost_usd');
+
+                    $result[] = [
+                        'tenant_id' => $tenant->id,
+                        'tenant_name' => $tenant->nom ?? $tenant->id,
+                        'plan_name' => $aiSub->plan->nom,
+                        'ocr_scans' => $ocrScans,
+                        'ocr_limit' => $aiSub->plan->ai_ocr_scans ?? 0,
+                        'bot_messages' => $botMessages,
+                        'bot_limit' => $aiSub->plan->ai_bot_messages ?? 0,
+                        'contrat_generations' => $contratGens,
+                        'contrat_limit' => $aiSub->plan->ai_contrat_generations ?? 0,
+                        'total_cost_usd' => $totalCost,
+                    ];
+                });
+            } catch (\Exception $e) {
+                // Skip tenants that fail
+            }
+        }
+
+        return response()->json($result);
+    }
 }
