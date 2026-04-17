@@ -77,7 +77,7 @@ class OcrController extends Controller
                 'anthropic-version' => '2023-06-01',
                 'Content-Type' => 'application/json',
             ])->timeout(30)->post('https://api.anthropic.com/v1/messages', [
-                'model' => config('services.anthropic.model', 'claude-sonnet-4-6'),
+                'model' => config('services.anthropic.model', 'claude-opus-4-6'),
                 'max_tokens' => 1024,
                 'messages' => [
                     [
