@@ -99,6 +99,55 @@ class DatabaseSeeder extends Seeder
         ]);
         $cooptation->modules()->create(['module' => 'cooptation', 'actif' => true]);
 
+        // ─── AI add-on plans ────────────────────────────────────
+        Plan::create([
+            'nom' => 'IA Starter',
+            'slug' => 'ia_starter',
+            'description' => 'OCR pièces d\'identité + génération contrats IA',
+            'prix_eur_mensuel' => 26.00,
+            'prix_chf_mensuel' => 29.00,
+            'is_addon' => true,
+            'addon_type' => 'ai',
+            'ai_ocr_scans' => 50,
+            'ai_bot_messages' => 0,
+            'ai_contrat_generations' => 10,
+            'ai_model' => 'claude-sonnet-4-6',
+            'ai_extra_scan_price_chf' => 0.10,
+            'ordre' => 20,
+        ]);
+
+        Plan::create([
+            'nom' => 'IA Business',
+            'slug' => 'ia_business',
+            'description' => 'OCR + IllizeoBot + génération contrats IA avancée',
+            'prix_eur_mensuel' => 71.00,
+            'prix_chf_mensuel' => 79.00,
+            'is_addon' => true,
+            'addon_type' => 'ai',
+            'ai_ocr_scans' => 200,
+            'ai_bot_messages' => 500,
+            'ai_contrat_generations' => 50,
+            'ai_model' => 'claude-opus-4-6',
+            'ai_extra_scan_price_chf' => 0.08,
+            'ordre' => 21,
+        ]);
+
+        Plan::create([
+            'nom' => 'IA Enterprise',
+            'slug' => 'ia_enterprise',
+            'description' => 'OCR haute précision + IllizeoBot avancé + génération illimitée',
+            'prix_eur_mensuel' => 179.00,
+            'prix_chf_mensuel' => 199.00,
+            'is_addon' => true,
+            'addon_type' => 'ai',
+            'ai_ocr_scans' => 1000,
+            'ai_bot_messages' => 5000,
+            'ai_contrat_generations' => 500,
+            'ai_model' => 'claude-opus-4-6',
+            'ai_extra_scan_price_chf' => 0.05,
+            'ordre' => 22,
+        ]);
+
         // ─── Demo tenant ────────────────────────────────────────
         $tenant = \App\Models\Tenant::create([
             'id' => 'illizeo',

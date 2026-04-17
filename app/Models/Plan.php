@@ -26,6 +26,13 @@ class Plan extends Model
         'stripe_price_id_chf',
         'actif',
         'populaire',
+        'is_addon',
+        'addon_type',
+        'ai_ocr_scans',
+        'ai_bot_messages',
+        'ai_contrat_generations',
+        'ai_model',
+        'ai_extra_scan_price_chf',
         'ordre',
     ];
 
@@ -41,6 +48,11 @@ class Plan extends Model
         'max_workflows' => 'integer',
         'actif' => 'boolean',
         'populaire' => 'boolean',
+        'is_addon' => 'boolean',
+        'ai_ocr_scans' => 'integer',
+        'ai_bot_messages' => 'integer',
+        'ai_contrat_generations' => 'integer',
+        'ai_extra_scan_price_chf' => 'decimal:2',
         'ordre' => 'integer',
     ];
 

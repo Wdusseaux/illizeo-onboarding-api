@@ -7,6 +7,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\AiUsage;
+use App\Models\Subscription;
 
 class OcrController extends Controller
 {
@@ -19,6 +21,21 @@ class OcrController extends Controller
         $request->validate([
             'image' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ]);
+
+        // Check AI quota
+        $aiQuota = $this->getAiQuota();
+        if (!$aiQuota) {
+            return response()->json(['error' => 'Aucun plan IA actif. Souscrivez un add-on IA pour utiliser cette fonctionnalité.', 'quota_exceeded' => true], 403);
+        }
+        if ($aiQuota['ocr_limit'] > 0 && AiUsage::isQuotaExceeded('ocr_scan', $aiQuota['ocr_limit'])) {
+            $used = AiUsage::monthlyCount('ocr_scan');
+            return response()->json([
+                'error' => "Quota OCR atteint ({$used}/{$aiQuota['ocr_limit']} scans ce mois). Upgradez votre plan IA ou attendez le mois prochain.",
+                'quota_exceeded' => true,
+                'used' => $used,
+                'limit' => $aiQuota['ocr_limit'],
+            ], 429);
+        }
 
         $file = $request->file('image');
         $mimeType = $file->getMimeType();
@@ -105,10 +122,30 @@ class OcrController extends Controller
                 ], 422);
             }
 
+            // Track usage
+            $inputTokens = $result['usage']['input_tokens'] ?? 0;
+            $outputTokens = $result['usage']['output_tokens'] ?? 0;
+            $model = config('services.anthropic.model', 'claude-opus-4-6');
+            $costUsd = $this->estimateCost($model, $inputTokens, $outputTokens);
+
+            AiUsage::create([
+                'type' => 'ocr_scan',
+                'user_id' => auth()->id(),
+                'model' => $model,
+                'input_tokens' => $inputTokens,
+                'output_tokens' => $outputTokens,
+                'cost_usd' => $costUsd,
+                'metadata' => ['document_type' => $extracted['document_type'], 'confidence' => $extracted['confidence']],
+            ]);
+
+            $quota = $this->getAiQuota();
+            $used = AiUsage::monthlyCount('ocr_scan');
+
             return response()->json([
                 'success' => true,
                 'data' => $extracted,
                 'confidence' => $extracted['confidence'] ?? 'medium',
+                'usage' => ['used' => $used, 'limit' => $quota['ocr_limit'] ?? 0],
             ]);
 
         } catch (\Exception $e) {
@@ -201,5 +238,97 @@ PROMPT;
             'avs_number' => $data['avs_number'] ?? null,
             'confidence' => $data['confidence'] ?? 'medium',
         ];
+    }
+
+    /**
+     * Get current month AI usage for the tenant.
+     */
+    public function getUsage(Request $request): JsonResponse
+    {
+        $year = (int) ($request->query('year') ?: now()->year);
+        $month = (int) ($request->query('month') ?: now()->month);
+
+        $summary = [
+            'ocr_scans' => AiUsage::monthlyCount('ocr_scan', $year, $month),
+            'bot_messages' => AiUsage::monthlyCount('bot_message', $year, $month),
+            'contrat_generations' => AiUsage::monthlyCount('contrat_generation', $year, $month),
+            'total_cost_usd' => (float) AiUsage::whereYear('created_at', $year)->whereMonth('created_at', $month)->sum('cost_usd'),
+        ];
+
+        $quota = $this->getAiQuota();
+
+        return response()->json([
+            'year' => $year,
+            'month' => $month,
+            'usage' => $summary,
+            'quota' => $quota,
+            'has_ai_plan' => $quota !== null,
+        ]);
+    }
+
+    /**
+     * Get AI quota info for the tenant.
+     */
+    public function getQuota(): JsonResponse
+    {
+        $quota = $this->getAiQuota();
+        if (!$quota) {
+            return response()->json(['has_ai_plan' => false, 'quota' => null]);
+        }
+
+        $usage = AiUsage::currentMonthSummary();
+
+        return response()->json([
+            'has_ai_plan' => true,
+            'quota' => $quota,
+            'usage' => $usage,
+            'remaining' => [
+                'ocr_scans' => max(0, $quota['ocr_limit'] - $usage['ocr_scans']),
+                'bot_messages' => max(0, $quota['bot_limit'] - $usage['bot_messages']),
+                'contrat_generations' => max(0, $quota['contrat_limit'] - $usage['contrat_generations']),
+            ],
+        ]);
+    }
+
+    /**
+     * Get AI quota from the active AI subscription.
+     */
+    private function getAiQuota(): ?array
+    {
+        $tenant = tenant();
+        // Check for active AI add-on subscription
+        $aiSub = Subscription::where('tenant_id', $tenant->id)
+            ->whereIn('status', ['active', 'trialing'])
+            ->whereHas('plan', fn($q) => $q->where('addon_type', 'ai'))
+            ->with('plan')
+            ->first();
+
+        if (!$aiSub) return null;
+
+        return [
+            'ocr_limit' => $aiSub->plan->ai_ocr_scans ?? 0,
+            'bot_limit' => $aiSub->plan->ai_bot_messages ?? 0,
+            'contrat_limit' => $aiSub->plan->ai_contrat_generations ?? 0,
+            'model' => $aiSub->plan->ai_model ?? 'claude-opus-4-6',
+            'extra_scan_price' => $aiSub->plan->ai_extra_scan_price_chf ?? 0.10,
+            'plan_name' => $aiSub->plan->nom,
+        ];
+    }
+
+    /**
+     * Estimate API cost based on model and tokens.
+     */
+    private function estimateCost(string $model, int $inputTokens, int $outputTokens): float
+    {
+        // Pricing per million tokens (USD)
+        $pricing = [
+            'claude-opus-4-6' => ['input' => 5.0, 'output' => 25.0],
+            'claude-opus-4-7' => ['input' => 5.0, 'output' => 25.0],
+            'claude-sonnet-4-6' => ['input' => 3.0, 'output' => 15.0],
+            'claude-haiku-4-5-20251001' => ['input' => 1.0, 'output' => 5.0],
+        ];
+
+        $rates = $pricing[$model] ?? $pricing['claude-opus-4-6'];
+        return ($inputTokens * $rates['input'] / 1_000_000) + ($outputTokens * $rates['output'] / 1_000_000);
     }
 }
