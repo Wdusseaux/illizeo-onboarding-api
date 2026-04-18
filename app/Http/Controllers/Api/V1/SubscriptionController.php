@@ -83,7 +83,10 @@ class SubscriptionController extends Controller
 
             if ($isUpgrade) {
                 // UPGRADE: immediate effect
-                if ($wasInTrial) {
+                if ($isAi) {
+                    // AI plans: usage-based billing, no prorata — cumulated for the month
+                    $prorata = 0;
+                } elseif ($wasInTrial) {
                     // During trial: no prorata (nothing was billed), trial ends now
                     $prorata = 0;
                 } else {
@@ -107,14 +110,14 @@ class SubscriptionController extends Controller
                 ]);
             } elseif ($isDowngrade) {
                 // DOWNGRADE: current plan stays active until end of period, new plan starts after
-                if ($wasInTrial) {
-                    // During trial: downgrade is also immediate (no billing to protect)
+                if ($wasInTrial && !$isAi) {
+                    // During trial (non-AI): downgrade is immediate (no billing to protect)
                     $existingSub->update([
                         'status' => 'canceled',
                         'canceled_at' => now(),
                     ]);
                 } else {
-                    // Already paying: schedule switch at end of current period
+                    // Already paying or AI plan: schedule switch at end of current period
                     $effectiveDate = $existingSub->current_period_end;
                     $existingSub->update([
                         'canceled_at' => $existingSub->current_period_end,
@@ -142,16 +145,16 @@ class SubscriptionController extends Controller
             : \Carbon\Carbon::parse($effectiveDate)->addMonth();
 
         // Determine status:
-        // - First subscription ever → trialing (14 days)
+        // - First subscription ever → trialing (14 days), except AI plans (no trial)
         // - Upgrade/downgrade during trial → active (trial ends)
         // - Upgrade from paid plan → active
-        // - Downgrade from paid plan → pending (activates at end of current period)
-        $newStatus = 'trialing';
+        // - Downgrade from paid plan or AI → pending (activates at end of current period)
+        $newStatus = $isAi ? 'active' : 'trialing';
         if ($existingSub) {
-            if ($isDowngrade && !$wasInTrial) {
+            if ($isDowngrade && ($isAi || !$wasInTrial)) {
                 $newStatus = 'pending';
             } else {
-                $newStatus = 'active'; // upgrade or change during trial → active immediately
+                $newStatus = 'active';
             }
         }
 
@@ -203,17 +206,27 @@ class SubscriptionController extends Controller
 
         // Build response
         if ($isUpgrade) {
-            $message = $wasInTrial
-                ? "Upgrade effectué. Votre période d'essai est terminée, le plan {$newPlan->nom} est actif immédiatement."
-                : "Upgrade effectué immédiatement. Crédit prorata : {$prorata} CHF";
+            if ($isAi) {
+                $message = "Upgrade vers {$newPlan->nom} effectué. La facturation du plan précédent reste due pour le mois en cours (facturation à l'usage, cumulée pour le mois). Pas de remboursement.";
+            } elseif ($wasInTrial) {
+                $message = "Upgrade effectué. Votre période d'essai est terminée, le plan {$newPlan->nom} est actif immédiatement.";
+            } else {
+                $message = "Upgrade effectué immédiatement. Crédit prorata : {$prorata} CHF";
+            }
         } elseif ($isDowngrade) {
-            $message = $wasInTrial
-                ? "Changement de plan effectué immédiatement vers {$newPlan->nom}."
-                : "Downgrade programmé pour le " . \Carbon\Carbon::parse($effectiveDate)->format('d/m/Y') . ". Votre plan actuel reste actif jusque-là.";
+            if ($isAi) {
+                $message = "Downgrade vers {$newPlan->nom} programmé. Le changement prendra effet à la fin de la prochaine facturation le " . \Carbon\Carbon::parse($effectiveDate)->format('d/m/Y') . ".";
+            } elseif ($wasInTrial) {
+                $message = "Changement de plan effectué immédiatement vers {$newPlan->nom}.";
+            } else {
+                $message = "Downgrade programmé pour le " . \Carbon\Carbon::parse($effectiveDate)->format('d/m/Y') . ". Votre plan actuel reste actif jusque-là.";
+            }
         } else {
-            $message = $request->payment_method === 'stripe'
-                ? "Abonnement créé — essai gratuit de 14 jours. Prélèvement automatique activé."
-                : "Abonnement créé — essai gratuit de 14 jours";
+            $message = $isAi
+                ? "Abonnement {$newPlan->nom} activé. Facturation à l'usage."
+                : ($request->payment_method === 'stripe'
+                    ? "Abonnement créé — essai gratuit de 14 jours. Prélèvement automatique activé."
+                    : "Abonnement créé — essai gratuit de 14 jours");
         }
 
         return response()->json([
