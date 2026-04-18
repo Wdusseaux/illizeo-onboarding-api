@@ -33,7 +33,7 @@ class StripeController extends Controller
     {
         $tenant = tenant();
         $stripe = $this->stripe();
-        $mode = config('services.stripe.mode', 'live');
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
         $settingKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
 
         // Check if tenant already has a Stripe customer ID for this mode
@@ -96,7 +96,7 @@ class StripeController extends Controller
      */
     public function getPaymentMethods(): JsonResponse
     {
-        $mode = config('services.stripe.mode', 'live');
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
         $settingKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
         $customerId = \App\Models\CompanySetting::where('key', $settingKey)->value('value');
 
@@ -141,7 +141,7 @@ class StripeController extends Controller
     {
         $request->validate(['payment_method_id' => 'required|string']);
 
-        $mode = config('services.stripe.mode', 'live');
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
         $customerId = \App\Models\CompanySetting::where('key', $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id')->value('value');
         if (!$customerId) {
             return response()->json(['error' => 'No Stripe customer'], 404);
@@ -218,7 +218,7 @@ class StripeController extends Controller
      */
     public function getPaymentConfig(): JsonResponse
     {
-        $mode = config('services.stripe.mode', 'live');
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
         $customerKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
         $settings = \App\Models\CompanySetting::whereIn('key', [
             'payment_method', 'stripe_customer_id', 'stripe_test_customer_id', 'invoice_email', 'invoice_po_number',
@@ -273,7 +273,7 @@ class StripeController extends Controller
         }
 
         // Also update Stripe customer if exists
-        $mode = config('services.stripe.mode', 'live');
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
         $customerId = \App\Models\CompanySetting::where('key', $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id')->value('value');
         if ($customerId && ($request->has('email') || $request->has('prenom'))) {
             try {
