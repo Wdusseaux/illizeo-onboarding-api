@@ -222,6 +222,7 @@ class StripeController extends Controller
         $customerKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
         $settings = \App\Models\CompanySetting::whereIn('key', [
             'payment_method', 'stripe_customer_id', 'stripe_test_customer_id', 'invoice_email', 'invoice_po_number',
+            'billing_contact_prenom', 'billing_contact_nom', 'billing_contact_email', 'billing_contact_telephone', 'billing_contact_pays',
             'billing_company', 'billing_vat', 'billing_rue', 'billing_numero',
             'billing_complement', 'billing_case_postale', 'billing_localite',
             'billing_code_postal', 'billing_ville', 'billing_canton', 'billing_pays',
@@ -233,6 +234,13 @@ class StripeController extends Controller
             'stripe_mode' => $mode,
             'invoice_email' => $settings['invoice_email'] ?? null,
             'invoice_po_number' => $settings['invoice_po_number'] ?? null,
+            'billing_contact' => [
+                'prenom' => $settings['billing_contact_prenom'] ?? null,
+                'nom' => $settings['billing_contact_nom'] ?? null,
+                'email' => $settings['billing_contact_email'] ?? null,
+                'telephone' => $settings['billing_contact_telephone'] ?? null,
+                'pays' => $settings['billing_contact_pays'] ?? 'Suisse',
+            ],
             'billing' => [
                 'company' => $settings['billing_company'] ?? null,
                 'vat' => $settings['billing_vat'] ?? null,
