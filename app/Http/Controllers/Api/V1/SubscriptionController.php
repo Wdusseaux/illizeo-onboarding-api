@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\TenantActiveModule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Stripe\StripeClient;
 
 class SubscriptionController extends Controller
 {
@@ -46,13 +47,24 @@ class SubscriptionController extends Controller
         $newPlan = Plan::on('central')->with('modules')->findOrFail($request->plan_id);
         $tenant = tenant();
         $isCooptation = $newPlan->slug === 'cooptation';
+        $isAi = $newPlan->addon_type === 'ai';
 
-        // Find existing subscription of same category
+        // Find existing subscription of same category (main plan, cooptation, or AI — each is independent)
         $existingSub = Subscription::where('tenant_id', $tenant->id)
             ->whereIn('status', ['active', 'trialing'])
-            ->whereHas('plan', fn ($q) => $isCooptation
-                ? $q->where('slug', 'cooptation')
-                : $q->where('slug', '!=', 'cooptation'))
+            ->whereHas('plan', function ($q) use ($isCooptation, $isAi) {
+                if ($isCooptation) {
+                    $q->where('slug', 'cooptation');
+                } elseif ($isAi) {
+                    $q->where('addon_type', 'ai');
+                } else {
+                    $q->where('slug', '!=', 'cooptation')->where(function ($q2) {
+                        $q2->whereNull('addon_type')->orWhere('addon_type', '!=', 'ai');
+                    })->where(function ($q2) {
+                        $q2->where('is_addon', false)->orWhereNull('is_addon');
+                    });
+                }
+            })
             ->with('plan')
             ->first();
 
@@ -126,6 +138,35 @@ class SubscriptionController extends Controller
             'nombre_collaborateurs' => $nbCollabs,
         ]);
 
+        // ── Stripe recurring billing ──────────────────────────
+        $stripeSubscriptionId = null;
+        if ($request->payment_method === 'stripe' && !$isDowngrade) {
+            try {
+                $stripeSubscriptionId = $this->createStripeSubscription(
+                    $subscription, $newPlan, $nbCollabs, $request->billing_cycle, !$existingSub
+                );
+                if ($stripeSubscriptionId) {
+                    $subscription->update(['stripe_subscription_id' => $stripeSubscriptionId]);
+                }
+            } catch (\Exception $e) {
+                // Stripe subscription creation failed — local subscription remains active
+                // Log the error but don't block the flow
+                \Log::warning("Stripe subscription creation failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
+        }
+
+        // Cancel old Stripe subscription if upgrading
+        if ($isUpgrade && $existingSub && $existingSub->stripe_subscription_id) {
+            try {
+                $stripe = new StripeClient(config('services.stripe.secret'));
+                $stripe->subscriptions->cancel($existingSub->stripe_subscription_id, [
+                    'prorate' => true,
+                ]);
+            } catch (\Exception $e) {
+                \Log::warning("Failed to cancel old Stripe subscription: " . $e->getMessage());
+            }
+        }
+
         // Sync active modules (only for upgrade — downgrade keeps old modules until switch)
         if (!$isDowngrade) {
             $this->syncModules($tenant->id);
@@ -136,7 +177,9 @@ class SubscriptionController extends Controller
             ? "Upgrade effectué immédiatement. Crédit prorata : {$prorata} CHF"
             : ($isDowngrade
                 ? "Downgrade programmé pour le " . \Carbon\Carbon::parse($effectiveDate)->format('d/m/Y')
-                : "Abonnement créé — essai gratuit de 14 jours");
+                : ($request->payment_method === 'stripe'
+                    ? "Abonnement créé — essai gratuit de 14 jours. Prélèvement automatique activé."
+                    : "Abonnement créé — essai gratuit de 14 jours"));
 
         return response()->json([
             'message' => $message,
@@ -145,6 +188,7 @@ class SubscriptionController extends Controller
             'is_upgrade' => $isUpgrade,
             'is_downgrade' => $isDowngrade,
             'effective_date' => $effectiveDate->toDateString(),
+            'stripe_subscription_id' => $stripeSubscriptionId,
         ], 201);
     }
 
@@ -153,6 +197,24 @@ class SubscriptionController extends Controller
      */
     public function cancel(Subscription $subscription): JsonResponse
     {
+        // Cancel Stripe subscription if exists
+        if ($subscription->stripe_subscription_id) {
+            try {
+                $stripe = new StripeClient(config('services.stripe.secret'));
+                $periodEnd = $subscription->current_period_end;
+                if ($periodEnd && \Carbon\Carbon::parse($periodEnd)->isFuture()) {
+                    // Cancel at period end
+                    $stripe->subscriptions->update($subscription->stripe_subscription_id, [
+                        'cancel_at_period_end' => true,
+                    ]);
+                } else {
+                    $stripe->subscriptions->cancel($subscription->stripe_subscription_id);
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to cancel Stripe subscription: " . $e->getMessage());
+            }
+        }
+
         // Cancel takes effect at the end of the current billing period
         $periodEnd = $subscription->current_period_end;
 
@@ -336,6 +398,206 @@ class SubscriptionController extends Controller
             'billed_count' => max(25, count($activeUsers)),
             'users' => $activeUsers,
         ]);
+    }
+
+    /**
+     * Create a Stripe Subscription for recurring billing.
+     */
+    private function createStripeSubscription(Subscription $subscription, Plan $plan, int $nbCollabs, string $billingCycle, bool $withTrial): ?string
+    {
+        $stripe = new StripeClient(config('services.stripe.secret'));
+
+        // Get Stripe customer ID
+        $customerId = \App\Models\CompanySetting::where('key', 'stripe_customer_id')->value('value');
+        if (!$customerId) {
+            return null;
+        }
+
+        // Check customer has a default payment method
+        $customer = $stripe->customers->retrieve($customerId);
+        $defaultPm = $customer->invoice_settings->default_payment_method ?? null;
+        if (!$defaultPm) {
+            // Try to get any payment method
+            $methods = $stripe->paymentMethods->all(['customer' => $customerId, 'type' => 'card', 'limit' => 1]);
+            if (count($methods->data) === 0) {
+                return null; // No card saved, can't create subscription
+            }
+            $defaultPm = $methods->data[0]->id;
+            $stripe->customers->update($customerId, [
+                'invoice_settings' => ['default_payment_method' => $defaultPm],
+            ]);
+        }
+
+        // Calculate unit price in centimes (Stripe uses smallest currency unit)
+        $unitPrice = (float) $plan->prix_chf_mensuel;
+        if ($billingCycle === 'yearly') {
+            $unitPrice = round($unitPrice * 12 * 0.9, 2); // 10% annual discount
+        }
+        $totalCentimes = (int) round($unitPrice * $nbCollabs * 100);
+
+        // Use Stripe Price ID if configured, otherwise create an ad-hoc price
+        $priceData = null;
+        $stripePriceId = $plan->stripe_price_id_chf;
+
+        if (!$stripePriceId) {
+            // Create ad-hoc price for this subscription
+            $priceData = [
+                'currency' => 'chf',
+                'unit_amount' => $totalCentimes,
+                'recurring' => [
+                    'interval' => $billingCycle === 'yearly' ? 'year' : 'month',
+                ],
+                'product_data' => [
+                    'name' => $plan->nom . " ({$nbCollabs} collaborateurs)",
+                    'metadata' => [
+                        'plan_id' => $plan->id,
+                        'plan_slug' => $plan->slug,
+                        'nb_collaborateurs' => $nbCollabs,
+                    ],
+                ],
+            ];
+        }
+
+        // Build subscription params
+        $subParams = [
+            'customer' => $customerId,
+            'default_payment_method' => $defaultPm,
+            'metadata' => [
+                'tenant_id' => tenant('id'),
+                'plan_id' => $plan->id,
+                'plan_slug' => $plan->slug,
+                'local_subscription_id' => $subscription->id,
+                'nb_collaborateurs' => $nbCollabs,
+            ],
+        ];
+
+        if ($priceData) {
+            $subParams['items'] = [['price_data' => $priceData]];
+        } else {
+            $subParams['items'] = [['price' => $stripePriceId, 'quantity' => $nbCollabs]];
+        }
+
+        // Add 14-day trial for new subscriptions
+        if ($withTrial) {
+            $subParams['trial_period_days'] = 14;
+        }
+
+        $stripeSub = $stripe->subscriptions->create($subParams);
+
+        // Update local subscription with Stripe IDs
+        $subscription->update([
+            'stripe_subscription_id' => $stripeSub->id,
+            'stripe_customer_id' => $customerId,
+        ]);
+
+        return $stripeSub->id;
+    }
+
+    /**
+     * Handle Stripe webhooks for subscription events.
+     */
+    public function handleWebhook(Request $request): JsonResponse
+    {
+        $payload = $request->getContent();
+        $sigHeader = $request->header('Stripe-Signature');
+        $webhookSecret = config('services.stripe.webhook_secret');
+
+        try {
+            if ($webhookSecret) {
+                $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $webhookSecret);
+            } else {
+                $data = json_decode($payload, true);
+                $event = (object) $data;
+                $event->type = $data['type'] ?? '';
+                $event->data = (object) ['object' => (object) ($data['data']['object'] ?? [])];
+            }
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Webhook signature verification failed'], 400);
+        }
+
+        $object = $event->data->object;
+
+        switch ($event->type) {
+            case 'invoice.payment_succeeded':
+                // Payment successful — update subscription period
+                $stripeSubId = $object->subscription ?? null;
+                if ($stripeSubId) {
+                    $sub = Subscription::where('stripe_subscription_id', $stripeSubId)->first();
+                    if ($sub) {
+                        $sub->update([
+                            'status' => 'active',
+                            'current_period_start' => \Carbon\Carbon::createFromTimestamp($object->period_start ?? time()),
+                            'current_period_end' => \Carbon\Carbon::createFromTimestamp($object->period_end ?? time()),
+                        ]);
+
+                        // Create invoice record
+                        \App\Models\Invoice::create([
+                            'subscription_id' => $sub->id,
+                            'tenant_id' => $sub->tenant_id,
+                            'stripe_invoice_id' => $object->id,
+                            'montant' => ($object->amount_paid ?? 0) / 100,
+                            'currency' => $object->currency ?? 'chf',
+                            'status' => 'paid',
+                            'date_emission' => now(),
+                            'date_echeance' => now(),
+                            'pdf_url' => $object->invoice_pdf ?? null,
+                        ]);
+                    }
+                }
+                break;
+
+            case 'invoice.payment_failed':
+                // Payment failed — mark subscription as past_due
+                $stripeSubId = $object->subscription ?? null;
+                if ($stripeSubId) {
+                    $sub = Subscription::where('stripe_subscription_id', $stripeSubId)->first();
+                    if ($sub) {
+                        $sub->update(['status' => 'past_due']);
+                    }
+                }
+                break;
+
+            case 'customer.subscription.deleted':
+                // Subscription canceled in Stripe
+                $stripeSubId = $object->id ?? null;
+                if ($stripeSubId) {
+                    $sub = Subscription::where('stripe_subscription_id', $stripeSubId)->first();
+                    if ($sub) {
+                        $sub->update([
+                            'status' => 'canceled',
+                            'canceled_at' => now(),
+                        ]);
+                        $this->syncModules($sub->tenant_id);
+                    }
+                }
+                break;
+
+            case 'customer.subscription.updated':
+                // Subscription updated — sync period dates
+                $stripeSubId = $object->id ?? null;
+                if ($stripeSubId) {
+                    $sub = Subscription::where('stripe_subscription_id', $stripeSubId)->first();
+                    if ($sub) {
+                        $updates = [];
+                        if (isset($object->current_period_start)) {
+                            $updates['current_period_start'] = \Carbon\Carbon::createFromTimestamp($object->current_period_start);
+                        }
+                        if (isset($object->current_period_end)) {
+                            $updates['current_period_end'] = \Carbon\Carbon::createFromTimestamp($object->current_period_end);
+                        }
+                        if (isset($object->status)) {
+                            $statusMap = ['active' => 'active', 'trialing' => 'trialing', 'past_due' => 'past_due', 'canceled' => 'canceled', 'unpaid' => 'past_due'];
+                            $updates['status'] = $statusMap[$object->status] ?? $object->status;
+                        }
+                        if (!empty($updates)) {
+                            $sub->update($updates);
+                        }
+                    }
+                }
+                break;
+        }
+
+        return response()->json(['received' => true]);
     }
 
     private function formatBytes(int $bytes): string
