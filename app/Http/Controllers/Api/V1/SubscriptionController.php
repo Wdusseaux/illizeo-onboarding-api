@@ -124,17 +124,88 @@ class SubscriptionController extends Controller
                     ]);
                 }
             } else {
-                // Same plan — reactivate if canceled, or update billing cycle
+                // Same plan
                 $wasReactivated = !empty($existingSub->canceled_at);
-                $existingSub->update([
-                    'billing_cycle' => $request->billing_cycle,
-                    'canceled_at' => null,
-                ]);
+                $oldCycle = $existingSub->billing_cycle;
+                $newCycle = $request->billing_cycle;
 
-                return response()->json([
-                    'message' => $wasReactivated ? 'Abonnement réactivé avec succès' : 'Cycle de facturation mis à jour',
-                    'subscription' => $existingSub->load('plan'),
-                ]);
+                // ── Billing cycle change logic ──
+                if ($oldCycle !== $newCycle && !$wasReactivated) {
+                    if ($oldCycle === 'monthly' && $newCycle === 'yearly') {
+                        // MONTHLY → YEARLY: immediate upgrade, new annual period starts now, -10%
+                        // Prorata credit for remaining days of current monthly period
+                        if (!$wasInTrial && !$isAi) {
+                            $periodStart = \Carbon\Carbon::parse($existingSub->current_period_start);
+                            $periodEnd = \Carbon\Carbon::parse($existingSub->current_period_end);
+                            $totalDays = $periodStart->diffInDays($periodEnd);
+                            $remainingDays = now()->diffInDays($periodEnd);
+                            if ($totalDays > 0 && $remainingDays > 0) {
+                                $nbCollabs = $existingSub->nombre_collaborateurs ?: 25;
+                                $dailyRate = ($oldPrice * $nbCollabs) / $totalDays;
+                                $prorata = round($dailyRate * $remainingDays, 2);
+                            }
+                        }
+
+                        $existingSub->update([
+                            'status' => 'canceled',
+                            'canceled_at' => now(),
+                        ]);
+
+                        // Will create new yearly subscription below
+                        $isUpgrade = true;
+                    } elseif ($oldCycle === 'yearly' && $newCycle === 'monthly') {
+                        // YEARLY → MONTHLY: not allowed immediately, schedule for end of annual period
+                        $periodEnd = $existingSub->current_period_end;
+                        $formattedEnd = \Carbon\Carbon::parse($periodEnd)->format('d/m/Y');
+
+                        // Check if a pending downgrade already exists
+                        $pendingDowngrade = Subscription::where('tenant_id', $tenant->id)
+                            ->where('plan_id', $newPlan->id)
+                            ->where('status', 'pending')
+                            ->first();
+
+                        if ($pendingDowngrade) {
+                            return response()->json([
+                                'message' => "Un changement vers la facturation mensuelle est déjà programmé pour le {$formattedEnd}.",
+                                'subscription' => $existingSub->load('plan'),
+                            ]);
+                        }
+
+                        // Schedule the cycle change at end of annual period
+                        $existingSub->update([
+                            'canceled_at' => $periodEnd,
+                        ]);
+
+                        $monthlyPeriodEnd = \Carbon\Carbon::parse($periodEnd)->addMonth();
+                        Subscription::create([
+                            'tenant_id' => $tenant->id,
+                            'plan_id' => $newPlan->id,
+                            'status' => 'pending',
+                            'currency' => 'chf',
+                            'billing_cycle' => 'monthly',
+                            'current_period_start' => $periodEnd,
+                            'current_period_end' => $monthlyPeriodEnd,
+                            'nombre_collaborateurs' => $existingSub->nombre_collaborateurs ?: 25,
+                        ]);
+
+                        return response()->json([
+                            'message' => "Passage en facturation mensuelle programmé pour le {$formattedEnd}. Votre abonnement annuel reste actif jusque-là. La réduction de 10% ne sera plus appliquée après cette date.",
+                            'subscription' => $existingSub->load('plan'),
+                            'effective_date' => $periodEnd,
+                        ]);
+                    }
+                } else {
+                    // Same cycle — just reactivate if canceled
+                    $existingSub->update([
+                        'billing_cycle' => $request->billing_cycle,
+                        'canceled_at' => null,
+                    ]);
+
+                    return response()->json([
+                        'message' => $wasReactivated ? 'Abonnement réactivé avec succès' : 'Cycle de facturation mis à jour',
+                        'subscription' => $existingSub->load('plan'),
+                    ]);
+                }
             }
         }
 
@@ -204,9 +275,14 @@ class SubscriptionController extends Controller
             $this->syncModules($tenant->id);
         }
 
+        // Check if this was a billing cycle upgrade (same plan, monthly → yearly)
+        $isCycleUpgrade = $existingSub && $existingSub->plan_id === $newPlan->id && $isUpgrade;
+
         // Build response
         if ($isUpgrade) {
-            if ($isAi) {
+            if ($isCycleUpgrade) {
+                $message = "Passage en facturation annuelle effectué. Vous bénéficiez désormais de 10% de réduction." . ($prorata > 0 ? " Crédit prorata : {$prorata} CHF" : "");
+            } elseif ($isAi) {
                 $message = "Upgrade vers {$newPlan->nom} effectué. La facturation du plan précédent reste due pour le mois en cours (facturation à l'usage, cumulée pour le mois). Pas de remboursement.";
             } elseif ($wasInTrial) {
                 $message = "Upgrade effectué. Votre période d'essai est terminée, le plan {$newPlan->nom} est actif immédiatement.";
