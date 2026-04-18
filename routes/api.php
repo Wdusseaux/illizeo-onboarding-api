@@ -71,6 +71,9 @@ Route::post('/check-tenant', [TenantRegistrationController::class, 'checkAvailab
 Route::get('/plans', [PlanController::class, 'index']);
 Route::post('/plans/subscribe', [PlanController::class, 'subscribe']);
 
+// ─── Stripe Webhook (no auth, no tenant) ───────────────────
+Route::post('/stripe/webhook', [\App\Http\Controllers\Api\V1\SubscriptionController::class, 'handleWebhook']);
+
 // Super admin routes are inside the tenant-scoped group below (need tenant context for Sanctum token resolution)
 
 // ─── Tenant-scoped ──────────────────────────────────────────
@@ -87,6 +90,13 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
     // Password policy (public — needed before auth for register/reset forms)
     Route::get('/password-policy', [PasswordController::class, 'getPolicy']);
+
+    // Tenant branding (public — needed before auth for login page gradient/logo)
+    Route::get('/tenant-branding', function () {
+        $keys = ['login_gradient_start', 'login_gradient_end', 'login_bg_image', 'custom_logo', 'custom_logo_full'];
+        $settings = \App\Models\CompanySetting::whereIn('key', $keys)->pluck('value', 'key');
+        return response()->json($settings);
+    });
 
     // 2FA verify (no auth required — called after login when 2FA is enabled)
     Route::post('2fa/verify', [TwoFactorController::class, 'verify']);
