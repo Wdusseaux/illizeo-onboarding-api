@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Workflow;
+use App\Traits\ChecksPlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WorkflowController extends Controller
 {
+    use ChecksPlanLimits;
+
     public function index(): JsonResponse
     {
         return response()->json(Workflow::all());
@@ -16,6 +19,11 @@ class WorkflowController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $limitCheck = $this->checkPlanLimit('max_workflows', Workflow::count(), 'workflows');
+        if ($limitCheck) {
+            return $limitCheck;
+        }
+
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
             'declencheur' => 'required|string',

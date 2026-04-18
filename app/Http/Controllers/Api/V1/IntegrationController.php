@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Integration;
+use App\Traits\ChecksPlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class IntegrationController extends Controller
 {
+    use ChecksPlanLimits;
+
     public function index(Request $request): JsonResponse
     {
         $query = Integration::query();
@@ -35,6 +38,11 @@ class IntegrationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $limitCheck = $this->checkPlanLimit('max_integrations', Integration::count(), 'integrations');
+        if ($limitCheck) {
+            return $limitCheck;
+        }
+
         $validated = $request->validate([
             'provider' => 'required|string',
             'categorie' => 'required|string',

@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Parcours;
+use App\Traits\ChecksPlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ParcoursController extends Controller
 {
+    use ChecksPlanLimits;
+
     public function index(Request $request): JsonResponse
     {
         $query = Parcours::with(['categorie', 'phases']);
@@ -25,6 +28,11 @@ class ParcoursController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $limitCheck = $this->checkPlanLimit('max_parcours', Parcours::count(), 'parcours');
+        if ($limitCheck) {
+            return $limitCheck;
+        }
+
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
             'categorie_id' => 'required|exists:parcours_categories,id',
@@ -62,6 +70,11 @@ class ParcoursController extends Controller
 
     public function duplicate(Parcours $parcour): JsonResponse
     {
+        $limitCheck = $this->checkPlanLimit('max_parcours', Parcours::count(), 'parcours');
+        if ($limitCheck) {
+            return $limitCheck;
+        }
+
         $copy = $parcour->replicate();
         $copy->nom = $parcour->nom . ' (copie)';
         $copy->status = 'brouillon';
