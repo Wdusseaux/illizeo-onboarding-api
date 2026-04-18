@@ -11,7 +11,19 @@ class StripeController extends Controller
 {
     private function stripe(): StripeClient
     {
-        return new StripeClient(config('services.stripe.secret'));
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
+        $secret = $mode === 'test'
+            ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+            : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+        return new StripeClient($secret);
+    }
+
+    private function getPublishableKey(): string
+    {
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
+        return $mode === 'test'
+            ? (config('services.stripe.test_key') ?: env('STRIPE_TEST_KEY'))
+            : (config('services.stripe.live_key') ?: env('STRIPE_KEY'));
     }
 
     /**
@@ -21,9 +33,11 @@ class StripeController extends Controller
     {
         $tenant = tenant();
         $stripe = $this->stripe();
+        $mode = config('services.stripe.mode', 'live');
+        $settingKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
 
-        // Check if tenant already has a Stripe customer ID
-        $customerId = \App\Models\CompanySetting::where('key', 'stripe_customer_id')->value('value');
+        // Check if tenant already has a Stripe customer ID for this mode
+        $customerId = \App\Models\CompanySetting::where('key', $settingKey)->value('value');
 
         if ($customerId) {
             try {
@@ -41,11 +55,12 @@ class StripeController extends Controller
             'metadata' => [
                 'app' => 'onboarding',
                 'tenant_id' => $tenant->id,
+                'mode' => $mode,
             ],
         ]);
 
         \App\Models\CompanySetting::updateOrCreate(
-            ['key' => 'stripe_customer_id'],
+            ['key' => $settingKey],
             ['value' => $customer->id]
         );
 
@@ -72,7 +87,7 @@ class StripeController extends Controller
         return response()->json([
             'client_secret' => $setupIntent->client_secret,
             'customer_id' => $customer->id,
-            'publishable_key' => config('services.stripe.key'),
+            'publishable_key' => $this->getPublishableKey(),
         ]);
     }
 
@@ -81,7 +96,9 @@ class StripeController extends Controller
      */
     public function getPaymentMethods(): JsonResponse
     {
-        $customerId = \App\Models\CompanySetting::where('key', 'stripe_customer_id')->value('value');
+        $mode = config('services.stripe.mode', 'live');
+        $settingKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
+        $customerId = \App\Models\CompanySetting::where('key', $settingKey)->value('value');
 
         if (!$customerId) {
             return response()->json(['methods' => [], 'default' => null]);
@@ -124,7 +141,8 @@ class StripeController extends Controller
     {
         $request->validate(['payment_method_id' => 'required|string']);
 
-        $customerId = \App\Models\CompanySetting::where('key', 'stripe_customer_id')->value('value');
+        $mode = config('services.stripe.mode', 'live');
+        $customerId = \App\Models\CompanySetting::where('key', $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id')->value('value');
         if (!$customerId) {
             return response()->json(['error' => 'No Stripe customer'], 404);
         }
@@ -200,8 +218,10 @@ class StripeController extends Controller
      */
     public function getPaymentConfig(): JsonResponse
     {
+        $mode = config('services.stripe.mode', 'live');
+        $customerKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
         $settings = \App\Models\CompanySetting::whereIn('key', [
-            'payment_method', 'stripe_customer_id', 'invoice_email', 'invoice_po_number',
+            'payment_method', 'stripe_customer_id', 'stripe_test_customer_id', 'invoice_email', 'invoice_po_number',
             'billing_company', 'billing_vat', 'billing_rue', 'billing_numero',
             'billing_complement', 'billing_case_postale', 'billing_localite',
             'billing_code_postal', 'billing_ville', 'billing_canton', 'billing_pays',
@@ -209,7 +229,8 @@ class StripeController extends Controller
 
         return response()->json([
             'payment_method' => $settings['payment_method'] ?? 'invoice',
-            'stripe_configured' => !empty($settings['stripe_customer_id']),
+            'stripe_configured' => !empty($settings[$customerKey]),
+            'stripe_mode' => $mode,
             'invoice_email' => $settings['invoice_email'] ?? null,
             'invoice_po_number' => $settings['invoice_po_number'] ?? null,
             'billing' => [
@@ -244,7 +265,8 @@ class StripeController extends Controller
         }
 
         // Also update Stripe customer if exists
-        $customerId = \App\Models\CompanySetting::where('key', 'stripe_customer_id')->value('value');
+        $mode = config('services.stripe.mode', 'live');
+        $customerId = \App\Models\CompanySetting::where('key', $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id')->value('value');
         if ($customerId && ($request->has('email') || $request->has('prenom'))) {
             try {
                 $this->stripe()->customers->update($customerId, array_filter([
