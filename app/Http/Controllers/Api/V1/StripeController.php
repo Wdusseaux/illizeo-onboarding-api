@@ -77,7 +77,7 @@ class StripeController extends Controller
 
         $setupIntent = $stripe->setupIntents->create([
             'customer' => $customer->id,
-            'payment_method_types' => ['card'],
+            'payment_method_types' => ['card', 'sepa_debit'],
             'metadata' => [
                 'app' => 'onboarding',
                 'tenant_id' => tenant('id'),
@@ -107,25 +107,45 @@ class StripeController extends Controller
         $stripe = $this->stripe();
 
         try {
-            $methods = $stripe->paymentMethods->all([
+            // Fetch cards
+            $cardMethods = $stripe->paymentMethods->all([
                 'customer' => $customerId,
                 'type' => 'card',
+            ]);
+
+            // Fetch SEPA
+            $sepaMethods = $stripe->paymentMethods->all([
+                'customer' => $customerId,
+                'type' => 'sepa_debit',
             ]);
 
             $customer = $stripe->customers->retrieve($customerId);
             $defaultMethodId = $customer->invoice_settings->default_payment_method ?? null;
 
-            $cards = collect($methods->data)->map(fn($m) => [
+            $cards = collect($cardMethods->data)->map(fn($m) => [
                 'id' => $m->id,
+                'type' => 'card',
                 'brand' => $m->card->brand,
                 'last4' => $m->card->last4,
                 'exp_month' => $m->card->exp_month,
                 'exp_year' => $m->card->exp_year,
                 'is_default' => $m->id === $defaultMethodId,
-            ])->toArray();
+            ]);
+
+            $sepas = collect($sepaMethods->data)->map(fn($m) => [
+                'id' => $m->id,
+                'type' => 'sepa_debit',
+                'brand' => 'sepa',
+                'last4' => $m->sepa_debit->last4,
+                'bank_code' => $m->sepa_debit->bank_code ?? null,
+                'country' => $m->sepa_debit->country ?? null,
+                'is_default' => $m->id === $defaultMethodId,
+            ]);
+
+            $allMethods = $cards->merge($sepas)->toArray();
 
             return response()->json([
-                'methods' => $cards,
+                'methods' => $allMethods,
                 'default' => $defaultMethodId,
                 'customer_id' => $customerId,
             ]);
