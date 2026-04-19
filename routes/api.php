@@ -101,6 +101,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
     // 2FA verify (no auth required — called after login when 2FA is enabled)
     Route::post('2fa/verify', [TwoFactorController::class, 'verify']);
 
+    // Support access login (no auth — token-based)
+    Route::post('support-login', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'loginWithToken']);
+
     // NPS public response (no auth needed — anonymous token-based)
     Route::get('nps/respond/{token}', [NpsSurveyController::class, 'getByToken']);
     Route::post('nps/respond/{token}', [NpsSurveyController::class, 'respond']);
@@ -368,6 +371,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         // Company settings (appearance)
         Route::get('company-settings', [CompanySettingController::class, 'index']);
         Route::get('audit-logs', [\App\Http\Controllers\Api\V1\AuditLogController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── Support Access ────────────────────────────────────
+        Route::get('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'grant'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('support-accesses/{id}/revoke', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
         Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
 
         // Company page blocks
