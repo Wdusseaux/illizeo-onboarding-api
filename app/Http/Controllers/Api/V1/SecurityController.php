@@ -21,7 +21,7 @@ class SecurityController extends Controller
         $currentTokenId = $user->currentAccessToken()?->id;
 
         // Auto-create session for current token if it doesn't exist yet (pre-deployment sessions)
-        if ($currentTokenId && !UserSession::where('token_id', $currentTokenId)->exists()) {
+        if ($currentTokenId && !UserSession::where('token_id', (string) $currentTokenId)->exists()) {
             $request = request();
             $parsed = UserSession::parseUserAgent($request->userAgent());
             UserSession::create([
@@ -48,7 +48,7 @@ class SecurityController extends Controller
                 'platform' => $s->platform,
                 'ip_address' => $s->ip_address,
                 'last_activity_at' => $s->last_activity_at,
-                'is_current' => $s->token_id == $currentTokenId,
+                'is_current' => (string) $s->token_id === (string) $currentTokenId,
                 'created_at' => $s->created_at,
             ]),
         ]);

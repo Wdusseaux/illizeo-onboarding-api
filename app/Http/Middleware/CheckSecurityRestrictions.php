@@ -94,15 +94,21 @@ class CheckSecurityRestrictions
         $tokenId = $user->currentAccessToken()?->id;
         if (!$tokenId) return;
 
-        $updated = UserSession::where('token_id', $tokenId)->update(['last_activity_at' => now()]);
+        $tokenIdStr = (string) $tokenId;
 
-        // Auto-create session if not exists (for tokens created before session tracking was deployed)
-        if ($updated === 0) {
+        $session = UserSession::where('token_id', $tokenIdStr)->first();
+        if ($session) {
+            // Only update every 60 seconds to avoid DB spam
+            if ($session->last_activity_at->diffInSeconds(now()) > 60) {
+                $session->update(['last_activity_at' => now(), 'ip_address' => $request->ip()]);
+            }
+        } else {
+            // Auto-create session for pre-deployment tokens
             try {
                 $parsed = UserSession::parseUserAgent($request->userAgent());
                 UserSession::create([
                     'user_id' => $user->id,
-                    'token_id' => $tokenId,
+                    'token_id' => $tokenIdStr,
                     'ip_address' => $request->ip(),
                     'user_agent' => $request->userAgent() ? substr($request->userAgent(), 0, 255) : null,
                     'device' => $parsed['device'],
