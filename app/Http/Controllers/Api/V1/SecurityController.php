@@ -17,11 +17,28 @@ class SecurityController extends Controller
 
     public function listSessions(): JsonResponse
     {
-        $sessions = UserSession::where('user_id', auth()->id())
+        $user = auth()->user();
+        $currentTokenId = $user->currentAccessToken()?->id;
+
+        // Auto-create session for current token if it doesn't exist yet (pre-deployment sessions)
+        if ($currentTokenId && !UserSession::where('token_id', $currentTokenId)->exists()) {
+            $request = request();
+            $parsed = UserSession::parseUserAgent($request->userAgent());
+            UserSession::create([
+                'user_id' => $user->id,
+                'token_id' => $currentTokenId,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent() ? substr($request->userAgent(), 0, 255) : null,
+                'device' => $parsed['device'],
+                'browser' => $parsed['browser'],
+                'platform' => $parsed['platform'],
+                'last_activity_at' => now(),
+            ]);
+        }
+
+        $sessions = UserSession::where('user_id', $user->id)
             ->orderByDesc('last_activity_at')
             ->get();
-
-        $currentTokenId = auth()->user()->currentAccessToken()?->id;
 
         return response()->json([
             'sessions' => $sessions->map(fn($s) => [

@@ -92,8 +92,25 @@ class CheckSecurityRestrictions
     private function updateSessionActivity($user, Request $request): void
     {
         $tokenId = $user->currentAccessToken()?->id;
-        if ($tokenId) {
-            UserSession::where('token_id', $tokenId)->update(['last_activity_at' => now()]);
+        if (!$tokenId) return;
+
+        $updated = UserSession::where('token_id', $tokenId)->update(['last_activity_at' => now()]);
+
+        // Auto-create session if not exists (for tokens created before session tracking was deployed)
+        if ($updated === 0) {
+            try {
+                $parsed = UserSession::parseUserAgent($request->userAgent());
+                UserSession::create([
+                    'user_id' => $user->id,
+                    'token_id' => $tokenId,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent() ? substr($request->userAgent(), 0, 255) : null,
+                    'device' => $parsed['device'],
+                    'browser' => $parsed['browser'],
+                    'platform' => $parsed['platform'],
+                    'last_activity_at' => now(),
+                ]);
+            } catch (\Exception $e) {}
         }
     }
 }
