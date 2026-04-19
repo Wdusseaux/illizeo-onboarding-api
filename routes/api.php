@@ -376,6 +376,12 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'grant'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('support-accesses/{id}/revoke', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── IP Whitelist ──────────────────────────────────────
+        Route::get('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('ip-whitelist/toggle', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'toggle'])->middleware('role:super_admin|admin|admin_rh');
+        Route::delete('ip-whitelist/{id}', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
         Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
 
         // Company page blocks

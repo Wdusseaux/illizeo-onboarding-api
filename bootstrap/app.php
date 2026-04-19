@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
+        $middleware->api(append: [
+            \App\Http\Middleware\CheckIpWhitelist::class,
+        ]);
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckModulePermission::class,
             'spatie_permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
