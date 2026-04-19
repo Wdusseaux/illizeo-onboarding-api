@@ -382,6 +382,18 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('ip-whitelist/toggle', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'toggle'])->middleware('role:super_admin|admin|admin_rh');
         Route::delete('ip-whitelist/{id}', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── Security ──────────────────────────────────────────
+        Route::get('security/sessions', [\App\Http\Controllers\Api\V1\SecurityController::class, 'listSessions']);
+        Route::post('security/sessions/{id}/revoke', [\App\Http\Controllers\Api\V1\SecurityController::class, 'revokeSession']);
+        Route::post('security/sessions/revoke-all', [\App\Http\Controllers\Api\V1\SecurityController::class, 'revokeAllOtherSessions']);
+        Route::get('security/login-history', [\App\Http\Controllers\Api\V1\SecurityController::class, 'loginHistory']);
+        Route::get('security/login-history/all', [\App\Http\Controllers\Api\V1\SecurityController::class, 'allLoginHistory'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('security/settings', [\App\Http\Controllers\Api\V1\SecurityController::class, 'getSecuritySettings'])->middleware('role:super_admin|admin|admin_rh');
+        Route::put('security/settings', [\App\Http\Controllers\Api\V1\SecurityController::class, 'updateSecuritySettings'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('security/schedules', [\App\Http\Controllers\Api\V1\SecurityController::class, 'storeSchedule'])->middleware('role:super_admin|admin|admin_rh');
+        Route::delete('security/schedules/{id}', [\App\Http\Controllers\Api\V1\SecurityController::class, 'deleteSchedule'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('export/encrypted', [DataExportController::class, 'exportEncrypted'])->middleware('role:super_admin|admin|admin_rh');
         Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
 
         // Company page blocks

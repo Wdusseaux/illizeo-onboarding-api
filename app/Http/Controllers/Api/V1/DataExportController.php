@@ -130,6 +130,49 @@ class DataExportController extends Controller
     }
 
     /**
+     * Export data with optional AES-256 encryption.
+     */
+    public function exportEncrypted(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $request->validate([
+            'type' => 'required|in:all,collaborateurs,audit',
+            'password' => 'required|string|min:8',
+        ]);
+
+        // Get the data based on type
+        $data = match ($request->type) {
+            'all' => $this->getAllDataArray(),
+            'collaborateurs' => Collaborateur::all()->toArray(),
+            'audit' => \App\Models\AuditLog::orderByDesc('created_at')->limit(1000)->get()->toArray(),
+        };
+
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+        // Encrypt with AES-256-CBC
+        $key = hash('sha256', $request->password, true);
+        $iv = random_bytes(16);
+        $encrypted = openssl_encrypt($json, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+        $payload = base64_encode($iv . $encrypted);
+
+        AuditLog::log('export_encrypted', null, null, null, "Export chiffré ({$request->type})");
+
+        return response($payload)
+            ->header('Content-Type', 'application/octet-stream')
+            ->header('Content-Disposition', 'attachment; filename="illizeo-export-' . $request->type . '-encrypted.aes"');
+    }
+
+    private function getAllDataArray(): array
+    {
+        return [
+            'collaborateurs' => Collaborateur::all()->toArray(),
+            'parcours' => \App\Models\Parcours::all()->toArray(),
+            'actions' => \App\Models\Action::all()->toArray(),
+            'users' => User::select('id', 'name', 'email', 'created_at')->get()->toArray(),
+            'audit_logs' => \App\Models\AuditLog::orderByDesc('created_at')->limit(500)->get()->toArray(),
+        ];
+    }
+
+    /**
      * RGPD right to be forgotten — delete all data for a collaborateur by email.
      */
     public function deleteCollaborateurData(Request $request): JsonResponse

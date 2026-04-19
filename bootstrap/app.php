@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->api(append: [
             \App\Http\Middleware\CheckIpWhitelist::class,
+            \App\Http\Middleware\CheckSecurityRestrictions::class,
         ]);
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckModulePermission::class,
