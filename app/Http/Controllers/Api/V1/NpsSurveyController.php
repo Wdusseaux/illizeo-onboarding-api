@@ -231,4 +231,68 @@ class NpsSurveyController extends Controller
 
         return response()->json(['message' => 'Merci pour votre réponse !']);
     }
+
+    /**
+     * Get pending and completed NPS surveys for the authenticated employee.
+     */
+    public function myPendingSurveys(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $collab = Collaborateur::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+
+        if (!$collab) {
+            // Not a collaborateur — return active surveys without tokens
+            $surveys = NpsSurvey::where('actif', true)->get();
+            return response()->json($surveys->map(fn ($s) => [
+                'survey' => $s,
+                'token' => null,
+                'completed' => false,
+                'completed_at' => null,
+            ]));
+        }
+
+        // Get all responses for this collaborateur (pending + completed)
+        $responses = NpsResponse::where('collaborateur_id', $collab->id)
+            ->with('survey')
+            ->get();
+
+        // Also include active surveys without a response yet
+        $respondedSurveyIds = $responses->pluck('survey_id')->toArray();
+        $unrepondedSurveys = NpsSurvey::where('actif', true)
+            ->whereNotIn('id', $respondedSurveyIds)
+            ->get();
+
+        $result = [];
+
+        foreach ($responses as $resp) {
+            if (!$resp->survey || !$resp->survey->actif) continue;
+            $result[] = [
+                'survey' => $resp->survey,
+                'token' => $resp->token,
+                'completed' => $resp->completed_at !== null,
+                'completed_at' => $resp->completed_at,
+                'score' => $resp->score,
+                'rating' => $resp->rating,
+            ];
+        }
+
+        foreach ($unrepondedSurveys as $survey) {
+            // Auto-create a response with token for this employee
+            $resp = NpsResponse::create([
+                'survey_id' => $survey->id,
+                'collaborateur_id' => $collab->id,
+                'user_id' => $user->id,
+            ]);
+            $result[] = [
+                'survey' => $survey,
+                'token' => $resp->token,
+                'completed' => false,
+                'completed_at' => null,
+            ];
+        }
+
+        return response()->json($result);
+    }
 }

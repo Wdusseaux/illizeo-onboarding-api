@@ -353,6 +353,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::put('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'updateStatus'])->middleware('permission:parcours,edit');
         Route::delete('assignments/{collaborateurAction}', [CollaborateurActionController::class, 'unassign'])->middleware('permission:parcours,edit');
         Route::get('my-actions', [CollaborateurActionController::class, 'myActions']);
+        Route::get('my-nps-surveys', [NpsSurveyController::class, 'myPendingSurveys']);
         Route::post('my-actions/{collaborateurAction}/complete', [CollaborateurActionController::class, 'completeMyAction']);
         Route::post('my-actions/{collaborateurAction}/reactivate', [CollaborateurActionController::class, 'reactivateMyAction']);
         Route::post('my-actions/by-action/{action_id}/complete', function (\Illuminate\Http\Request $request, $actionId) {
