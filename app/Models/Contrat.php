@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class Contrat extends Model
 {
+    use Auditable;
     protected $fillable = [
         'nom', 'type', 'juridiction', 'variables',
         'derniere_maj', 'actif', 'fichier', 'fichier_path', 'translations',

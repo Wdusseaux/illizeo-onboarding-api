@@ -65,6 +65,9 @@ class AuthController extends Controller
 
         $token = $user->createToken('api', ['*'], now()->addDays(30))->plainTextToken;
 
+        // Audit log
+        try { \App\Models\AuditLog::log('login', 'user', $user->id, $user->name, "Connexion de {$user->name} ({$user->email})"); } catch (\Exception $e) {}
+
         return response()->json([
             'user' => $this->userPayload($user),
             'token' => $token,
@@ -84,6 +87,9 @@ class AuthController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
+
+        // Audit log
+        try { \App\Models\AuditLog::log('logout', 'user', $request->user()->id, $request->user()->name, "Déconnexion de {$request->user()->name}"); } catch (\Exception $e) {}
 
         return response()->json(['message' => 'Déconnecté']);
     }

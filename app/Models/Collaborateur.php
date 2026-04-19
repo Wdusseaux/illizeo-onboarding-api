@@ -6,9 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Traits\Auditable;
 
 class Collaborateur extends Model
 {
+    use Auditable;
+
+    protected function customAuditLabel(): string { return trim($this->prenom . ' ' . $this->nom); }
     protected $fillable = [
         'user_id', 'prenom', 'nom', 'email', 'poste', 'site', 'departement',
         'date_debut', 'phase', 'progression', 'status', 'docs_valides', 'docs_total',

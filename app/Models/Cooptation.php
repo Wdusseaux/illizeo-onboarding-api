@@ -5,9 +5,13 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\Auditable;
 
 class Cooptation extends Model
 {
+    use Auditable;
+
+    protected function customAuditLabel(): string { return $this->candidate_name ?? "#{$this->id}"; }
     protected $fillable = [
         'referrer_name', 'referrer_email', 'referrer_user_id',
         'candidate_name', 'candidate_email', 'candidate_poste',

@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\Auditable;
 
 class Action extends Model
 {
+    use Auditable;
+
+    protected function customAuditLabel(): string { return $this->titre ?? "#{$this->id}"; }
     protected $fillable = [
         'titre', 'action_type_id', 'phase_id', 'parcours_id',
         'delai_relatif', 'obligatoire', 'description', 'lien_externe',

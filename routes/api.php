@@ -367,6 +367,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // Company settings (appearance)
         Route::get('company-settings', [CompanySettingController::class, 'index']);
+        Route::get('audit-logs', [\App\Http\Controllers\Api\V1\AuditLogController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
         Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
 
         // Company page blocks

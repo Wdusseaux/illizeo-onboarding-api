@@ -166,6 +166,8 @@ HTML;
         $user->update(['password' => Hash::make($request->password)]);
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
+        try { \App\Models\AuditLog::log('password_changed', 'user', $user->id, $user->name, "Mot de passe réinitialisé pour {$user->name} ({$user->email})"); } catch (\Exception $e) {}
+
         return response()->json(['message' => 'Mot de passe réinitialisé avec succès.']);
     }
 
