@@ -242,34 +242,10 @@ class SubscriptionController extends Controller
             'nombre_collaborateurs' => $nbCollabs,
         ]);
 
-        // ── Stripe recurring billing ──────────────────────────
-        $stripeSubscriptionId = null;
-        if ($request->payment_method === 'stripe' && !$isDowngrade) {
-            try {
-                $stripeSubscriptionId = $this->createStripeSubscription(
-                    $subscription, $newPlan, $nbCollabs, $request->billing_cycle, !$existingSub
-                );
-                if ($stripeSubscriptionId) {
-                    $subscription->update(['stripe_subscription_id' => $stripeSubscriptionId]);
-                }
-            } catch (\Exception $e) {
-                // Stripe subscription creation failed — local subscription remains active
-                // Log the error but don't block the flow
-                \Log::warning("Stripe subscription creation failed for tenant {$tenant->id}: " . $e->getMessage());
-            }
-        }
-
-        // Cancel old Stripe subscription if upgrading
-        if ($isUpgrade && $existingSub && $existingSub->stripe_subscription_id) {
-            try {
-                $stripe = new StripeClient(config('services.stripe.secret'));
-                $stripe->subscriptions->cancel($existingSub->stripe_subscription_id, [
-                    'prorate' => true,
-                ]);
-            } catch (\Exception $e) {
-                \Log::warning("Failed to cancel old Stripe subscription: " . $e->getMessage());
-            }
-        }
+        // Billing is handled by the daily CRON command (billing:process)
+        // which creates invoices and charges via PaymentIntent (card/SEPA)
+        // No Stripe Subscriptions are used — we manage recurrence ourselves
+        // for flexibility (usage-based billing, prorata, employee count changes)
 
         // Sync active modules (only for upgrade — downgrade keeps old modules until switch)
         if (!$isDowngrade) {
@@ -322,24 +298,6 @@ class SubscriptionController extends Controller
      */
     public function cancel(Subscription $subscription): JsonResponse
     {
-        // Cancel Stripe subscription if exists
-        if ($subscription->stripe_subscription_id) {
-            try {
-                $stripe = new StripeClient(config('services.stripe.secret'));
-                $periodEnd = $subscription->current_period_end;
-                if ($periodEnd && \Carbon\Carbon::parse($periodEnd)->isFuture()) {
-                    // Cancel at period end
-                    $stripe->subscriptions->update($subscription->stripe_subscription_id, [
-                        'cancel_at_period_end' => true,
-                    ]);
-                } else {
-                    $stripe->subscriptions->cancel($subscription->stripe_subscription_id);
-                }
-            } catch (\Exception $e) {
-                \Log::warning("Failed to cancel Stripe subscription: " . $e->getMessage());
-            }
-        }
-
         // Cancel takes effect at the end of the current billing period
         $periodEnd = $subscription->current_period_end;
 
