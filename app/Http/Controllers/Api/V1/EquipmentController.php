@@ -126,13 +126,22 @@ class EquipmentController extends Controller
         return response()->json($equipment->load(['type', 'collaborateur', 'assignedBy']));
     }
 
-    public function unassign(Equipment $equipment): JsonResponse
+    public function unassign(Request $request, Equipment $equipment): JsonResponse
     {
+        $validated = $request->validate([
+            'returned_at' => 'nullable|date',
+            'etat' => 'nullable|string|in:disponible,en_reparation,retire',
+            'notes' => 'nullable|string',
+        ]);
+
         $equipment->update([
             'collaborateur_id' => null,
-            'returned_at' => now(),
-            'etat' => 'disponible',
+            'returned_at' => $validated['returned_at'] ?? now(),
+            'etat' => $validated['etat'] ?? 'disponible',
+            'notes' => $validated['notes'] ?? $equipment->notes,
         ]);
+
+        try { \App\Models\AuditLog::log('equipment_returned', 'equipment', $equipment->id, $equipment->nom, "Restitution de {$equipment->nom}" . ($validated['etat'] ?? '' ? " — état: " . ($validated['etat'] ?? 'disponible') : '')); } catch (\Exception $e) {}
 
         return response()->json($equipment->load(['type']));
     }
