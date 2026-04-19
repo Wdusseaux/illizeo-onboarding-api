@@ -57,6 +57,9 @@ use App\Http\Controllers\Api\V1\CommentaireTacheController;
 use App\Http\Controllers\Api\V1\JalonController;
 use App\Http\Controllers\Api\V1\LigneCoutController;
 use App\Http\Controllers\Api\V1\TauxHoraireController;
+use App\Http\Controllers\Api\V1\ApiKeyController;
+use App\Http\Controllers\Api\V1\WebhookController;
+use App\Http\Controllers\Api\V1\ApiLogController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
 
@@ -382,6 +385,22 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('ip-whitelist/toggle', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'toggle'])->middleware('role:super_admin|admin|admin_rh');
         Route::delete('ip-whitelist/{id}', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── API Keys ──────────────────────────────────────────
+        Route::get('api-keys', [ApiKeyController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('api-keys', [ApiKeyController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('api-keys/{id}/revoke', [ApiKeyController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
+        Route::delete('api-keys/{id}', [ApiKeyController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── Webhooks ─────────────────────────────────────────
+        Route::get('webhooks-config', [WebhookController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('webhooks-config', [WebhookController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
+        Route::put('webhooks-config/{id}', [WebhookController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
+        Route::delete('webhooks-config/{id}', [WebhookController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('webhooks-config/{id}/test', [WebhookController::class, 'test'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── API Logs ─────────────────────────────────────────
+        Route::get('api-logs', [ApiLogController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Security ──────────────────────────────────────────
         Route::get('security/sessions', [\App\Http\Controllers\Api\V1\SecurityController::class, 'listSessions']);
