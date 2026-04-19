@@ -47,9 +47,16 @@ return [
     ],
 
     'stripe' => [
-        'key' => env('STRIPE_KEY'),
-        'secret' => env('STRIPE_SECRET'),
-        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'mode' => env('STRIPE_MODE', 'live'),
+        'key' => env('STRIPE_MODE', 'live') === 'test' ? env('STRIPE_TEST_KEY') : env('STRIPE_KEY'),
+        'secret' => env('STRIPE_MODE', 'live') === 'test' ? env('STRIPE_TEST_SECRET') : env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_MODE', 'live') === 'test' ? env('STRIPE_TEST_WEBHOOK_SECRET') : env('STRIPE_WEBHOOK_SECRET'),
+        'live_key' => env('STRIPE_KEY'),
+        'live_secret' => env('STRIPE_SECRET'),
+        'live_webhook' => env('STRIPE_WEBHOOK_SECRET'),
+        'test_key' => env('STRIPE_TEST_KEY'),
+        'test_secret' => env('STRIPE_TEST_SECRET'),
+        'test_webhook' => env('STRIPE_TEST_WEBHOOK_SECRET'),
     ],
 
 ];

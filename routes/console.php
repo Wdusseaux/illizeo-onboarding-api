@@ -38,49 +38,6 @@ Schedule::call(function () {
     }
 })->dailyAt('08:30');
 
-// Activate pending downgrades — runs daily at 00:05
-Schedule::call(function () {
-    $pending = \App\Models\Subscription::where('status', 'pending')
-        ->where('current_period_start', '<=', now())
-        ->get();
-
-    foreach ($pending as $sub) {
-        // Cancel the old active subscription for this tenant/category
-        $isCoopt = $sub->plan && $sub->plan->slug === 'cooptation';
-        \App\Models\Subscription::where('tenant_id', $sub->tenant_id)
-            ->where('id', '!=', $sub->id)
-            ->whereIn('status', ['active', 'trialing'])
-            ->whereHas('plan', fn ($q) => $isCoopt
-                ? $q->where('slug', 'cooptation')
-                : $q->where('slug', '!=', 'cooptation'))
-            ->update(['status' => 'canceled', 'canceled_at' => now()]);
-
-        // Activate the pending subscription
-        $sub->update(['status' => 'active']);
-
-        // Sync modules for this tenant
-        $tenant = \App\Models\Tenant::find($sub->tenant_id);
-        if ($tenant) {
-            tenancy()->initialize($tenant);
-            \App\Models\TenantActiveModule::query()->delete();
-            $activeSubs = \App\Models\Subscription::where('tenant_id', $sub->tenant_id)
-                ->whereIn('status', ['active', 'trialing'])
-                ->with('plan.modules')
-                ->get();
-            foreach ($activeSubs as $activeSub) {
-                foreach ($activeSub->plan->modules as $mod) {
-                    if ($mod->actif) {
-                        \App\Models\TenantActiveModule::create([
-                            'module' => $mod->module,
-                            'source_plan_id' => $activeSub->plan_id,
-                            'actif' => true,
-                        ]);
-                    }
-                }
-            }
-            tenancy()->end();
-        }
-
-        \Log::info("Downgrade activated for tenant {$sub->tenant_id} — plan {$sub->plan_id}");
-    }
-})->dailyAt('00:05');
+// Billing: expire trials, activate pending downgrades, renew subscriptions, charge payments, retry failures
+// Runs daily at 00:15 — replaces the old pending downgrade handler
+Schedule::command('billing:process')->dailyAt('00:15');

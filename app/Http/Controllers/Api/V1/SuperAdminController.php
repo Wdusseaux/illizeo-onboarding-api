@@ -289,9 +289,12 @@ class SuperAdminController extends Controller
         $this->authorize($request);
 
         return response()->json([
-            'stripe_publishable_key_set' => !empty(env('STRIPE_KEY')),
-            'stripe_secret_key_set' => !empty(env('STRIPE_SECRET')),
-            'stripe_webhook_secret_set' => !empty(env('STRIPE_WEBHOOK_SECRET')),
+            'mode' => config('services.stripe.mode', 'live'),
+            'has_key' => !empty(config('services.stripe.key')),
+            'has_secret' => !empty(config('services.stripe.secret')),
+            'has_webhook' => !empty(config('services.stripe.webhook_secret')),
+            'live_configured' => !empty(config('services.stripe.live_secret')),
+            'test_configured' => !empty(config('services.stripe.test_secret')),
         ]);
     }
 
@@ -303,6 +306,10 @@ class SuperAdminController extends Controller
             'stripe_key' => 'nullable|string',
             'stripe_secret' => 'nullable|string',
             'stripe_webhook_secret' => 'nullable|string',
+            'stripe_test_key' => 'nullable|string',
+            'stripe_test_secret' => 'nullable|string',
+            'stripe_test_webhook_secret' => 'nullable|string',
+            'stripe_mode' => 'nullable|in:live,test',
         ]);
 
         $envPath = base_path('.env');
@@ -312,6 +319,10 @@ class SuperAdminController extends Controller
             'stripe_key' => 'STRIPE_KEY',
             'stripe_secret' => 'STRIPE_SECRET',
             'stripe_webhook_secret' => 'STRIPE_WEBHOOK_SECRET',
+            'stripe_test_key' => 'STRIPE_TEST_KEY',
+            'stripe_test_secret' => 'STRIPE_TEST_SECRET',
+            'stripe_test_webhook_secret' => 'STRIPE_TEST_WEBHOOK_SECRET',
+            'stripe_mode' => 'STRIPE_MODE',
         ];
 
         foreach ($mappings as $inputKey => $envKey) {
@@ -329,6 +340,9 @@ class SuperAdminController extends Controller
         }
 
         file_put_contents($envPath, $envContent);
+
+        // Clear config cache so new values take effect
+        \Artisan::call('config:clear');
 
         return response()->json(['message' => 'Configuration Stripe mise à jour.']);
     }

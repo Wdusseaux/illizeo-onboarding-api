@@ -72,7 +72,7 @@ Route::get('/plans', [PlanController::class, 'index']);
 Route::post('/plans/subscribe', [PlanController::class, 'subscribe']);
 
 // ─── Stripe Webhook (no auth, no tenant) ───────────────────
-Route::post('/stripe/webhook', [\App\Http\Controllers\Api\V1\SubscriptionController::class, 'handleWebhook']);
+Route::post('/stripe/webhook', [\App\Http\Controllers\Api\V1\StripeWebhookController::class, 'handle']);
 
 // Super admin routes are inside the tenant-scoped group below (need tenant context for Sanctum token resolution)
 
@@ -565,6 +565,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('storage-usage', [SubscriptionController::class, 'storageUsage']);
         Route::get('signature-usage', [SubscriptionController::class, 'signatureUsage']);
         Route::get('monthly-consumption', [SubscriptionController::class, 'monthlyConsumption']);
+
+        // ── Invoices ──────────────────────────────────────────
+        Route::get('invoices', [SubscriptionController::class, 'listInvoices']);
 
         // ── OCR / AI ───────────────────────────────────────────
         Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);

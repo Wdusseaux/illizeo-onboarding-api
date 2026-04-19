@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\TenantActiveModule;
@@ -396,6 +397,19 @@ class SubscriptionController extends Controller
     public function activeModules(): JsonResponse
     {
         return response()->json(TenantActiveModule::where('actif', true)->pluck('module'));
+    }
+
+    /**
+     * List invoices for the current tenant.
+     */
+    public function listInvoices(): JsonResponse
+    {
+        $invoices = Invoice::where('tenant_id', tenant('id'))
+            ->with('plan:id,nom,slug,addon_type')
+            ->orderByDesc('date_emission')
+            ->get();
+
+        return response()->json($invoices);
     }
 
     /**
