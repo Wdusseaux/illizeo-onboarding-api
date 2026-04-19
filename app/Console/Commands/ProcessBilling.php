@@ -2,11 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\InvoicePdfService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Mail;
 use Stripe\StripeClient;
 
 class ProcessBilling extends Command
@@ -41,6 +44,9 @@ class ProcessBilling extends Command
 
         // 4. Retry failed payments
         $this->retryFailedPayments($now, $dryRun);
+
+        // 5. Send payment reminders for unpaid invoices (J+15 and J+25)
+        $this->sendPaymentReminders($now, $dryRun);
 
         $this->info('Billing processing complete.');
         return 0;
@@ -255,11 +261,26 @@ class ProcessBilling extends Command
 
         $this->line("    Invoice created: {$invoice->invoice_number} = {$montantTtc} CHF");
 
+        // Generate PDF
+        try {
+            $pdfService = new InvoicePdfService();
+            $pdfPath = $pdfService->generate($invoice);
+            $this->line("    PDF generated: {$pdfPath}");
+        } catch (\Exception $e) {
+            $pdfPath = null;
+            $this->error("    PDF generation failed: {$e->getMessage()}");
+        }
+
         // Charge immediately for card/sepa
         if ($paymentMethod !== 'invoice') {
             $this->chargeInvoice($invoice);
         } else {
             $invoice->update(['status' => 'sent']);
+        }
+
+        // Send invoice email
+        if ($pdfPath) {
+            $this->sendInvoiceEmail($invoice, $pdfPath);
         }
 
         return $invoice;
@@ -426,5 +447,64 @@ class ProcessBilling extends Command
             \App\Models\TenantActiveModule::create(['module' => $module, 'actif' => true]);
         }
         tenancy()->end();
+    }
+
+    /**
+     * Send invoice email to billing contact.
+     */
+    private function sendInvoiceEmail(Invoice $invoice, string $pdfPath, bool $isReminder = false, int $reminderDay = 0): void
+    {
+        $snapshot = $invoice->billing_snapshot ?? [];
+        $email = $snapshot['billing_contact_email'] ?? null;
+
+        if (!$email) {
+            $this->line("    No billing email for tenant {$invoice->tenant_id}, skipping email");
+            return;
+        }
+
+        try {
+            Mail::to($email)->send(new InvoiceMail($invoice, $pdfPath, $isReminder, $reminderDay));
+            $this->line("    Email " . ($isReminder ? "reminder " : "") . "sent to {$email}");
+        } catch (\Exception $e) {
+            $this->error("    Email failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Step 5: Send payment reminders for unpaid invoices at J+15 and J+25.
+     */
+    private function sendPaymentReminders(Carbon $now, bool $dryRun): void
+    {
+        $sentReminders = 0;
+
+        // Find unpaid invoices (payment_method = invoice, status = sent)
+        $unpaidInvoices = Invoice::where('payment_method', 'invoice')
+            ->where('status', 'sent')
+            ->get();
+
+        foreach ($unpaidInvoices as $invoice) {
+            $daysSinceEmission = Carbon::parse($invoice->date_emission)->diffInDays($now);
+
+            // Send reminder at J+15 and J+25
+            $shouldRemind = false;
+            if ($daysSinceEmission >= 15 && $daysSinceEmission < 16) {
+                $shouldRemind = true;
+            } elseif ($daysSinceEmission >= 25 && $daysSinceEmission < 26) {
+                $shouldRemind = true;
+            }
+
+            if ($shouldRemind) {
+                $this->line("  Reminder for invoice {$invoice->invoice_number} (J+{$daysSinceEmission})");
+                if (!$dryRun && $invoice->pdf_path) {
+                    $pdfPath = storage_path('app/' . $invoice->pdf_path);
+                    if (file_exists($pdfPath)) {
+                        $this->sendInvoiceEmail($invoice, $pdfPath, true, (int) $daysSinceEmission);
+                        $sentReminders++;
+                    }
+                }
+            }
+        }
+
+        $this->info("  Payment reminders sent: {$sentReminders}");
     }
 }

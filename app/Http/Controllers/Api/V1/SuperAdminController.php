@@ -282,6 +282,20 @@ class SuperAdminController extends Controller
         return response()->json($invoices);
     }
 
+    public function markInvoicePaid(Request $request, int $invoiceId): JsonResponse
+    {
+        $this->authorize($request);
+
+        $invoice = Invoice::findOrFail($invoiceId);
+        $invoice->update([
+            'status' => 'paid',
+            'paid_at' => now(),
+            'payment_error' => null,
+        ]);
+
+        return response()->json(['message' => "Facture {$invoice->invoice_number} marquée comme payée", 'invoice' => $invoice]);
+    }
+
     // ─── Stripe Config ──────────────────────────────────────────
 
     public function getStripeConfig(Request $request): JsonResponse
