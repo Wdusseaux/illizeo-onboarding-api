@@ -501,9 +501,10 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('integrations/{integration}/workday/workers', [WorkdayController::class, 'workers'])->middleware('permission:integrations,view');
 
         // ── Cooptation ─────────────────────────────────────
-        Route::get('cooptations', [CooptationController::class, 'index'])->middleware('permission:cooptation,view');
-        Route::get('cooptations/{cooptation}', [CooptationController::class, 'show'])->middleware('permission:cooptation,view');
-        Route::post('cooptations', [CooptationController::class, 'store'])->middleware('permission:cooptation,edit');
+        // GET/POST cooptations accessible to all authenticated users (employees can view their own & create)
+        Route::get('cooptations', [CooptationController::class, 'index']);
+        Route::get('cooptations/{cooptation}', [CooptationController::class, 'show']);
+        Route::post('cooptations', [CooptationController::class, 'store']);
         Route::put('cooptations/{cooptation}', [CooptationController::class, 'update'])->middleware('permission:cooptation,edit');
         Route::delete('cooptations/{cooptation}', [CooptationController::class, 'destroy'])->middleware('permission:cooptation,edit');
         Route::post('cooptations/{cooptation}/mark-hired', [CooptationController::class, 'markHired'])->middleware('permission:cooptation,edit');
@@ -515,12 +516,12 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('cooptation-settings', [CooptationController::class, 'getSettings'])->middleware('permission:cooptation,view');
         Route::put('cooptation-settings', [CooptationController::class, 'updateSettings'])->middleware('permission:cooptation,edit');
 
-        // Cooptation campaigns
-        Route::get('cooptation-campaigns', [CooptationController::class, 'listCampaigns'])->middleware('permission:cooptation,view');
+        // Cooptation campaigns (also accessible to employees — no permission gate on GET)
+        Route::get('cooptation-campaigns', [CooptationController::class, 'listCampaigns']);
         Route::post('cooptation-campaigns', [CooptationController::class, 'createCampaign'])->middleware('permission:cooptation,edit');
         Route::put('cooptation-campaigns/{campaign}', [CooptationController::class, 'updateCampaign'])->middleware('permission:cooptation,edit');
         Route::delete('cooptation-campaigns/{campaign}', [CooptationController::class, 'deleteCampaign'])->middleware('permission:cooptation,edit');
-        Route::get('cooptation-leaderboard', [CooptationController::class, 'leaderboard'])->middleware('permission:cooptation,view');
+        Route::get('cooptation-leaderboard', [CooptationController::class, 'leaderboard']);
 
         // ── Badges & Gamification ───────────────────────────
         Route::get('badges', [BadgeController::class, 'earned'])->middleware('permission:gamification,view');
