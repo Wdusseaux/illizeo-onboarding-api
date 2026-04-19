@@ -394,6 +394,15 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('security/schedules', [\App\Http\Controllers\Api\V1\SecurityController::class, 'storeSchedule'])->middleware('role:super_admin|admin|admin_rh');
         Route::delete('security/schedules/{id}', [\App\Http\Controllers\Api\V1\SecurityController::class, 'deleteSchedule'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('export/encrypted', [DataExportController::class, 'exportEncrypted'])->middleware('role:super_admin|admin|admin_rh');
+
+        // ── Demo Mode ─────────────────────────────────────────
+        Route::post('demo/seed', function () {
+            \App\Models\CompanySetting::updateOrCreate(['key' => 'demo_mode'], ['value' => 'true']);
+            // Run the demo seeder
+            $seeder = new \Database\Seeders\IllizeoSeeder();
+            $seeder->run();
+            return response()->json(['message' => 'Données de démonstration créées', 'demo_mode' => true]);
+        })->middleware('role:super_admin|admin|admin_rh');
         Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
 
         // Company page blocks
