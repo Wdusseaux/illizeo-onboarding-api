@@ -41,3 +41,6 @@ Schedule::call(function () {
 // Billing: expire trials, activate pending downgrades, renew subscriptions, charge payments, retry failures
 // Runs daily at 00:15 — replaces the old pending downgrade handler
 Schedule::command('billing:process')->dailyAt('00:15');
+
+// RGPD data retention: warn J-7, J-1, then auto-delete 30 days after subscription/trial end
+Schedule::command('rgpd:process-retention')->dailyAt('06:00');

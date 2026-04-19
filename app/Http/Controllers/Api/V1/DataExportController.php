@@ -104,51 +104,28 @@ class DataExportController extends Controller
      */
     public function exportAuditLog(): JsonResponse
     {
-        $users = User::select('id', 'name', 'email', 'created_at', 'updated_at')
-            ->orderByDesc('updated_at')
-            ->limit(500)
-            ->get()
-            ->map(fn ($u) => [
-                'type' => 'user',
-                'id' => $u->id,
-                'label' => $u->name . ' (' . $u->email . ')',
-                'created_at' => $u->created_at,
-                'updated_at' => $u->updated_at,
-            ]);
+        // Export real audit logs if available
+        $logs = \App\Models\AuditLog::orderByDesc('created_at')
+            ->limit(1000)
+            ->get();
 
-        $collaborateurs = Collaborateur::select('id', 'prenom', 'nom', 'email', 'created_at', 'updated_at')
-            ->orderByDesc('updated_at')
-            ->limit(500)
-            ->get()
-            ->map(fn ($c) => [
-                'type' => 'collaborateur',
-                'id' => $c->id,
-                'label' => $c->prenom . ' ' . $c->nom . ' (' . $c->email . ')',
-                'created_at' => $c->created_at,
-                'updated_at' => $c->updated_at,
-            ]);
-
-        $cooptations = Cooptation::select('id', 'referrer_name', 'candidate_name', 'created_at', 'updated_at')
-            ->orderByDesc('updated_at')
-            ->limit(500)
-            ->get()
-            ->map(fn ($co) => [
-                'type' => 'cooptation',
-                'id' => $co->id,
-                'label' => $co->candidate_name . ' (ref: ' . $co->referrer_name . ')',
-                'created_at' => $co->created_at,
-                'updated_at' => $co->updated_at,
-            ]);
-
-        $activity = $users->concat($collaborateurs)->concat($cooptations)
-            ->sortByDesc('updated_at')
-            ->take(500)
-            ->values();
+        if ($logs->isEmpty()) {
+            // Fallback: export entity history
+            $users = User::select('id', 'name', 'email', 'created_at', 'updated_at')
+                ->orderByDesc('updated_at')->limit(500)->get()
+                ->map(fn ($u) => ['type' => 'user', 'id' => $u->id, 'label' => $u->name, 'created_at' => $u->created_at, 'updated_at' => $u->updated_at]);
+            $collaborateurs = Collaborateur::select('id', 'prenom', 'nom', 'email', 'created_at', 'updated_at')
+                ->orderByDesc('updated_at')->limit(500)->get()
+                ->map(fn ($c) => ['type' => 'collaborateur', 'id' => $c->id, 'label' => $c->prenom . ' ' . $c->nom, 'created_at' => $c->created_at, 'updated_at' => $c->updated_at]);
+            $records = $users->concat($collaborateurs)->sortByDesc('updated_at')->take(500)->values();
+        } else {
+            $records = $logs;
+        }
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),
-            'total' => $activity->count(),
-            'records' => $activity,
+            'total' => $records->count(),
+            'records' => $records,
         ]);
     }
 

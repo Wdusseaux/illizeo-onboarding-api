@@ -41,7 +41,7 @@ class SubscriptionController extends Controller
         $request->validate([
             'plan_id' => 'required|integer',
             'billing_cycle' => 'required|in:monthly,yearly',
-            'payment_method' => 'required|in:stripe,invoice',
+            'payment_method' => 'required|in:stripe,sepa,invoice',
             'nombre_collaborateurs' => 'sometimes|integer|min:25',
         ]);
 
@@ -202,6 +202,11 @@ class SubscriptionController extends Controller
                         'canceled_at' => null,
                     ]);
 
+                    // Re-sync modules on reactivation
+                    if ($wasReactivated) {
+                        $this->syncModules($tenant->id);
+                    }
+
                     return response()->json([
                         'message' => $wasReactivated ? 'Abonnement réactivé avec succès' : 'Cycle de facturation mis à jour',
                         'subscription' => $existingSub->load('plan'),
@@ -289,7 +294,6 @@ class SubscriptionController extends Controller
             'is_upgrade' => $isUpgrade,
             'is_downgrade' => $isDowngrade,
             'effective_date' => $effectiveDate->toDateString(),
-            'stripe_subscription_id' => $stripeSubscriptionId,
         ], 201);
     }
 
