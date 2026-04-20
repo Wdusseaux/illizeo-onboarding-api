@@ -26,6 +26,9 @@ class CollaborateurController extends Controller
         if ($request->has('departement')) {
             $query->where('departement', $request->departement);
         }
+        if ($request->has('parcours_id')) {
+            $query->where('parcours_id', $request->parcours_id);
+        }
 
         return response()->json($query->get());
     }

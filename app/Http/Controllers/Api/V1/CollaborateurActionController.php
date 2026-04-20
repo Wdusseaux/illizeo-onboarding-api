@@ -96,6 +96,11 @@ class CollaborateurActionController extends Controller
             }
         }
 
+        // Recalculate progression for all affected collaborateurs
+        foreach ($collaborateurs as $collab) {
+            $this->recalculateProgression($collab->id);
+        }
+
         return response()->json([
             'message' => "{$created} assignation(s) créée(s)",
             'collaborateurs_count' => $collaborateurs->count(),
@@ -137,6 +142,9 @@ class CollaborateurActionController extends Controller
             }
         }
 
+        // Auto-calculate progression based on completed actions
+        $this->recalculateProgression($collaborateurAction->collaborateur_id);
+
         return response()->json($collaborateurAction->fresh()->load(['action.actionType', 'collaborateur']));
     }
 
@@ -145,8 +153,32 @@ class CollaborateurActionController extends Controller
      */
     public function unassign(CollaborateurAction $collaborateurAction): JsonResponse
     {
+        $collabId = $collaborateurAction->collaborateur_id;
         $collaborateurAction->delete();
+        $this->recalculateProgression($collabId);
         return response()->json(null, 204);
+    }
+
+    /**
+     * Recalculate collaborateur progression based on completed actions.
+     */
+    private function recalculateProgression(int $collaborateurId): void
+    {
+        $total = CollaborateurAction::where('collaborateur_id', $collaborateurId)->count();
+        $completed = CollaborateurAction::where('collaborateur_id', $collaborateurId)
+            ->where('status', 'termine')
+            ->count();
+
+        $progression = $total > 0 ? (int) round(($completed / $total) * 100) : 0;
+
+        $collab = Collaborateur::find($collaborateurId);
+        if ($collab) {
+            $collab->update([
+                'progression' => $progression,
+                'actions_completes' => $completed,
+                'actions_total' => $total,
+            ]);
+        }
     }
 
     /**
@@ -208,6 +240,8 @@ class CollaborateurActionController extends Controller
             // For now, NPS questionnaires are handled as regular formulaires above.
         }
 
+        $this->recalculateProgression($collab->id);
+
         return response()->json($collaborateurAction->fresh());
     }
 
@@ -227,6 +261,8 @@ class CollaborateurActionController extends Controller
             'status' => 'a_faire',
             'completed_at' => null,
         ]);
+
+        $this->recalculateProgression($collab->id);
 
         return response()->json($collaborateurAction->fresh());
     }
