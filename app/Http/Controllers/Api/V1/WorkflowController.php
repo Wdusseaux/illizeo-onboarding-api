@@ -26,10 +26,13 @@ class WorkflowController extends Controller
 
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
+            'description' => 'nullable|string|max:500',
             'declencheur' => 'required|string',
             'action' => 'required|string',
             'destinataire' => 'required|string',
             'actif' => 'nullable|boolean',
+            'color' => 'nullable|string|max:7',
+            'steps' => 'nullable|array',
             'target_user_id' => 'nullable|integer|exists:users,id',
             'target_group_id' => 'nullable|integer',
             'badge_name' => 'nullable|string|max:255',
@@ -38,6 +41,7 @@ class WorkflowController extends Controller
             'email_subject' => 'nullable|string|max:255',
             'email_body' => 'nullable|string',
             'bot_message' => 'nullable|string',
+            'translations' => 'nullable|array',
         ]);
 
         $workflow = Workflow::create($validated);
@@ -53,10 +57,13 @@ class WorkflowController extends Controller
     {
         $workflow->update($request->validate([
             'nom' => 'sometimes|string|max:255',
+            'description' => 'nullable|string|max:500',
             'declencheur' => 'sometimes|string',
             'action' => 'sometimes|string',
             'destinataire' => 'sometimes|string',
             'actif' => 'nullable|boolean',
+            'color' => 'nullable|string|max:7',
+            'steps' => 'nullable|array',
             'target_user_id' => 'nullable|integer|exists:users,id',
             'target_group_id' => 'nullable|integer',
             'badge_name' => 'nullable|string|max:255',
@@ -65,6 +72,7 @@ class WorkflowController extends Controller
             'email_subject' => 'nullable|string|max:255',
             'email_body' => 'nullable|string',
             'bot_message' => 'nullable|string',
+            'translations' => 'nullable|array',
         ]));
 
         return response()->json($workflow);
