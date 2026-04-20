@@ -22,10 +22,20 @@ class GroupeController extends Controller
             'couleur' => 'nullable|string|max:10',
             'critere_type' => 'nullable|in:site,departement,contrat',
             'critere_valeur' => 'nullable|string',
+            'collaborateur_ids' => 'nullable|array',
+            'collaborateur_ids.*' => 'exists:collaborateurs,id',
         ]);
 
+        $collabIds = $validated['collaborateur_ids'] ?? [];
+        unset($validated['collaborateur_ids']);
+
         $groupe = Groupe::create($validated);
-        return response()->json($groupe, 201);
+
+        if (!empty($collabIds)) {
+            $groupe->collaborateurs()->sync($collabIds);
+        }
+
+        return response()->json($groupe->load('collaborateurs'), 201);
     }
 
     public function show(Groupe $groupe): JsonResponse
@@ -35,15 +45,26 @@ class GroupeController extends Controller
 
     public function update(Request $request, Groupe $groupe): JsonResponse
     {
-        $groupe->update($request->validate([
+        $validated = $request->validate([
             'nom' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'couleur' => 'nullable|string|max:10',
             'critere_type' => 'nullable|in:site,departement,contrat',
             'critere_valeur' => 'nullable|string',
-        ]));
+            'collaborateur_ids' => 'nullable|array',
+            'collaborateur_ids.*' => 'exists:collaborateurs,id',
+        ]);
 
-        return response()->json($groupe);
+        $collabIds = $validated['collaborateur_ids'] ?? null;
+        unset($validated['collaborateur_ids']);
+
+        $groupe->update($validated);
+
+        if ($collabIds !== null) {
+            $groupe->collaborateurs()->sync($collabIds);
+        }
+
+        return response()->json($groupe->load('collaborateurs'));
     }
 
     public function destroy(Groupe $groupe): JsonResponse

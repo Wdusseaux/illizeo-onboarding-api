@@ -79,7 +79,7 @@ class CollaborateurActionController extends Controller
                 $collabQuery->whereIn('departement', $valeurs);
                 break;
             case 'contrat':
-                // Would need contrat field on collaborateur — skip for now
+                $collabQuery->whereIn('type_contrat', $valeurs);
                 break;
         }
 

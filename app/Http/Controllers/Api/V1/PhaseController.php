@@ -24,9 +24,9 @@ class PhaseController extends Controller
     {
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
-            'delai_debut' => 'nullable|string',
-            'delai_fin' => 'nullable|string',
-            'couleur' => 'nullable|string',
+            'delai_debut' => 'nullable|string|regex:/^J[+-]\d{1,3}$/',
+            'delai_fin' => 'nullable|string|regex:/^J[+-]\d{1,3}$/',
+            'couleur' => 'nullable|string|max:10',
             'icone' => 'nullable|string',
             'actions_defaut' => 'nullable|integer',
             'ordre' => 'nullable|integer',
@@ -56,9 +56,9 @@ class PhaseController extends Controller
     {
         $validated = $request->validate([
             'nom' => 'sometimes|string|max:255',
-            'delai_debut' => 'nullable|string',
-            'delai_fin' => 'nullable|string',
-            'couleur' => 'nullable|string',
+            'delai_debut' => 'nullable|string|regex:/^J[+-]\d{1,3}$/',
+            'delai_fin' => 'nullable|string|regex:/^J[+-]\d{1,3}$/',
+            'couleur' => 'nullable|string|max:10',
             'icone' => 'nullable|string',
             'actions_defaut' => 'nullable|integer',
             'ordre' => 'nullable|integer',
