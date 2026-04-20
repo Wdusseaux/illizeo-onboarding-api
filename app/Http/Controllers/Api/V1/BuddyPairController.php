@@ -26,6 +26,16 @@ class BuddyPairController extends Controller
             'status' => 'nullable|in:active,completed,cancelled',
         ]);
 
+        // Check for existing active pair with same newcomer
+        $existing = BuddyPair::where('newcomer_id', $validated['newcomer_id'])
+            ->where('status', 'active')
+            ->first();
+        if ($existing) {
+            return response()->json([
+                'error' => 'Ce collaborateur a déjà un buddy actif',
+            ], 422);
+        }
+
         $validated['assigned_by'] = $request->user()->id;
         $validated['checklist'] = [false, false, false, false, false, false, false, false];
 
