@@ -125,6 +125,12 @@ class MessageController extends Controller
             \Log::warning("Teams message forward failed: " . $e->getMessage());
         }
 
+        // Fire MessageReceived workflow event for the recipient
+        $recipientCollab = \App\Models\Collaborateur::where('user_id', $request->to_user_id)->first();
+        if ($recipientCollab) {
+            \App\Events\MessageReceived::dispatch($recipientCollab->id, $request->user()->name ?? '', 'Nouveau message');
+        }
+
         // Auto-award badge for first message
         \App\Services\BadgeAutoAwardService::checkAndAward($userId, 'premier_message');
 

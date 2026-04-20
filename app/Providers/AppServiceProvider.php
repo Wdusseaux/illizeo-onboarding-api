@@ -6,18 +6,25 @@ use App\Events\ActionCompleted;
 use App\Events\AllDocumentsValidated;
 use App\Events\AnniversaireEmbauche;
 use App\Events\CollaborateurEnRetard;
+use App\Events\ContratReady;
 use App\Events\ContratSigned;
 use App\Events\CooptationValidated;
 use App\Events\DeadlineApproaching;
 use App\Events\DocumentRefused;
 use App\Events\DocumentSubmitted;
+use App\Events\DocumentValidated;
 use App\Events\FormulaireSubmitted;
+use App\Events\MessageReceived;
 use App\Events\NewCollaborateur;
 use App\Events\NpsSoumis;
 use App\Events\ParcoursCompleted;
 use App\Events\ParcoursCreated;
 use App\Events\ParcoursOffboardingTermine;
 use App\Events\PeriodeEssaiTerminee;
+use App\Events\PostArrivalMilestone;
+use App\Events\PreArrivalReminder;
+use App\Events\SignatureReminder;
+use App\Events\WeeklyDigest;
 use App\Listeners\WorkflowListener;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
@@ -47,21 +54,28 @@ class AppServiceProvider extends ServiceProvider
         // Workflow engine: listen to all onboarding events
         $workflowEvents = [
             DocumentSubmitted::class,
-            ParcoursCreated::class,
-            ActionCompleted::class,
-            ParcoursCompleted::class,
-            FormulaireSubmitted::class,
+            DocumentValidated::class,
+            DocumentRefused::class,
             AllDocumentsValidated::class,
+            ParcoursCreated::class,
+            ParcoursCompleted::class,
+            ParcoursOffboardingTermine::class,
+            ActionCompleted::class,
+            FormulaireSubmitted::class,
             NewCollaborateur::class,
             DeadlineApproaching::class,
+            PreArrivalReminder::class,
+            PostArrivalMilestone::class,
             PeriodeEssaiTerminee::class,
             AnniversaireEmbauche::class,
             CollaborateurEnRetard::class,
-            DocumentRefused::class,
-            CooptationValidated::class,
+            WeeklyDigest::class,
+            SignatureReminder::class,
+            ContratReady::class,
             ContratSigned::class,
-            ParcoursOffboardingTermine::class,
+            CooptationValidated::class,
             NpsSoumis::class,
+            MessageReceived::class,
         ];
 
         foreach ($workflowEvents as $event) {

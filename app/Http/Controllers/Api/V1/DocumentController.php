@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Events\AllDocumentsValidated;
 use App\Events\DocumentRefused;
 use App\Events\DocumentSubmitted;
+use App\Events\DocumentValidated;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\DocumentCategorie;
@@ -144,6 +145,11 @@ class DocumentController extends Controller
             DocumentRefused::dispatch($document->collaborateur_id, $document->nom);
         }
 
+        // Fire DocumentValidated when status changes to valide
+        if (isset($validated['status']) && $validated['status'] === 'valide' && $previousStatus !== 'valide' && $document->collaborateur_id) {
+            DocumentValidated::dispatch($document->collaborateur_id, $document->nom ?? 'Document');
+        }
+
         // Fire AllDocumentsValidated when status changes to valide and all collab docs are now valide
         if (isset($validated['status']) && $validated['status'] === 'valide' && $document->collaborateur_id) {
             $hasNonValidated = Document::where('collaborateur_id', $document->collaborateur_id)
@@ -167,6 +173,11 @@ class DocumentController extends Controller
             'validated_by' => auth()->id(),
             'validated_at' => now(),
         ]);
+
+        // Fire DocumentValidated event
+        if ($document->collaborateur_id) {
+            DocumentValidated::dispatch($document->collaborateur_id, $document->nom ?? 'Document');
+        }
 
         // Check if all docs for this collaborateur are validated
         $collabId = $document->collaborateur_id;

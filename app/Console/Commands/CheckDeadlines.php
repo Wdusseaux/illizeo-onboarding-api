@@ -6,6 +6,9 @@ use App\Events\AnniversaireEmbauche;
 use App\Events\CollaborateurEnRetard;
 use App\Events\DeadlineApproaching;
 use App\Events\PeriodeEssaiTerminee;
+use App\Events\PreArrivalReminder;
+use App\Events\PostArrivalMilestone;
+use App\Events\WeeklyDigest;
 use App\Models\Collaborateur;
 use App\Models\CollaborateurAction;
 use Illuminate\Console\Command;
@@ -23,6 +26,9 @@ class CheckDeadlines extends Command
         $this->checkPeriodeEssai();
         $this->checkAnniversaires();
         $this->checkRetards();
+        $this->checkPreArrival();
+        $this->checkPostArrivalMilestones();
+        $this->checkWeeklyDigest();
 
         return self::SUCCESS;
     }
@@ -167,5 +173,77 @@ class CheckDeadlines extends Command
         }
 
         $this->info("Fired {$fired} CollaborateurEnRetard event(s).");
+    }
+
+    /**
+     * Fire PreArrivalReminder for collaborateurs starting in 3 days.
+     */
+    private function checkPreArrival(): void
+    {
+        $targetDate = Carbon::now()->addDays(3)->toDateString();
+        $fired = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_debut')
+            ->where('status', 'pre_onboarding')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            if ($collab->date_debut->toDateString() === $targetDate) {
+                PreArrivalReminder::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'J-3');
+                $fired++;
+            }
+        }
+
+        $this->info("Fired {$fired} PreArrivalReminder event(s).");
+    }
+
+    /**
+     * Fire PostArrivalMilestone at J+14 and J+30 after arrival.
+     */
+    private function checkPostArrivalMilestones(): void
+    {
+        $today = Carbon::today();
+        $fired = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_debut')
+            ->where('status', '!=', 'termine')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            $daysElapsed = $collab->date_debut->diffInDays($today);
+
+            if ($daysElapsed == 14) {
+                PostArrivalMilestone::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'J+14');
+                $fired++;
+            } elseif ($daysElapsed == 30) {
+                PostArrivalMilestone::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'J+30');
+                $fired++;
+            }
+        }
+
+        $this->info("Fired {$fired} PostArrivalMilestone event(s).");
+    }
+
+    /**
+     * Fire WeeklyDigest every Monday for all active collaborateurs.
+     */
+    private function checkWeeklyDigest(): void
+    {
+        if (Carbon::today()->dayOfWeek !== Carbon::MONDAY) {
+            $this->info("Not Monday, skipping weekly digest.");
+            return;
+        }
+
+        $fired = 0;
+        $collaborateurs = Collaborateur::whereNotNull('date_debut')
+            ->where('status', '!=', 'termine')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            WeeklyDigest::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'Résumé hebdomadaire');
+            $fired++;
+        }
+
+        $this->info("Fired {$fired} WeeklyDigest event(s).");
     }
 }

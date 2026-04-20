@@ -6,18 +6,25 @@ use App\Events\ActionCompleted;
 use App\Events\AllDocumentsValidated;
 use App\Events\AnniversaireEmbauche;
 use App\Events\CollaborateurEnRetard;
+use App\Events\ContratReady;
 use App\Events\ContratSigned;
 use App\Events\CooptationValidated;
 use App\Events\DeadlineApproaching;
 use App\Events\DocumentRefused;
 use App\Events\DocumentSubmitted;
+use App\Events\DocumentValidated;
 use App\Events\FormulaireSubmitted;
+use App\Events\MessageReceived;
 use App\Events\NewCollaborateur;
 use App\Events\NpsSoumis;
 use App\Events\ParcoursCompleted;
 use App\Events\ParcoursCreated;
 use App\Events\ParcoursOffboardingTermine;
 use App\Events\PeriodeEssaiTerminee;
+use App\Events\PostArrivalMilestone;
+use App\Events\PreArrivalReminder;
+use App\Events\SignatureReminder;
+use App\Events\WeeklyDigest;
 use App\Models\Badge;
 use App\Models\Collaborateur;
 use App\Models\Cooptation;
@@ -36,22 +43,36 @@ class WorkflowEngine
      * Map event class names to declencheur strings used in the DB.
      */
     private static array $triggerMap = [
+        // Document lifecycle
         DocumentSubmitted::class => 'Document soumis',
-        ParcoursCreated::class => 'Parcours créé',
-        ActionCompleted::class => 'Action complétée',
-        ParcoursCompleted::class => 'Parcours complété à 100%',
-        FormulaireSubmitted::class => 'Formulaire soumis',
+        DocumentValidated::class => 'Document validé',
+        DocumentRefused::class => 'Document refusé',
         AllDocumentsValidated::class => 'Tous documents validés',
+        // Parcours lifecycle
+        ParcoursCreated::class => 'Parcours créé',
+        ParcoursCompleted::class => 'Parcours complété à 100%',
+        ParcoursOffboardingTermine::class => 'Fin de parcours offboarding',
+        // Actions & forms
+        ActionCompleted::class => 'Action complétée',
+        FormulaireSubmitted::class => 'Formulaire soumis',
+        // People
         NewCollaborateur::class => 'Nouveau collaborateur',
+        // Time-based (fired by CheckDeadlines command)
         DeadlineApproaching::class => 'J-7 avant date limite',
+        PreArrivalReminder::class => 'J-3 avant date d\'arrivée',
+        PostArrivalMilestone::class => 'Milestone post-arrivée',
         PeriodeEssaiTerminee::class => 'Période d\'essai terminée',
         AnniversaireEmbauche::class => 'Anniversaire d\'embauche',
         CollaborateurEnRetard::class => 'Collaborateur en retard',
-        DocumentRefused::class => 'Document refusé',
-        CooptationValidated::class => 'Cooptation validée',
+        WeeklyDigest::class => 'Hebdomadaire (lundi)',
+        SignatureReminder::class => 'J+3 après envoi signature',
+        // Contracts & signatures
+        ContratReady::class => 'Contrat prêt',
         ContratSigned::class => 'Contrat signé',
-        ParcoursOffboardingTermine::class => 'Fin de parcours offboarding',
+        // Other
+        CooptationValidated::class => 'Cooptation validée',
         NpsSoumis::class => 'Questionnaire NPS soumis',
+        MessageReceived::class => 'Nouveau message reçu',
     ];
 
     /**
