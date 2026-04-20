@@ -9,6 +9,7 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Log;
 use App\Models\AiUsage;
 use App\Models\CompanySetting;
+use App\Services\NotificationService;
 
 class AiRateLimiter
 {
@@ -90,13 +91,35 @@ class AiRateLimiter
             $monthlySpendChf = $monthlySpend * 0.88; // USD to CHF
             $billedChf = $monthlySpendChf * 2; // x2 margin
 
+            $percentUsed = ($billedChf / $spendingCap) * 100;
+
+            // Send warning notification at 80% (once per day)
+            if ($percentUsed >= 80 && $percentUsed < 100) {
+                $warningKey = "ai_cap_warning_80_{$tenantId}_" . now()->format('Y_m_d');
+                if (!$cache->get($warningKey)) {
+                    $cache->put($warningKey, true, 86400);
+                    NotificationService::notifyAdmins('ai_cap_warning', 'Plafond IA bientôt atteint',
+                        "Votre consommation IA atteint " . round($percentUsed) . "% du plafond (" . round($billedChf, 2) . " CHF / {$spendingCap} CHF).",
+                        'alert', '#F9A825', ['percent' => $percentUsed, 'cap_chf' => $spendingCap, 'current_chf' => round($billedChf, 2)]);
+                }
+            }
+
             if ($billedChf >= $spendingCap) {
+                // Send cap reached notification (once per day)
+                $reachedKey = "ai_cap_reached_{$tenantId}_" . now()->format('Y_m_d');
+                if (!$cache->get($reachedKey)) {
+                    $cache->put($reachedKey, true, 86400);
+                    NotificationService::notifyAdmins('ai_cap_reached', 'Plafond IA atteint',
+                        "Votre plafond de dépense IA de {$spendingCap} CHF est atteint. Les fonctionnalités IA sont temporairement bloquées.",
+                        'alert', '#E53935', ['cap_chf' => $spendingCap]);
+                }
+
                 Log::warning("AI spending cap reached for tenant {$tenantId}", [
                     'billed_chf' => $billedChf,
                     'cap_chf' => $spendingCap,
                 ]);
                 return response()->json([
-                    'reply' => "Plafond de dépense IA atteint ce mois ({$billedChf} CHF / {$spendingCap} CHF). Contactez votre administrateur pour augmenter le plafond.",
+                    'reply' => "Plafond de dépense IA atteint ce mois (" . round($billedChf, 2) . " CHF / {$spendingCap} CHF). Contactez votre administrateur pour augmenter le plafond.",
                     'error' => 'spending_cap',
                     'billed_chf' => round($billedChf, 2),
                     'cap_chf' => $spendingCap,

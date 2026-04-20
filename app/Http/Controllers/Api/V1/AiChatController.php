@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\AiUsage;
 use App\Models\Subscription;
+use App\Services\NotificationService;
 
 class AiChatController extends Controller
 {
@@ -937,6 +938,10 @@ PROMPT;
         $chargeResult = $this->chargeRecharge($recharge, $rechargeAmountChf);
 
         if (!$chargeResult) {
+            // Notify admins of failure
+            NotificationService::notifyAdmins('ai_recharge_failed', 'Échec recharge IA',
+                "La recharge automatique de {$rechargeAmountChf} CHF a échoué : " . ($recharge->error ?? 'Erreur inconnue') . ". Vérifiez votre moyen de paiement.",
+                'alert', '#E53935', ['amount_chf' => $rechargeAmountChf, 'error' => $recharge->error]);
             return false;
         }
 
@@ -950,6 +955,11 @@ PROMPT;
 
         // Increment recharge counter
         \App\Models\CompanySetting::set($monthKey, (string)($rechargesThisMonth + 1));
+
+        // Notify admins of successful auto-recharge
+        NotificationService::notifyAdmins('ai_recharge', 'Recharge IA automatique',
+            "{$rechargeCredits} crédits ajoutés automatiquement ({$rechargeAmountChf} CHF). Votre plafond a été atteint.",
+            'zap', '#F9A825', ['amount_chf' => $rechargeAmountChf, 'credits' => $rechargeCredits, 'trigger' => 'auto']);
 
         Log::info('AI auto-recharge triggered', [
             'type' => $type,
@@ -1059,6 +1069,12 @@ PROMPT;
                 ['key' => $key],
                 ['value' => (string)($current + $credits)]
             );
+
+            // Notify user
+            $userId = $request->user()?->id;
+            if ($userId) {
+                NotificationService::aiManualRechargeSuccess($userId, $amountChf, $credits);
+            }
 
             return response()->json([
                 'success' => true,

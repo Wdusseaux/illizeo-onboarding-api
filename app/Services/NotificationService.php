@@ -68,4 +68,43 @@ class NotificationService
     {
         return self::send($userId, 'message', 'Nouveau message', "Vous avez reçu un message de {$senderName}.", 'mail', '#1A73E8', ['sender' => $senderName]);
     }
+
+    // ── AI Recharge & Spending Cap ──
+
+    public static function aiAutoRechargeTriggered(int $userId, float $amountChf, int $credits): UserNotification
+    {
+        return self::send($userId, 'ai_recharge', 'Recharge IA automatique', "{$credits} crédits ajoutés automatiquement ({$amountChf} CHF). Votre plafond a été atteint.", 'zap', '#F9A825', ['amount_chf' => $amountChf, 'credits' => $credits, 'trigger' => 'auto']);
+    }
+
+    public static function aiAutoRechargeFailed(int $userId, float $amountChf, string $error): UserNotification
+    {
+        return self::send($userId, 'ai_recharge_failed', 'Échec recharge IA', "La recharge automatique de {$amountChf} CHF a échoué : {$error}. Vérifiez votre moyen de paiement.", 'alert', '#E53935', ['amount_chf' => $amountChf, 'error' => $error]);
+    }
+
+    public static function aiManualRechargeSuccess(int $userId, float $amountChf, int $credits): UserNotification
+    {
+        return self::send($userId, 'ai_recharge', 'Crédits IA ajoutés', "{$credits} crédits IA achetés pour {$amountChf} CHF. Ils sont immédiatement disponibles.", 'check', '#4CAF50', ['amount_chf' => $amountChf, 'credits' => $credits, 'trigger' => 'manual']);
+    }
+
+    public static function aiSpendingCapWarning(int $userId, float $percentUsed, float $capChf, float $currentChf): UserNotification
+    {
+        $pct = round($percentUsed);
+        return self::send($userId, 'ai_cap_warning', 'Plafond IA bientôt atteint', "Votre consommation IA atteint {$pct}% du plafond ({$currentChf} CHF / {$capChf} CHF). Pensez à activer la recharge automatique.", 'alert', '#F9A825', ['percent' => $percentUsed, 'cap_chf' => $capChf, 'current_chf' => $currentChf]);
+    }
+
+    public static function aiSpendingCapReached(int $userId, float $capChf): UserNotification
+    {
+        return self::send($userId, 'ai_cap_reached', 'Plafond IA atteint', "Votre plafond de dépense IA de {$capChf} CHF est atteint. Les fonctionnalités IA sont temporairement bloquées.", 'alert', '#E53935', ['cap_chf' => $capChf]);
+    }
+
+    /**
+     * Send a notification to all admins of the current tenant.
+     */
+    public static function notifyAdmins(string $type, string $title, string $content, string $icon = 'bell', string $color = '#C2185B', ?array $data = null): void
+    {
+        $admins = \App\Models\User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            self::send($admin->id, $type, $title, $content, $icon, $color, $data);
+        }
+    }
 }
