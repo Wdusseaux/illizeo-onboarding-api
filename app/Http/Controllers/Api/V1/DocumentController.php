@@ -34,14 +34,72 @@ class DocumentController extends Controller
     {
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'obligatoire' => 'nullable|boolean',
             'type' => 'nullable|in:upload,formulaire',
+            'is_template' => 'nullable|boolean',
             'categorie_id' => 'required|exists:document_categories,id',
             'collaborateur_id' => 'nullable|exists:collaborateurs,id',
+            'translations' => 'nullable|array',
         ]);
 
         $document = Document::create($validated);
-        return response()->json($document, 201);
+        return response()->json($document->load('categorie'), 201);
+    }
+
+    /**
+     * Upload a template file (modèle) for a document template.
+     */
+    public function uploadTemplate(Request $request, Document $document): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240',
+        ]);
+
+        $file = $request->file('file');
+
+        // Delete old template file if exists
+        if ($document->fichier_modele_path && Storage::disk('local')->exists($document->fichier_modele_path)) {
+            Storage::disk('local')->delete($document->fichier_modele_path);
+        }
+
+        $path = $file->store('templates', 'local');
+
+        $document->update([
+            'fichier_modele_path' => $path,
+            'fichier_modele_original' => $file->getClientOriginalName(),
+        ]);
+
+        return response()->json($document->fresh('categorie'));
+    }
+
+    /**
+     * Download a document template file.
+     */
+    public function downloadTemplate(Document $document): StreamedResponse|JsonResponse
+    {
+        if (!$document->fichier_modele_path || !Storage::disk('local')->exists($document->fichier_modele_path)) {
+            return response()->json(['error' => 'Fichier modèle introuvable'], 404);
+        }
+
+        return Storage::disk('local')->download(
+            $document->fichier_modele_path,
+            $document->fichier_modele_original ?? basename($document->fichier_modele_path)
+        );
+    }
+
+    /**
+     * List all document templates (is_template = true).
+     */
+    public function templates(): JsonResponse
+    {
+        $templates = Document::where('is_template', true)
+            ->with('categorie')
+            ->orderBy('categorie_id')
+            ->orderBy('nom')
+            ->get();
+
+        return response()->json($templates);
     }
 
     /**
@@ -127,9 +185,13 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'nom' => 'sometimes|string|max:255',
+            'description' => 'nullable|string',
+            'obligatoire' => 'nullable|boolean',
+            'type' => 'nullable|in:upload,formulaire',
             'status' => 'nullable|in:manquant,soumis,en_attente,valide,refuse',
             'fichier_path' => 'nullable|string',
             'notes' => 'nullable|string',
+            'translations' => 'nullable|array',
         ]);
 
         $document->update($validated);

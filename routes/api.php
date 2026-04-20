@@ -272,6 +272,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('documents/{document}/refuse', [DocumentController::class, 'refuse'])->middleware('permission:documents,edit');
         Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->middleware('permission:documents,edit');
         Route::get('document-categories', [DocumentController::class, 'categories'])->middleware('permission:documents,view');
+        Route::get('document-templates', [DocumentController::class, 'templates'])->middleware('permission:documents,view');
+        Route::post('documents/{document}/upload-template', [DocumentController::class, 'uploadTemplate'])->middleware('permission:documents,edit');
+        Route::get('documents/{document}/download-template', [DocumentController::class, 'downloadTemplate'])->middleware('permission:documents,view');
 
         // ── Contrats ────────────────────────────────────────
         Route::get('contrats', [ContratController::class, 'index'])->middleware('permission:contrats,view');

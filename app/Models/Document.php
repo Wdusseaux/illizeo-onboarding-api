@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Storage;
 class Document extends Model
 {
     protected $fillable = [
-        'nom', 'obligatoire', 'type', 'categorie_id',
+        'nom', 'description', 'obligatoire', 'type', 'is_template', 'categorie_id',
         'status', 'collaborateur_id', 'fichier_path',
+        'fichier_modele_path', 'fichier_modele_original',
         'user_id', 'fichier_original', 'fichier_taille', 'fichier_mime',
         'validated_by', 'validated_at', 'refuse_motif', 'notes', 'translations',
     ];
@@ -20,6 +21,7 @@ class Document extends Model
     {
         return [
             'obligatoire' => 'boolean',
+            'is_template' => 'boolean',
             'fichier_taille' => 'integer',
             'validated_at' => 'datetime',
             'translations' => 'array',
