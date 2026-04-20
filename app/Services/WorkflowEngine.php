@@ -79,32 +79,57 @@ class WorkflowEngine
 
     /**
      * Execute a multi-step workflow sequentially.
-     * Each step has: type (action|condition|delay), action, destinataire, config.
      */
     private static function executeSteps(Workflow $workflow, object $event): void
     {
-        $steps = $workflow->steps;
+        self::executeStepsFrom($workflow, $event, 0);
+    }
 
-        foreach ($steps as $step) {
+    /**
+     * Execute steps starting from a given index. Used for delayed resumption.
+     */
+    public static function executeStepsFrom(Workflow $workflow, object $event, int $fromIndex): void
+    {
+        $steps = $workflow->steps;
+        if (!is_array($steps)) return;
+
+        for ($i = $fromIndex; $i < count($steps); $i++) {
+            $step = $steps[$i];
             $type = $step['type'] ?? 'action';
 
             if ($type === 'condition') {
-                // Evaluate condition — if false, skip remaining steps
                 if (!self::evaluateCondition($step, $event)) {
-                    Log::info("Workflow {$workflow->nom}: condition not met, skipping remaining steps");
+                    Log::info("Workflow {$workflow->nom}: condition not met at step {$i}, skipping remaining steps");
                     return;
                 }
                 continue;
             }
 
             if ($type === 'delay') {
-                // For now, log the delay — real scheduling would need a job queue
-                $delayMinutes = $step['delay_minutes'] ?? 0;
-                Log::info("Workflow {$workflow->nom}: delay step ({$delayMinutes} min) — executed immediately in V1");
-                continue;
+                $delayValue = (int) ($step['delay_value'] ?? 1);
+                $delayUnit = $step['delay_unit'] ?? 'days';
+                $delayMinutes = match($delayUnit) {
+                    'hours' => $delayValue * 60,
+                    'days' => $delayValue * 1440,
+                    'weeks' => $delayValue * 10080,
+                    default => $delayValue * 1440,
+                };
+
+                // Schedule remaining steps after delay
+                $eventData = self::serializeEvent($event);
+                \App\Jobs\ExecuteWorkflowSteps::dispatch(
+                    $workflow->id,
+                    tenant()->id,
+                    get_class($event),
+                    $eventData,
+                    $i + 1, // Resume from next step
+                )->delay(now()->addMinutes($delayMinutes));
+
+                Log::info("Workflow {$workflow->nom}: delay {$delayValue} {$delayUnit} — scheduled job for step " . ($i + 1));
+                return; // Stop current execution, job will resume
             }
 
-            // Action step — create a temporary workflow-like object for executeAction
+            // Action step
             $stepWorkflow = clone $workflow;
             $stepWorkflow->action = $step['action'] ?? $workflow->action;
             $stepWorkflow->destinataire = $step['destinataire'] ?? $workflow->destinataire;
@@ -119,6 +144,36 @@ class WorkflowEngine
 
             self::executeAction($stepWorkflow, $event);
         }
+    }
+
+    /**
+     * Serialize event data for job queue storage.
+     */
+    public static function serializeEvent(object $event): array
+    {
+        $data = [];
+        foreach (['collaborateurId', 'actionTitle', 'documentName', 'parcoursName',
+                   'formulaireName', 'collaborateurName', 'contratName', 'candidateName',
+                   'cooptationId'] as $prop) {
+            if (property_exists($event, $prop)) {
+                $data[$prop] = $event->$prop;
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Reconstruct event from serialized data for delayed execution.
+     */
+    public static function reconstructEvent(string $eventClass, array $data): ?object
+    {
+        if (!class_exists($eventClass)) return null;
+
+        $event = new \stdClass();
+        foreach ($data as $key => $value) {
+            $event->$key = $value;
+        }
+        return $event;
     }
 
     /**
