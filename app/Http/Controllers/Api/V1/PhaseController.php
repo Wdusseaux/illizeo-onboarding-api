@@ -33,6 +33,7 @@ class PhaseController extends Controller
             'active' => 'nullable|boolean',
             'parcours_ids' => 'nullable|array',
             'parcours_ids.*' => 'exists:parcours,id',
+            'translations' => 'nullable|array',
         ]);
 
         $parcoursIds = $validated['parcours_ids'] ?? [];
@@ -65,6 +66,7 @@ class PhaseController extends Controller
             'active' => 'nullable|boolean',
             'parcours_ids' => 'nullable|array',
             'parcours_ids.*' => 'exists:parcours,id',
+            'translations' => 'nullable|array',
         ]);
 
         $parcoursIds = $validated['parcours_ids'] ?? null;

@@ -37,6 +37,7 @@ class ParcoursController extends Controller
             'nom' => 'required|string|max:255',
             'categorie_id' => 'required|exists:parcours_categories,id',
             'status' => 'nullable|in:actif,brouillon,archive',
+            'translations' => 'nullable|array',
         ]);
 
         $parcours = Parcours::create($validated);
@@ -56,6 +57,7 @@ class ParcoursController extends Controller
             'nom' => 'sometimes|string|max:255',
             'categorie_id' => 'sometimes|exists:parcours_categories,id',
             'status' => 'nullable|in:actif,brouillon,archive',
+            'translations' => 'nullable|array',
         ]);
 
         $parcour->update($validated);

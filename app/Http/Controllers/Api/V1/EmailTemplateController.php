@@ -24,6 +24,7 @@ class EmailTemplateController extends Controller
             'variables' => 'nullable|array',
             'actif' => 'nullable|boolean',
             'contenu' => 'nullable|string',
+            'translations' => 'nullable|array',
         ]);
 
         $template = EmailTemplate::create($validated);
@@ -44,6 +45,7 @@ class EmailTemplateController extends Controller
             'variables' => 'nullable|array',
             'actif' => 'nullable|boolean',
             'contenu' => 'nullable|string',
+            'translations' => 'nullable|array',
         ]));
 
         return response()->json($emailTemplate);

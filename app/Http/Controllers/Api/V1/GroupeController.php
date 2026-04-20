@@ -22,6 +22,7 @@ class GroupeController extends Controller
             'couleur' => 'nullable|string|max:10',
             'critere_type' => 'nullable|in:site,departement,contrat',
             'critere_valeur' => 'nullable|string',
+            'translations' => 'nullable|array',
             'collaborateur_ids' => 'nullable|array',
             'collaborateur_ids.*' => 'exists:collaborateurs,id',
         ]);
@@ -51,6 +52,7 @@ class GroupeController extends Controller
             'couleur' => 'nullable|string|max:10',
             'critere_type' => 'nullable|in:site,departement,contrat',
             'critere_valeur' => 'nullable|string',
+            'translations' => 'nullable|array',
             'collaborateur_ids' => 'nullable|array',
             'collaborateur_ids.*' => 'exists:collaborateurs,id',
         ]);
