@@ -67,8 +67,88 @@ class WorkflowEngine
             ->get();
 
         foreach ($workflows as $workflow) {
-            self::executeAction($workflow, $event);
+            // Multi-step workflow (new format)
+            if (!empty($workflow->steps) && is_array($workflow->steps)) {
+                self::executeSteps($workflow, $event);
+            } else {
+                // Legacy single-action workflow
+                self::executeAction($workflow, $event);
+            }
         }
+    }
+
+    /**
+     * Execute a multi-step workflow sequentially.
+     * Each step has: type (action|condition|delay), action, destinataire, config.
+     */
+    private static function executeSteps(Workflow $workflow, object $event): void
+    {
+        $steps = $workflow->steps;
+
+        foreach ($steps as $step) {
+            $type = $step['type'] ?? 'action';
+
+            if ($type === 'condition') {
+                // Evaluate condition — if false, skip remaining steps
+                if (!self::evaluateCondition($step, $event)) {
+                    Log::info("Workflow {$workflow->nom}: condition not met, skipping remaining steps");
+                    return;
+                }
+                continue;
+            }
+
+            if ($type === 'delay') {
+                // For now, log the delay — real scheduling would need a job queue
+                $delayMinutes = $step['delay_minutes'] ?? 0;
+                Log::info("Workflow {$workflow->nom}: delay step ({$delayMinutes} min) — executed immediately in V1");
+                continue;
+            }
+
+            // Action step — create a temporary workflow-like object for executeAction
+            $stepWorkflow = clone $workflow;
+            $stepWorkflow->action = $step['action'] ?? $workflow->action;
+            $stepWorkflow->destinataire = $step['destinataire'] ?? $workflow->destinataire;
+            $stepWorkflow->email_subject = $step['email_subject'] ?? $workflow->email_subject;
+            $stepWorkflow->email_body = $step['email_body'] ?? $workflow->email_body;
+            $stepWorkflow->bot_message = $step['bot_message'] ?? $workflow->bot_message;
+            $stepWorkflow->badge_name = $step['badge_name'] ?? $workflow->badge_name;
+            $stepWorkflow->badge_icon = $step['badge_icon'] ?? $workflow->badge_icon;
+            $stepWorkflow->badge_color = $step['badge_color'] ?? $workflow->badge_color;
+            $stepWorkflow->target_user_id = $step['target_user_id'] ?? $workflow->target_user_id;
+            $stepWorkflow->target_group_id = $step['target_group_id'] ?? $workflow->target_group_id;
+
+            self::executeAction($stepWorkflow, $event);
+        }
+    }
+
+    /**
+     * Evaluate a condition step.
+     */
+    private static function evaluateCondition(array $step, object $event): bool
+    {
+        $field = $step['field'] ?? '';
+        $operator = $step['operator'] ?? '==';
+        $value = $step['value'] ?? '';
+
+        // Get the field value from event or collaborateur
+        $collaborateur = property_exists($event, 'collaborateurId')
+            ? Collaborateur::find($event->collaborateurId) : null;
+
+        $actual = match($field) {
+            'site' => $collaborateur?->site ?? '',
+            'departement' => $collaborateur?->departement ?? '',
+            'poste' => $collaborateur?->poste ?? '',
+            'type_contrat' => $collaborateur?->type_contrat ?? '',
+            'pays' => $collaborateur?->pays ?? '',
+            default => '',
+        };
+
+        return match($operator) {
+            '==' => strtolower($actual) === strtolower($value),
+            '!=' => strtolower($actual) !== strtolower($value),
+            'contains' => str_contains(strtolower($actual), strtolower($value)),
+            default => true,
+        };
     }
 
     private static function executeAction(Workflow $workflow, object $event): void

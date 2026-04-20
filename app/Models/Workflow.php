@@ -9,7 +9,8 @@ class Workflow extends Model
 {
     use Auditable;
     protected $fillable = [
-        'nom', 'declencheur', 'action', 'destinataire', 'actif',
+        'nom', 'description', 'declencheur', 'action', 'destinataire', 'actif', 'color',
+        'steps',
         'target_user_id', 'target_group_id', 'badge_name', 'badge_icon', 'badge_color',
         'email_subject', 'email_body', 'bot_message', 'translations',
     ];
@@ -19,6 +20,7 @@ class Workflow extends Model
         return [
             'actif' => 'boolean',
             'translations' => 'array',
+            'steps' => 'array',
         ];
     }
 }
