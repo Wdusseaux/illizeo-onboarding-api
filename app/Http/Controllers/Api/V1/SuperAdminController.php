@@ -165,6 +165,13 @@ class SuperAdminController extends Controller
             'actif' => 'boolean',
             'populaire' => 'boolean',
             'ordre' => 'integer',
+            'is_addon' => 'boolean',
+            'addon_type' => 'nullable|string|in:ai,cooptation,signature',
+            'ai_ocr_scans' => 'nullable|integer|min:0',
+            'ai_bot_messages' => 'nullable|integer|min:0',
+            'ai_contrat_generations' => 'nullable|integer|min:0',
+            'ai_model' => 'nullable|string',
+            'ai_extra_scan_price_chf' => 'nullable|numeric|min:0',
         ]);
 
         $plan = Plan::create($validated);
@@ -197,6 +204,13 @@ class SuperAdminController extends Controller
             'actif' => 'boolean',
             'populaire' => 'boolean',
             'ordre' => 'integer',
+            'is_addon' => 'boolean',
+            'addon_type' => 'nullable|string|in:ai,cooptation,signature',
+            'ai_ocr_scans' => 'nullable|integer|min:0',
+            'ai_bot_messages' => 'nullable|integer|min:0',
+            'ai_contrat_generations' => 'nullable|integer|min:0',
+            'ai_model' => 'nullable|string',
+            'ai_extra_scan_price_chf' => 'nullable|numeric|min:0',
         ]);
 
         $plan->update($validated);
@@ -435,10 +449,23 @@ class SuperAdminController extends Controller
                     $totalCost = (float) \App\Models\AiUsage::whereYear('created_at', $year)
                         ->whereMonth('created_at', $month)->sum('cost_usd');
 
+                    // Convert USD to CHF (approximate rate)
+                    $usdToChf = 0.88;
+                    $costChf = round($totalCost * $usdToChf, 2);
+                    $billedChf = round($costChf * 2, 2); // x2 margin
+                    $marginChf = round($billedChf - $costChf, 2);
+
+                    // Token details
+                    $totalInputTokens = (int) \App\Models\AiUsage::whereYear('created_at', $year)
+                        ->whereMonth('created_at', $month)->sum('input_tokens');
+                    $totalOutputTokens = (int) \App\Models\AiUsage::whereYear('created_at', $year)
+                        ->whereMonth('created_at', $month)->sum('output_tokens');
+
                     $result[] = [
                         'tenant_id' => $tenant->id,
                         'tenant_name' => $tenant->nom ?? $tenant->id,
                         'plan_name' => $aiSub->plan->nom,
+                        'plan_price_chf' => $aiSub->plan->prix_chf_mensuel ?? 0,
                         'ocr_scans' => $ocrScans,
                         'ocr_limit' => $aiSub->plan->ai_ocr_scans ?? 0,
                         'bot_messages' => $botMessages,
@@ -446,6 +473,11 @@ class SuperAdminController extends Controller
                         'contrat_generations' => $contratGens,
                         'contrat_limit' => $aiSub->plan->ai_contrat_generations ?? 0,
                         'total_cost_usd' => $totalCost,
+                        'cost_chf' => $costChf,
+                        'billed_chf' => $billedChf,
+                        'margin_chf' => $marginChf,
+                        'input_tokens' => $totalInputTokens,
+                        'output_tokens' => $totalOutputTokens,
                     ];
                 });
             } catch (\Exception $e) {

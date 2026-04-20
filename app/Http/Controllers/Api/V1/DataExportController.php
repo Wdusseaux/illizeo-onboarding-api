@@ -21,7 +21,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 class DataExportController extends Controller
 {
@@ -215,6 +217,69 @@ class DataExportController extends Controller
             'message' => 'Données du collaborateur supprimées conformément au RGPD.',
             'email' => $validated['email'],
         ]);
+    }
+
+    /**
+     * Download all documents of a collaborateur as a ZIP archive.
+     */
+    public function downloadCollaborateurDocuments(int $collaborateur): \Symfony\Component\HttpFoundation\Response
+    {
+        $collab = Collaborateur::find($collaborateur);
+
+        if (! $collab) {
+            return response()->json(['message' => 'Collaborateur introuvable.'], 404);
+        }
+
+        $documents = \App\Models\Document::where('collaborateur_id', $collab->id)
+            ->whereNotNull('fichier_path')
+            ->with('categorie')
+            ->get();
+
+        if ($documents->isEmpty()) {
+            return response()->json(['message' => 'Aucun document trouvé pour ce collaborateur.'], 404);
+        }
+
+        $zipFileName = 'documents-' . \Illuminate\Support\Str::slug($collab->prenom . '-' . $collab->nom) . '-' . now()->format('Y-m-d_His') . '.zip';
+        $zipPath = storage_path('app/temp/' . $zipFileName);
+
+        // Ensure temp directory exists
+        if (! is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        $zip = new ZipArchive();
+
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            return response()->json(['message' => 'Impossible de créer l\'archive ZIP.'], 500);
+        }
+
+        $addedFiles = 0;
+
+        foreach ($documents as $document) {
+            $filePath = Storage::disk('local')->path($document->fichier_path);
+
+            if (! file_exists($filePath)) {
+                continue;
+            }
+
+            $categorie = $document->categorie?->titre ?? $document->categorie?->slug ?? 'sans-categorie';
+            $originalName = $document->fichier_original ?? basename($document->fichier_path);
+            $entryName = $categorie . '/' . $originalName;
+
+            $zip->addFile($filePath, $entryName);
+            $addedFiles++;
+        }
+
+        $zip->close();
+
+        if ($addedFiles === 0) {
+            @unlink($zipPath);
+            return response()->json(['message' => 'Aucun fichier accessible pour ce collaborateur.'], 404);
+        }
+
+        return response()->download($zipPath, $zipFileName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
     }
 
     /**

@@ -298,15 +298,19 @@ PROMPT;
 
         $usage = AiUsage::currentMonthSummary();
 
+        // Usage-based billing: show consumption in CHF (cost x2)
+        $usdToChf = 0.88;
+        $costChf = round(($usage['total_cost_usd'] ?? 0) * $usdToChf, 2);
+        $billedChf = round($costChf * 2, 2);
+
         return response()->json([
             'has_ai_plan' => true,
-            'quota' => $quota,
+            'billing_model' => 'usage',
+            'plan_name' => $quota['plan_name'],
             'usage' => $usage,
-            'remaining' => [
-                'ocr_scans' => max(0, $quota['ocr_limit'] - $usage['ocr_scans']),
-                'bot_messages' => max(0, $quota['bot_limit'] - $usage['bot_messages']),
-                'contrat_generations' => max(0, $quota['contrat_limit'] - $usage['contrat_generations']),
-            ],
+            'cost_chf' => $costChf,
+            'billed_chf' => $billedChf,
+            'plan_monthly_chf' => $quota['plan_monthly_chf'] ?? 0,
         ]);
     }
 
@@ -387,6 +391,7 @@ PROMPT;
             'model' => $aiSub->plan->ai_model ?? 'claude-opus-4-6',
             'extra_scan_price' => $aiSub->plan->ai_extra_scan_price_chf ?? 0.10,
             'plan_name' => $aiSub->plan->nom,
+            'plan_monthly_chf' => $aiSub->plan->prix_chf_mensuel ?? 0,
         ];
     }
 

@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\V1\TeamtailorController;
 use App\Http\Controllers\Api\V1\BambooHRController;
 use App\Http\Controllers\Api\V1\WorkdayController;
 use App\Http\Controllers\Api\V1\OcrController;
+use App\Http\Controllers\Api\V1\CalendarController;
+use App\Http\Controllers\Api\V1\AiChatController;
 use App\Http\Controllers\Api\V1\StripeController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -72,6 +74,19 @@ Route::post('/check-tenant', [TenantRegistrationController::class, 'checkAvailab
 
 // ─── Public pricing (central, no auth) ─────────────────────
 Route::get('/plans', [PlanController::class, 'index']);
+Route::get('/exchange-rates', function () {
+    $cached = cache()->get('exchange_rates_chf');
+    if ($cached) return response()->json($cached);
+    try {
+        $response = \Illuminate\Support\Facades\Http::timeout(5)->get('https://api.exchangerate-api.com/v4/latest/CHF');
+        if ($response->successful()) {
+            $data = $response->json();
+            cache()->put('exchange_rates_chf', $data, 3600); // Cache 1h
+            return response()->json($data);
+        }
+    } catch (\Exception $e) {}
+    return response()->json(['rates' => ['CHF' => 1, 'EUR' => 1.09, 'USD' => 1.28, 'GBP' => 0.95]]);
+});
 Route::post('/plans/subscribe', [PlanController::class, 'subscribe']);
 
 // ─── Stripe Webhook (no auth, no tenant) ───────────────────
@@ -592,6 +607,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('export/all', [DataExportController::class, 'exportAll'])->middleware('role:super_admin|admin|admin_rh');
         Route::get('export/collaborateurs', [DataExportController::class, 'exportCollaborateurs'])->middleware('role:super_admin|admin|admin_rh');
         Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('collaborateurs/{collaborateur}/documents-zip', [DataExportController::class, 'downloadCollaborateurDocuments']);
         Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion'])->middleware('role:super_admin|admin|admin_rh');
 
@@ -627,11 +643,24 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         // ── Invoices ──────────────────────────────────────────
         Route::get('invoices', [SubscriptionController::class, 'listInvoices']);
 
-        // ── OCR / AI ───────────────────────────────────────────
-        Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);
+        // ── OCR / AI (rate-limited) ────────────────────────────
         Route::get('ai/usage', [OcrController::class, 'getUsage']);
         Route::get('ai/quota', [OcrController::class, 'getQuota']);
-        Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
+        Route::middleware('ai.rate')->group(function () {
+            Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);
+            Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
+            Route::post('ai/chat', [AiChatController::class, 'sendMessage']);
+            Route::post('ai/admin-chat', [AiChatController::class, 'adminChat']);
+            Route::post('ai/generate-parcours', [AiChatController::class, 'generateParcours']);
+            Route::get('ai/insights', [AiChatController::class, 'getInsights']);
+        });
+
+        // ── Calendar ─────────────────────────────────────────────
+        Route::get('calendar-events', [CalendarController::class, 'index']);
+        Route::get('ai/auto-recharge', [AiChatController::class, 'getAutoRechargeConfig']);
+        Route::post('ai/auto-recharge', [AiChatController::class, 'updateAutoRechargeConfig']);
+        Route::get('ai/spending-cap', [AiChatController::class, 'getSpendingCap']);
+        Route::post('ai/spending-cap', [AiChatController::class, 'updateSpendingCap']);
 
         // ── Stripe / Payments ─────────────────────────────────
         Route::post('stripe/setup-intent', [StripeController::class, 'createSetupIntent']);

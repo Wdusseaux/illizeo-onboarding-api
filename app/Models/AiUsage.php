@@ -40,13 +40,25 @@ class AiUsage extends Model
         $year = now()->year;
         $month = now()->month;
 
+        // Detailed breakdown by context (from metadata)
+        $allEntries = static::whereYear('created_at', $year)->whereMonth('created_at', $month)->get();
+
+        $chatEmployee = $allEntries->filter(fn($e) => $e->type === 'bot_message' && (($e->metadata['context'] ?? '') === '' || !isset($e->metadata['context'])))->count();
+        $chatAdmin = $allEntries->filter(fn($e) => ($e->metadata['context'] ?? '') === 'admin_chat')->count();
+        $insights = $allEntries->filter(fn($e) => ($e->metadata['context'] ?? '') === 'insights')->count();
+        $generateParcours = $allEntries->filter(fn($e) => ($e->metadata['context'] ?? '') === 'generate_parcours')->count();
+
         return [
             'ocr_scans' => static::monthlyCount('ocr_scan', $year, $month),
             'bot_messages' => static::monthlyCount('bot_message', $year, $month),
             'contrat_generations' => static::monthlyCount('contrat_generation', $year, $month),
-            'total_cost_usd' => (float) static::whereYear('created_at', $year)
-                ->whereMonth('created_at', $month)
-                ->sum('cost_usd'),
+            'chat_employee' => $chatEmployee,
+            'chat_admin' => $chatAdmin,
+            'insights' => $insights,
+            'generate_parcours' => $generateParcours,
+            'total_cost_usd' => (float) $allEntries->sum('cost_usd'),
+            'total_input_tokens' => (int) $allEntries->sum('input_tokens'),
+            'total_output_tokens' => (int) $allEntries->sum('output_tokens'),
         ];
     }
 
