@@ -898,6 +898,7 @@ PROMPT;
 
     /**
      * Try to auto-recharge credits when threshold is reached.
+     * Creates a Stripe charge and records in ai_recharges table.
      */
     private function tryAutoRecharge(string $type, int $used, int $limit, int $currentExtra): bool
     {
@@ -910,7 +911,6 @@ PROMPT;
         $monthKey = 'ai_auto_recharge_count_' . now()->format('Y_m');
         $rechargesThisMonth = (int) \App\Models\CompanySetting::get($monthKey, 0);
 
-        // Check max recharges per month
         if ($rechargesThisMonth >= $maxPerMonth) {
             Log::info('AI auto-recharge: max recharges reached this month', [
                 'count' => $rechargesThisMonth, 'max' => $maxPerMonth,
@@ -923,7 +923,24 @@ PROMPT;
 
         if ($usagePercent < $threshold) return false;
 
-        // Perform the recharge
+        $rechargeAmountChf = (float) \App\Models\CompanySetting::get('ai_auto_recharge_amount_chf', 50);
+
+        // Create recharge record
+        $recharge = \App\Models\AiRecharge::create([
+            'amount_chf' => $rechargeAmountChf,
+            'credits_added' => $rechargeCredits,
+            'trigger' => 'auto',
+            'status' => 'pending',
+        ]);
+
+        // Charge via Stripe
+        $chargeResult = $this->chargeRecharge($recharge, $rechargeAmountChf);
+
+        if (!$chargeResult) {
+            return false;
+        }
+
+        // Add extra credits
         $key = "ai_extra_{$type}_" . now()->format('Y_m');
         $current = (int) (\App\Models\CompanySetting::where('key', $key)->value('value') ?? 0);
         \App\Models\CompanySetting::updateOrCreate(
@@ -934,17 +951,135 @@ PROMPT;
         // Increment recharge counter
         \App\Models\CompanySetting::set($monthKey, (string)($rechargesThisMonth + 1));
 
-        // Track the recharge cost
-        $rechargeAmountChf = (float) \App\Models\CompanySetting::get('ai_auto_recharge_amount_chf', 50);
         Log::info('AI auto-recharge triggered', [
             'type' => $type,
             'credits_added' => $rechargeCredits,
             'amount_chf' => $rechargeAmountChf,
             'recharge_number' => $rechargesThisMonth + 1,
-            'usage' => "{$used}/{$totalAllowed}",
+            'stripe_pi' => $recharge->stripe_payment_intent_id,
         ]);
 
         return true;
+    }
+
+    /**
+     * Charge a recharge via Stripe.
+     */
+    private function chargeRecharge(\App\Models\AiRecharge $recharge, float $amountChf): bool
+    {
+        $tenant = tenant();
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
+        $customerKey = $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id';
+        $customerId = \App\Models\CompanySetting::where('key', $customerKey)->value('value');
+
+        if (!$customerId) {
+            $recharge->update(['status' => 'failed', 'error' => 'No Stripe customer']);
+            return false;
+        }
+
+        try {
+            $secret = $mode === 'test'
+                ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+                : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+            $stripe = new \Stripe\StripeClient($secret);
+
+            $customer = $stripe->customers->retrieve($customerId);
+            $pm = $customer->invoice_settings->default_payment_method ?? null;
+
+            if (!$pm) {
+                $recharge->update(['status' => 'failed', 'error' => 'No payment method']);
+                return false;
+            }
+
+            $pi = $stripe->paymentIntents->create([
+                'amount' => (int) round($amountChf * 100),
+                'currency' => 'chf',
+                'customer' => $customerId,
+                'payment_method' => $pm,
+                'off_session' => true,
+                'confirm' => true,
+                'description' => "Illizeo - Recharge IA ({$recharge->credits_added} crédits)",
+                'metadata' => [
+                    'type' => 'ai_recharge',
+                    'recharge_id' => $recharge->id,
+                    'tenant_id' => $tenant->id,
+                ],
+            ]);
+
+            if ($pi->status === 'succeeded') {
+                $recharge->update([
+                    'status' => 'charged',
+                    'stripe_payment_intent_id' => $pi->id,
+                ]);
+                return true;
+            }
+
+            $recharge->update([
+                'status' => $pi->status === 'processing' ? 'pending' : 'failed',
+                'stripe_payment_intent_id' => $pi->id,
+                'error' => "Status: {$pi->status}",
+            ]);
+            return $pi->status === 'processing';
+
+        } catch (\Exception $e) {
+            $recharge->update(['status' => 'failed', 'error' => $e->getMessage()]);
+            Log::error('AI recharge payment failed', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Manual recharge (buy credits on demand).
+     */
+    public function manualRecharge(Request $request): JsonResponse
+    {
+        $request->validate([
+            'amount_chf' => 'required|numeric|min:10|max:500',
+        ]);
+
+        $amountChf = (float) $request->amount_chf;
+
+        // Credits: 1 CHF = ~2 credits (based on pricing)
+        $credits = (int) ($amountChf * 2);
+
+        $recharge = \App\Models\AiRecharge::create([
+            'amount_chf' => $amountChf,
+            'credits_added' => $credits,
+            'trigger' => 'manual',
+            'status' => 'pending',
+        ]);
+
+        $success = $this->chargeRecharge($recharge, $amountChf);
+
+        if ($success) {
+            // Add credits to current month
+            $key = 'ai_extra_bot_message_' . now()->format('Y_m');
+            $current = (int) (\App\Models\CompanySetting::where('key', $key)->value('value') ?? 0);
+            \App\Models\CompanySetting::updateOrCreate(
+                ['key' => $key],
+                ['value' => (string)($current + $credits)]
+            );
+
+            return response()->json([
+                'success' => true,
+                'credits_added' => $credits,
+                'amount_chf' => $amountChf,
+                'recharge_id' => $recharge->id,
+            ]);
+        }
+
+        return response()->json([
+            'error' => $recharge->error ?? 'Payment failed',
+        ], 402);
+    }
+
+    /**
+     * Get recharge history.
+     */
+    public function getRechargeHistory(): JsonResponse
+    {
+        $recharges = \App\Models\AiRecharge::orderByDesc('created_at')->take(20)->get();
+        return response()->json($recharges);
     }
 
     private function isStarterPlan(): bool

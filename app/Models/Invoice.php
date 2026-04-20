@@ -36,6 +36,7 @@ class Invoice extends Model
         'payment_error',
         'pdf_path',
         'billing_snapshot',
+        'line_items',
     ];
 
     protected $casts = [
@@ -49,6 +50,7 @@ class Invoice extends Model
         'paid_at' => 'datetime',
         'last_payment_attempt' => 'datetime',
         'billing_snapshot' => 'array',
+        'line_items' => 'array',
     ];
 
     public function subscription(): BelongsTo

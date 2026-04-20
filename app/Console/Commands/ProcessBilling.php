@@ -216,13 +216,48 @@ class ProcessBilling extends Command
         $nbCollabs = $sub->nombre_collaborateurs ?: 25;
         $pricePerUnit = (float) $plan->prix_chf_mensuel;
 
+        $lineItems = [];
+
         if ($isAi) {
             $montantHt = $pricePerUnit; // Fixed price
+            $lineItems[] = [
+                'description' => "{$plan->nom} — Forfait mensuel",
+                'quantity' => 1,
+                'unit_price' => $pricePerUnit,
+                'amount' => $pricePerUnit,
+                'type' => 'subscription',
+            ];
         } else {
             $montantHt = $pricePerUnit * $nbCollabs;
             if ($sub->billing_cycle === 'yearly') {
                 $montantHt *= 0.9; // 10% discount
             }
+            $lineItems[] = [
+                'description' => "{$plan->nom} — {$nbCollabs} employé(s)" . ($sub->billing_cycle === 'yearly' ? ' (annuel -10%)' : ''),
+                'quantity' => $nbCollabs,
+                'unit_price' => round($montantHt / max(1, $nbCollabs), 2),
+                'amount' => $montantHt,
+                'type' => 'subscription',
+            ];
+        }
+
+        // Include AI recharges charged during this period
+        if ($isAi) {
+            tenancy()->initialize(\App\Models\Tenant::find($sub->tenant_id));
+            $recharges = \App\Models\AiRecharge::where('status', 'charged')
+                ->where('invoice_number', null)
+                ->get();
+            foreach ($recharges as $rc) {
+                $lineItems[] = [
+                    'description' => "Recharge IA — {$rc->credits_added} crédits" . ($rc->trigger === 'auto' ? ' (auto)' : ''),
+                    'quantity' => 1,
+                    'unit_price' => (float) $rc->amount_chf,
+                    'amount' => (float) $rc->amount_chf,
+                    'type' => 'recharge',
+                ];
+                $montantHt += (float) $rc->amount_chf;
+            }
+            tenancy()->end();
         }
 
         // Determine TVA based on tenant's billing country
@@ -257,7 +292,16 @@ class ProcessBilling extends Command
                 ? now()->addDays(30)->toDateString()
                 : now()->toDateString(),
             'billing_snapshot' => $billingSnapshot,
+            'line_items' => $lineItems,
         ]);
+
+        // Mark recharges as invoiced
+        if ($isAi && isset($recharges) && $recharges->isNotEmpty()) {
+            tenancy()->initialize(\App\Models\Tenant::find($sub->tenant_id));
+            \App\Models\AiRecharge::whereIn('id', $recharges->pluck('id'))
+                ->update(['invoice_number' => $invoice->invoice_number]);
+            tenancy()->end();
+        }
 
         $this->line("    Invoice created: {$invoice->invoice_number} = {$montantTtc} CHF");
 

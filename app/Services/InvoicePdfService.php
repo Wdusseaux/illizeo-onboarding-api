@@ -189,12 +189,24 @@ class InvoicePdfService
 </tr>
 </thead>
 <tbody>
-<tr>
-    <td>{$lineDesc}</td>
-    <td>{$invoice->nombre_collaborateurs}</td>
-    <td class="amount">{$this->formatMoney((float)$invoice->montant_ht / max(1, $isAi ? 1 : $invoice->nombre_collaborateurs))} CHF</td>
-    <td class="amount">{$this->formatMoney($invoice->montant_ht)} CHF</td>
-</tr>
+HTML;
+
+        // Render line items if available, otherwise fallback to single line
+        $lineItems = $invoice->line_items;
+        if (!empty($lineItems) && is_array($lineItems)) {
+            foreach ($lineItems as $item) {
+                $desc = htmlspecialchars($item['description'] ?? '');
+                $qty = $item['quantity'] ?? 1;
+                $unitPrice = $this->formatMoney((float) ($item['unit_price'] ?? 0));
+                $amount = $this->formatMoney((float) ($item['amount'] ?? 0));
+                $html .= "<tr><td>{$desc}</td><td>{$qty}</td><td class='amount'>{$unitPrice} CHF</td><td class='amount'>{$amount} CHF</td></tr>";
+            }
+        } else {
+            $unitPriceFallback = $this->formatMoney((float)$invoice->montant_ht / max(1, $isAi ? 1 : $invoice->nombre_collaborateurs));
+            $html .= "<tr><td>{$lineDesc}</td><td>{$invoice->nombre_collaborateurs}</td><td class='amount'>{$unitPriceFallback} CHF</td><td class='amount'>{$this->formatMoney($invoice->montant_ht)} CHF</td></tr>";
+        }
+
+        $html .= <<<HTML
 </tbody>
 </table>
 
