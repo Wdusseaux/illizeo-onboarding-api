@@ -665,6 +665,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('ai/spending-cap', [AiChatController::class, 'getSpendingCap']);
         Route::post('ai/spending-cap', [AiChatController::class, 'updateSpendingCap']);
         Route::post('ai/recharge', [AiChatController::class, 'manualRecharge']);
+        Route::post('ai/translate', [AiChatController::class, 'translate']);
         Route::get('ai/recharges', [AiChatController::class, 'getRechargeHistory']);
 
         // ── Stripe / Payments ─────────────────────────────────

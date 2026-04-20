@@ -1098,6 +1098,108 @@ PROMPT;
         return response()->json($recharges);
     }
 
+    /**
+     * Translate text using AI, with database caching.
+     * Supports single language or all languages at once.
+     */
+    public function translate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'text' => 'required|string|max:5000',
+            'source_lang' => 'required|string|max:5',
+            'target_langs' => 'required|array|min:1|max:10',
+            'target_langs.*' => 'string|max:5',
+        ]);
+
+        $text = $request->text;
+        $sourceLang = $request->source_lang;
+        $targetLangs = $request->target_langs;
+        $results = [];
+        $langsToTranslate = [];
+
+        // Check cache first for each target language
+        foreach ($targetLangs as $lang) {
+            if ($lang === $sourceLang) {
+                $results[$lang] = $text;
+                continue;
+            }
+            $cached = \App\Models\AiTranslation::findCached($sourceLang, $lang, $text);
+            if ($cached !== null) {
+                $results[$lang] = $cached;
+            } else {
+                $langsToTranslate[] = $lang;
+            }
+        }
+
+        // If all cached, return immediately
+        if (empty($langsToTranslate)) {
+            return response()->json(['translations' => $results, 'from_cache' => true]);
+        }
+
+        // Call AI for remaining languages
+        $langNames = [
+            'fr' => 'French', 'en' => 'English', 'de' => 'German',
+            'it' => 'Italian', 'es' => 'Spanish', 'pt' => 'Portuguese',
+            'nl' => 'Dutch', 'pl' => 'Polish', 'ro' => 'Romanian',
+            'tr' => 'Turkish', 'ar' => 'Arabic', 'zh' => 'Chinese',
+            'ja' => 'Japanese', 'ko' => 'Korean',
+        ];
+
+        $targetList = implode(', ', array_map(fn($l) => ($langNames[$l] ?? $l) . " ({$l})", $langsToTranslate));
+        $sourceName = $langNames[$sourceLang] ?? $sourceLang;
+
+        $prompt = "Translate the following text from {$sourceName} to: {$targetList}.\n\nText to translate:\n\"{$text}\"\n\nReturn ONLY a JSON object with language codes as keys and translations as values. Example: {\"en\": \"Hello\", \"de\": \"Hallo\"}\nNo explanation, no markdown, just the JSON object.";
+
+        try {
+            $response = Http::withHeaders([
+                'x-api-key' => env('ANTHROPIC_API_KEY'),
+                'anthropic-version' => '2023-06-01',
+                'content-type' => 'application/json',
+            ])->timeout(30)->post('https://api.anthropic.com/v1/messages', [
+                'model' => 'claude-haiku-4-5-20251001',
+                'max_tokens' => 2000,
+                'messages' => [['role' => 'user', 'content' => $prompt]],
+            ]);
+
+            $reply = $response->json('content.0.text', '');
+
+            // Track AI usage
+            $inputTokens = $response->json('usage.input_tokens', 0);
+            $outputTokens = $response->json('usage.output_tokens', 0);
+            $costUsd = ($inputTokens * 0.0000008) + ($outputTokens * 0.000004);
+            AiUsage::create([
+                'type' => 'translation', 'user_id' => $request->user()?->id,
+                'model' => 'claude-haiku-4-5-20251001',
+                'input_tokens' => $inputTokens, 'output_tokens' => $outputTokens,
+                'cost_usd' => $costUsd,
+                'metadata' => json_encode(['langs' => $langsToTranslate, 'text_length' => strlen($text)]),
+            ]);
+
+            // Parse JSON response
+            $jsonMatch = preg_match('/\{[^{}]*\}/s', $reply, $m);
+            if ($jsonMatch) {
+                $aiTranslations = json_decode($m[0], true) ?? [];
+            } else {
+                $aiTranslations = json_decode($reply, true) ?? [];
+            }
+
+            // Cache and merge results
+            foreach ($langsToTranslate as $lang) {
+                $translation = $aiTranslations[$lang] ?? null;
+                if ($translation) {
+                    \App\Models\AiTranslation::saveCache($sourceLang, $lang, $text, $translation);
+                    $results[$lang] = $translation;
+                }
+            }
+
+            return response()->json(['translations' => $results, 'from_cache' => false]);
+
+        } catch (\Exception $e) {
+            Log::error('AI translation failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Translation failed: ' . $e->getMessage()], 500);
+        }
+    }
+
     private function isStarterPlan(): bool
     {
         $tenant = tenant();
