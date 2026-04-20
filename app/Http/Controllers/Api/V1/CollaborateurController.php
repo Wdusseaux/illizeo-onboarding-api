@@ -89,6 +89,24 @@ class CollaborateurController extends Controller
             'hr_manager_id' => 'nullable|integer|exists:collaborateurs,id',
         ]);
 
+        // Circular manager check
+        if (isset($validated['manager_id']) && $validated['manager_id']) {
+            if ((int) $validated['manager_id'] === $collaborateur->id) {
+                return response()->json(['error' => 'Un collaborateur ne peut pas être son propre manager'], 422);
+            }
+            // Walk up the chain to detect loops
+            $visited = [$collaborateur->id];
+            $current = (int) $validated['manager_id'];
+            while ($current) {
+                if (in_array($current, $visited)) {
+                    return response()->json(['error' => 'Boucle détectée dans la hiérarchie managériale'], 422);
+                }
+                $visited[] = $current;
+                $parent = \App\Models\Collaborateur::find($current);
+                $current = $parent?->manager_id ? (int) $parent->manager_id : 0;
+            }
+        }
+
         $previousProgression = $collaborateur->progression;
         $previousParcoursId = $collaborateur->parcours_id;
         $collaborateur->update($validated);
