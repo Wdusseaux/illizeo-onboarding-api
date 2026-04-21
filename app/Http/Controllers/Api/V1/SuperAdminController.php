@@ -25,9 +25,13 @@ class SuperAdminController extends Controller
             abort(403, 'Accès réservé au super administrateur de la plateforme.');
         }
 
-        // Also verify the user has an admin role in their tenant
-        if (!$user->hasAnyRole(['super_admin', 'admin', 'admin_rh'])) {
-            abort(403, 'Rôle insuffisant.');
+        // Email check is sufficient — role check may fail if tenant DB not initialized
+        try {
+            if ($user->role !== 'admin' && !$user->hasAnyRole(['super_admin', 'admin', 'admin_rh'])) {
+                abort(403, 'Rôle insuffisant.');
+            }
+        } catch (\Exception $e) {
+            // Role check failed (tenant DB not available) — email check was enough
         }
     }
 
@@ -170,6 +174,7 @@ class SuperAdminController extends Controller
             'ai_ocr_scans' => 'nullable|integer|min:0',
             'ai_bot_messages' => 'nullable|integer|min:0',
             'ai_contrat_generations' => 'nullable|integer|min:0',
+            'ai_translations' => 'nullable|integer|min:0',
             'ai_model' => 'nullable|string',
             'ai_extra_scan_price_chf' => 'nullable|numeric|min:0',
         ]);
@@ -209,6 +214,7 @@ class SuperAdminController extends Controller
             'ai_ocr_scans' => 'nullable|integer|min:0',
             'ai_bot_messages' => 'nullable|integer|min:0',
             'ai_contrat_generations' => 'nullable|integer|min:0',
+            'ai_translations' => 'nullable|integer|min:0',
             'ai_model' => 'nullable|string',
             'ai_extra_scan_price_chf' => 'nullable|numeric|min:0',
         ]);

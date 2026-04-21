@@ -31,6 +31,7 @@ class Plan extends Model
         'ai_ocr_scans',
         'ai_bot_messages',
         'ai_contrat_generations',
+        'ai_translations',
         'ai_model',
         'ai_extra_scan_price_chf',
         'ordre',
@@ -52,6 +53,7 @@ class Plan extends Model
         'ai_ocr_scans' => 'integer',
         'ai_bot_messages' => 'integer',
         'ai_contrat_generations' => 'integer',
+        'ai_translations' => 'integer',
         'ai_extra_scan_price_chf' => 'decimal:2',
         'ordre' => 'integer',
     ];
