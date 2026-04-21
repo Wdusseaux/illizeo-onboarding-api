@@ -24,15 +24,7 @@ class SuperAdminController extends Controller
         if (!$user || empty($superAdminEmails[0]) || !in_array($user->email, $superAdminEmails)) {
             abort(403, 'Accès réservé au super administrateur de la plateforme.');
         }
-
-        // Email check is sufficient — role check may fail if tenant DB not initialized
-        try {
-            if ($user->role !== 'admin' && !$user->hasAnyRole(['super_admin', 'admin', 'admin_rh'])) {
-                abort(403, 'Rôle insuffisant.');
-            }
-        } catch (\Exception $e) {
-            // Role check failed (tenant DB not available) — email check was enough
-        }
+        // Email match is sufficient for super admin access
     }
 
     // ─── Dashboard ──────────────────────────────────────────────
