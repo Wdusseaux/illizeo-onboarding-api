@@ -47,6 +47,7 @@ class AiUsage extends Model
         $chatAdmin = $allEntries->filter(fn($e) => ($e->metadata['context'] ?? '') === 'admin_chat')->count();
         $insights = $allEntries->filter(fn($e) => ($e->metadata['context'] ?? '') === 'insights')->count();
         $generateParcours = $allEntries->filter(fn($e) => ($e->metadata['context'] ?? '') === 'generate_parcours')->count();
+        $translations = $allEntries->filter(fn($e) => $e->type === 'translation')->count();
 
         return [
             'ocr_scans' => static::monthlyCount('ocr_scan', $year, $month),
@@ -56,6 +57,7 @@ class AiUsage extends Model
             'chat_admin' => $chatAdmin,
             'insights' => $insights,
             'generate_parcours' => $generateParcours,
+            'translation' => $translations,
             'total_cost_usd' => (float) $allEntries->sum('cost_usd'),
             'total_input_tokens' => (int) $allEntries->sum('input_tokens'),
             'total_output_tokens' => (int) $allEntries->sum('output_tokens'),
