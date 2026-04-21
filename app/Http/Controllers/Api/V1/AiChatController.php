@@ -851,8 +851,8 @@ PROMPT;
         $month = now()->month;
         $monthlySpend = (float) AiUsage::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)->sum('cost_usd');
-        $costChf = round($monthlySpend * 0.88, 2);
-        $billedChf = round($costChf * 2, 2);
+        $costChf = round($monthlySpend * 0.88, 4);
+        $billedChf = round($costChf * 2, 4);
 
         $planMonthly = $this->getAiPlanMonthlyChf();
         $defaultCap = $planMonthly ?: 29;

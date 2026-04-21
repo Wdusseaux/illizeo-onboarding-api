@@ -300,8 +300,8 @@ PROMPT;
 
         // Usage-based billing: show consumption in CHF (cost x2)
         $usdToChf = 0.88;
-        $costChf = round(($usage['total_cost_usd'] ?? 0) * $usdToChf, 2);
-        $billedChf = round($costChf * 2, 2);
+        $costChf = round(($usage['total_cost_usd'] ?? 0) * $usdToChf, 4);
+        $billedChf = round($costChf * 2, 4);
 
         return response()->json([
             'has_ai_plan' => true,
