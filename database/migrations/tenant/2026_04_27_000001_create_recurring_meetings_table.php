@@ -50,7 +50,7 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->index(['collaborateur_id', 'scheduled_at']);
-            $table->unique(['recurring_meeting_id', 'collaborateur_id', 'scheduled_at']);
+            $table->unique(['recurring_meeting_id', 'collaborateur_id', 'scheduled_at'], 'mi_rm_collab_at_unique');
         });
     }
 
