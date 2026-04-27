@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\CalendarController;
 use App\Http\Controllers\Api\V1\AiChatController;
 use App\Http\Controllers\Api\V1\StripeController;
 use App\Http\Controllers\Api\V1\MessageController;
+use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\CollaborateurActionController;
 use App\Http\Controllers\Api\V1\UserManagementController;
@@ -456,6 +457,9 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('user-notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::post('user-notifications/{userNotification}/read', [NotificationController::class, 'markRead']);
         Route::post('user-notifications/read-all', [NotificationController::class, 'markAllRead']);
+
+        // Employee actions
+        Route::post('employee/excited', [EmployeeController::class, 'markExcited']);
 
         // Messaging
         Route::get('messages/conversations', [MessageController::class, 'conversations']);
