@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\V1\AiChatController;
 use App\Http\Controllers\Api\V1\StripeController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\EmployeeController;
+use App\Http\Controllers\Api\V1\RecurringMeetingController;
+use App\Http\Controllers\Api\V1\QuoteController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\CollaborateurActionController;
 use App\Http\Controllers\Api\V1\UserManagementController;
@@ -460,6 +462,22 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // Employee actions
         Route::post('employee/excited', [EmployeeController::class, 'markExcited']);
+
+        // Recurring meetings (admin CRUD + employee instances)
+        Route::get('recurring-meetings', [RecurringMeetingController::class, 'index']);
+        Route::post('recurring-meetings', [RecurringMeetingController::class, 'store']);
+        Route::put('recurring-meetings/{recurringMeeting}', [RecurringMeetingController::class, 'update']);
+        Route::delete('recurring-meetings/{recurringMeeting}', [RecurringMeetingController::class, 'destroy']);
+        Route::get('recurring-meetings/instances/{collaborateur}', [RecurringMeetingController::class, 'instancesForCollaborateur']);
+        Route::post('recurring-meetings/sync', [RecurringMeetingController::class, 'syncInstance']);
+
+        // Quotes (admin referential + employee read)
+        Route::get('quotes', [QuoteController::class, 'index']);
+        Route::get('quotes/of-the-day', [QuoteController::class, 'ofTheDay']);
+        Route::post('quotes', [QuoteController::class, 'store']);
+        Route::put('quotes/{quote}', [QuoteController::class, 'update']);
+        Route::patch('quotes/{quote}/toggle', [QuoteController::class, 'toggle']);
+        Route::delete('quotes/{quote}', [QuoteController::class, 'destroy']);
 
         // Messaging
         Route::get('messages/conversations', [MessageController::class, 'conversations']);

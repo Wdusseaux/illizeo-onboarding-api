@@ -14,6 +14,9 @@ class TenantSeeder extends Seeder
         // Default business data (parcours, phases, actions, groups, etc.) for ALL tenants
         $this->call(DefaultDataSeeder::class);
 
+        // Quotes referential (50 system quotes available to all tenants)
+        $this->call(QuotesSeeder::class);
+
         // Full demo data (collaborateurs, NPS, cooptation, messages, etc.) only for 'illizeo'
         $tenantId = tenant('id');
         if ($tenantId === 'illizeo') {
