@@ -462,6 +462,8 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // Employee actions
         Route::post('employee/excited', [EmployeeController::class, 'markExcited']);
+        Route::get('me/journey', [EmployeeController::class, 'journey']);
+        Route::post('me/check-milestones', [EmployeeController::class, 'checkMilestones']);
 
         // Recurring meetings (admin CRUD + employee instances)
         Route::get('recurring-meetings', [RecurringMeetingController::class, 'index']);
