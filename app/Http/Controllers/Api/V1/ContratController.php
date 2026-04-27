@@ -102,7 +102,7 @@ class ContratController extends Controller
         $probEnd = $collab->date_fin_essai ? \Carbon\Carbon::parse($collab->date_fin_essai)->format('d/m/Y') : '';
         $contractEnd = $collab->date_fin_contrat ? \Carbon\Carbon::parse($collab->date_fin_contrat)->format('d/m/Y') : '';
 
-        return [
+        $base = [
             'first_name' => $collab->prenom ?? '',
             'last_name' => $collab->nom ?? '',
             'full_name' => trim(($collab->prenom ?? '') . ' ' . ($collab->nom ?? '')),
@@ -137,6 +137,22 @@ class ContratController extends Controller
             'probation_end_date' => $probEnd,
             'matricule' => $collab->matricule ?? '',
         ];
+
+        // Flatten custom_fields into the variable map (admin-defined fields)
+        // Each key in $collab->custom_fields becomes a usable {key} placeholder.
+        // Custom field values override base values only if the key collides AND base is empty.
+        $custom = [];
+        if (is_array($collab->custom_fields)) {
+            foreach ($collab->custom_fields as $key => $value) {
+                if (!is_string($key) || $key === '') continue;
+                if (is_array($value) || is_object($value)) {
+                    $value = json_encode($value, JSON_UNESCAPED_UNICODE);
+                }
+                $custom[$key] = is_null($value) ? '' : (string) $value;
+            }
+        }
+
+        return array_merge($custom, $base);
     }
 
     // ── Resolve collaborateur from request ──────────────

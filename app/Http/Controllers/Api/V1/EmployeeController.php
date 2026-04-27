@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Collaborateur;
+use App\Models\Integration;
 use App\Models\UserNotification;
+use App\Services\SlackService;
+use App\Services\TeamsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class EmployeeController extends Controller
 {
@@ -68,14 +72,65 @@ class EmployeeController extends Controller
             $created++;
         }
 
+        $channels = $this->broadcastToChannels($collab, $employeeName);
+
         Cache::put($cacheKey, now()->addDay()->toIso8601String(), now()->addDay());
+
+        $parts = [];
+        if ($created > 0) $parts[] = "{$created} personne" . ($created > 1 ? 's' : '');
+        foreach ($channels as $ch) $parts[] = $ch;
 
         return response()->json([
             'ok' => true,
             'recipients' => $created,
-            'message' => $created > 0
-                ? "Votre enthousiasme a été partagé à {$created} personne" . ($created > 1 ? 's' : '') . " !"
+            'channels' => $channels,
+            'message' => count($parts) > 0
+                ? 'Votre enthousiasme a été partagé à ' . implode(', ', $parts) . ' !'
                 : 'Votre enthousiasme a été enregistré',
         ]);
+    }
+
+    /**
+     * Push a notification to connected Teams + Slack integrations.
+     * Returns the list of channels that were successfully notified.
+     */
+    private function broadcastToChannels(?Collaborateur $collab, string $employeeName): array
+    {
+        $facts = [];
+        if ($collab?->poste) $facts['Poste'] = $collab->poste;
+        if ($collab?->departement) $facts['Département'] = $collab->departement;
+        if ($collab?->date_debut) $facts['Date d\'arrivée'] = \Carbon\Carbon::parse($collab->date_debut)->format('d/m/Y');
+        $title = "{$employeeName} a hâte de commencer !";
+        $message = "Un(e) futur(e) collaborateur(trice) vient de partager son enthousiasme avant son arrivée. Souhaitons-lui la bienvenue dès maintenant !";
+
+        $notified = [];
+
+        // Teams
+        try {
+            $teams = Integration::where('provider', 'teams')->where('connecte', true)->first();
+            if ($teams && !empty($teams->config['webhook_url'])) {
+                $service = TeamsService::fromIntegration($teams);
+                if ($service->sendWebhookCard("✨ {$title}", $message, '#E91E8C', $facts)) {
+                    $notified[] = 'Teams';
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Teams notify failed for employee_excited: ' . $e->getMessage());
+        }
+
+        // Slack
+        try {
+            $slack = Integration::where('provider', 'slack')->where('connecte', true)->first();
+            if ($slack && !empty($slack->config['webhook_url'])) {
+                $service = SlackService::fromIntegration($slack);
+                if ($service->sendBlocks($title, $message, $facts, null, null, ':sparkles:')) {
+                    $notified[] = 'Slack';
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Slack notify failed for employee_excited: ' . $e->getMessage());
+        }
+
+        return $notified;
     }
 }
