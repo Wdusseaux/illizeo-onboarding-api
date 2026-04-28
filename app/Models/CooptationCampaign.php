@@ -14,6 +14,7 @@ class CooptationCampaign extends Model
         'description_recompense', 'mois_requis', 'statut',
         'date_limite', 'nombre_postes', 'nombre_candidatures',
         'priorite', 'share_token',
+        'boost_active', 'boost_multiplier', 'boost_label', 'boost_until',
     ];
 
     protected function casts(): array
@@ -24,6 +25,9 @@ class CooptationCampaign extends Model
             'nombre_postes' => 'integer',
             'nombre_candidatures' => 'integer',
             'date_limite' => 'date',
+            'boost_active' => 'boolean',
+            'boost_multiplier' => 'decimal:2',
+            'boost_until' => 'date',
         ];
     }
 

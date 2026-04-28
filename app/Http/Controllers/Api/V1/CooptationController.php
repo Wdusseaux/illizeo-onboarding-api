@@ -326,6 +326,10 @@ class CooptationController extends Controller
             'date_limite' => 'nullable|date',
             'nombre_postes' => 'nullable|integer',
             'priorite' => 'nullable|in:basse,normale,haute,urgente',
+            'boost_active' => 'nullable|boolean',
+            'boost_multiplier' => 'nullable|numeric|min:1|max:10',
+            'boost_label' => 'nullable|string|max:120',
+            'boost_until' => 'nullable|date',
         ]);
 
         return response()->json(CooptationCampaign::create($data), 201);
@@ -347,6 +351,10 @@ class CooptationController extends Controller
             'date_limite' => 'nullable|date',
             'nombre_postes' => 'nullable|integer',
             'priorite' => 'nullable|in:basse,normale,haute,urgente',
+            'boost_active' => 'nullable|boolean',
+            'boost_multiplier' => 'nullable|numeric|min:1|max:10',
+            'boost_label' => 'nullable|string|max:120',
+            'boost_until' => 'nullable|date',
         ]));
 
         return response()->json($campaign);
