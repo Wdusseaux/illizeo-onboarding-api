@@ -11,12 +11,12 @@ class SignatureDocument extends Model
     use Auditable;
     protected $fillable = [
         'titre', 'description', 'type', 'fichier_path', 'fichier_nom',
-        'obligatoire', 'actif', 'translations',
+        'obligatoire', 'actif', 'translations', 'version',
     ];
 
     protected function casts(): array
     {
-        return ['obligatoire' => 'boolean', 'actif' => 'boolean', 'translations' => 'array'];
+        return ['obligatoire' => 'boolean', 'actif' => 'boolean', 'translations' => 'array', 'version' => 'integer'];
     }
 
     public function logs(): HasMany

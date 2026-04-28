@@ -1105,7 +1105,7 @@ PROMPT;
     public function translate(Request $request): JsonResponse
     {
         $request->validate([
-            'text' => 'required|string|max:5000',
+            'text' => 'required|string|max:30000',
             'source_lang' => 'required|string|max:5',
             'target_langs' => 'required|array|min:1|max:10',
             'target_langs.*' => 'string|max:5',
@@ -1148,16 +1148,25 @@ PROMPT;
         $targetList = implode(', ', array_map(fn($l) => ($langNames[$l] ?? $l) . " ({$l})", $langsToTranslate));
         $sourceName = $langNames[$sourceLang] ?? $sourceLang;
 
-        $prompt = "Translate the following text from {$sourceName} to: {$targetList}.\n\nText to translate:\n\"{$text}\"\n\nReturn ONLY a JSON object with language codes as keys and translations as values. Example: {\"en\": \"Hello\", \"de\": \"Hallo\"}\nNo explanation, no markdown, just the JSON object.";
+        $prompt = "Translate the following text from {$sourceName} to: {$targetList}.\n\n"
+            . "CRITICAL PRESERVATION RULES:\n"
+            . "- Keep ALL HTML tags exactly as they appear (<p>, <strong>, <a href=...>, <br>, etc.). Translate only the visible text inside them.\n"
+            . "- Keep ALL template variables in double curly braces UNCHANGED: {{prenom}}, {{nom}}, {{date_debut}}, {{badge_nom}}, etc. Never translate or alter them.\n"
+            . "- Keep emojis and special characters as-is.\n"
+            . "- Preserve line breaks and structure.\n\n"
+            . "Text to translate:\n<<<\n{$text}\n>>>\n\n"
+            . "Return ONLY a single valid JSON object with language codes as keys and the translated text as values. "
+            . "Example: {\"en\": \"<p>Hello {{prenom}}</p>\", \"de\": \"<p>Hallo {{prenom}}</p>\"}\n"
+            . "No explanation, no markdown fences, no text before or after — only the JSON object.";
 
         try {
             $response = Http::withHeaders([
                 'x-api-key' => env('ANTHROPIC_API_KEY'),
                 'anthropic-version' => '2023-06-01',
                 'content-type' => 'application/json',
-            ])->timeout(30)->post('https://api.anthropic.com/v1/messages', [
+            ])->timeout(60)->post('https://api.anthropic.com/v1/messages', [
                 'model' => 'claude-haiku-4-5-20251001',
-                'max_tokens' => 2000,
+                'max_tokens' => 8000,
                 'messages' => [['role' => 'user', 'content' => $prompt]],
             ]);
 
@@ -1175,12 +1184,19 @@ PROMPT;
                 'metadata' => json_encode(['langs' => $langsToTranslate, 'text_length' => strlen($text)]),
             ]);
 
-            // Parse JSON response
-            $jsonMatch = preg_match('/\{[^{}]*\}/s', $reply, $m);
-            if ($jsonMatch) {
-                $aiTranslations = json_decode($m[0], true) ?? [];
-            } else {
-                $aiTranslations = json_decode($reply, true) ?? [];
+            // Parse JSON response — try direct decode first, then fallback to
+            // extracting the outermost {...} block (greedy, so HTML/{{vars}}
+            // inside the JSON values do not break extraction).
+            $reply = trim($reply);
+            // Strip optional ```json fences
+            $reply = preg_replace('/^```(?:json)?\s*|\s*```$/m', '', $reply);
+            $aiTranslations = json_decode($reply, true);
+            if (!is_array($aiTranslations)) {
+                if (preg_match('/\{.*\}/s', $reply, $m)) {
+                    $aiTranslations = json_decode($m[0], true) ?? [];
+                } else {
+                    $aiTranslations = [];
+                }
             }
 
             // Cache and merge results

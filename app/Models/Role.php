@@ -21,6 +21,7 @@ class Role extends Model
         'scope_groups',
         'exclude_self',
         'exclusion_groups',
+        'members_exclusion_groups',
         'security_2fa',
         'temporary',
         'expires_at',
@@ -41,6 +42,7 @@ class Role extends Model
             'scope_groups' => 'array',
             'exclude_self' => 'boolean',
             'exclusion_groups' => 'array',
+            'members_exclusion_groups' => 'array',
             'expires_at' => 'datetime',
         ];
     }

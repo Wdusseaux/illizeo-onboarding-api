@@ -14,7 +14,8 @@ class Action extends Model
     protected $fillable = [
         'titre', 'action_type_id', 'phase_id', 'parcours_id',
         'delai_relatif', 'obligatoire', 'description', 'lien_externe',
-        'duree_estimee', 'pieces_requises', 'assignation_mode', 'assignation_valeurs',
+        'duree_estimee', 'xp', 'heure_default', 'accompagnant_role',
+        'pieces_requises', 'assignation_mode', 'assignation_valeurs',
         'options', 'translations',
     ];
 

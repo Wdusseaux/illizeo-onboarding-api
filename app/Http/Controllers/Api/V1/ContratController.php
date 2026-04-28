@@ -169,10 +169,10 @@ class ContratController extends Controller
         $collab = $this->resolveCollab($request);
         if (!$collab) return response()->json(['error' => 'Collaborateur not found'], 404);
 
-        if (!$contrat->fichier_path || !Storage::disk('local')->exists($contrat->fichier_path)) {
-            return response()->json(['error' => 'No template file'], 404);
-        }
-
+        // Variable map is always usable — even without a template the admin can
+        // preview which placeholders WOULD be replaced. We just flag whether the
+        // download buttons should work.
+        $templateMissing = !$contrat->fichier_path || !Storage::disk('local')->exists($contrat->fichier_path);
         $variables = $this->buildVariableMap($collab);
 
         return response()->json([
@@ -184,8 +184,9 @@ class ContratController extends Controller
                 'poste' => $collab->poste,
             ],
             'variables' => $variables,
-            'template_url' => "/api/v1/contrats/{$contrat->id}/template",
-            'download_url' => "/api/v1/contrats/{$contrat->id}/download?collaborateur_id={$collab->id}",
+            'template_missing' => $templateMissing,
+            'template_url' => $templateMissing ? null : "/api/v1/contrats/{$contrat->id}/template",
+            'download_url' => $templateMissing ? null : "/api/v1/contrats/{$contrat->id}/download?collaborateur_id={$collab->id}",
         ]);
     }
 

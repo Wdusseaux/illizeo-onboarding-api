@@ -307,7 +307,7 @@ class WorkflowEngine
                 break;
 
             case 'Envoyer pour approbation Admin RH':
-                $adminRhIds = User::role('admin_rh')->pluck('id');
+                $adminRhIds = User::whereHas('roles', fn ($q) => $q->where('name', 'admin_rh'))->pluck('id');
                 foreach ($adminRhIds as $uid) {
                     NotificationService::send($uid, 'workflow', 'Approbation requise', "{$collabFullName} : {$workflow->nom}", 'alert', '#F9A825');
                     self::sendEmail(
@@ -539,7 +539,7 @@ HTML;
 
             case 'Équipe RH':
             case 'Admin RH Suisse':
-                return User::role('admin_rh')->pluck('id')->toArray();
+                return User::whereHas('roles', fn ($q) => $q->where('name', 'admin_rh'))->pluck('id')->toArray();
 
             case 'Tous les participants':
                 $ids = DB::table('collaborateur_accompagnants')
@@ -559,7 +559,7 @@ HTML;
                 // Get manager's manager — simplified: get all admin_rh users as N+2 proxy
                 $managerId = $collaborateur->accompagnants()->where('role', 'manager')->value('user_id');
                 if ($managerId) {
-                    return User::role('admin_rh')->pluck('id')->toArray();
+                    return User::whereHas('roles', fn ($q) => $q->where('name', 'admin_rh'))->pluck('id')->toArray();
                 }
                 return [];
 

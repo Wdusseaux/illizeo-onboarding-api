@@ -95,7 +95,7 @@ class OnboardingTeamController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
-            'role' => 'required|in:manager,hrbp,buddy,it,recruteur,other',
+            'role' => 'required|in:manager,hrbp,buddy,it,recruteur,admin_rh,other',
         ]);
 
         CollaborateurAccompagnant::updateOrCreate(

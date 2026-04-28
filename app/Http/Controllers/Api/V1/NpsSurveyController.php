@@ -27,18 +27,25 @@ class NpsSurveyController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->normalizeLegacyTrigger($request);
         $validated = $request->validate([
             'titre' => 'required|string|max:255',
             'description' => 'nullable|string',
             'type' => 'nullable|string|in:nps,satisfaction,custom',
             'parcours_id' => 'nullable|exists:parcours,id',
-            'declencheur' => 'nullable|string|in:fin_parcours,fin_phase,manuel,date_specifique',
-            'date_envoi' => 'nullable|date',
+            'declencheur' => 'nullable|string|in:fin_parcours,fin_phase,manuel,date_specifique,delai_relatif',
+            'delai_jours' => 'nullable|integer|min:0|max:3650|required_if:declencheur,delai_relatif',
+            'phase_id' => 'nullable|integer|exists:phases,id|required_if:declencheur,fin_phase',
+            'date_envoi' => 'nullable|date|required_if:declencheur,date_specifique',
             'questions' => 'required|array|min:1',
             'questions.*.text' => 'required|string',
             'questions.*.type' => 'required|string|in:nps,rating,text,choice',
             'questions.*.options' => 'nullable|array',
             'actif' => 'nullable|boolean',
+        ], [
+            'delai_jours.required_if' => 'Un délai en jours est requis pour le déclencheur "délai relatif".',
+            'phase_id.required_if' => 'Une phase est requise pour le déclencheur "fin de phase".',
+            'date_envoi.required_if' => 'Une date d\'envoi est requise pour le déclencheur "date spécifique".',
         ]);
 
         $survey = NpsSurvey::create($validated);
@@ -55,18 +62,25 @@ class NpsSurveyController extends Controller
 
     public function update(Request $request, NpsSurvey $npsSurvey): JsonResponse
     {
+        $this->normalizeLegacyTrigger($request);
         $validated = $request->validate([
             'titre' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'type' => 'nullable|string|in:nps,satisfaction,custom',
             'parcours_id' => 'nullable|exists:parcours,id',
-            'declencheur' => 'nullable|string|in:fin_parcours,fin_phase,manuel,date_specifique',
-            'date_envoi' => 'nullable|date',
+            'declencheur' => 'nullable|string|in:fin_parcours,fin_phase,manuel,date_specifique,delai_relatif',
+            'delai_jours' => 'nullable|integer|min:0|max:3650|required_if:declencheur,delai_relatif',
+            'phase_id' => 'nullable|integer|exists:phases,id|required_if:declencheur,fin_phase',
+            'date_envoi' => 'nullable|date|required_if:declencheur,date_specifique',
             'questions' => 'sometimes|array|min:1',
             'questions.*.text' => 'required|string',
             'questions.*.type' => 'required|string|in:nps,rating,text,choice',
             'questions.*.options' => 'nullable|array',
             'actif' => 'nullable|boolean',
+        ], [
+            'delai_jours.required_if' => 'Un délai en jours est requis pour le déclencheur "délai relatif".',
+            'phase_id.required_if' => 'Une phase est requise pour le déclencheur "fin de phase".',
+            'date_envoi.required_if' => 'Une date d\'envoi est requise pour le déclencheur "date spécifique".',
         ]);
 
         $npsSurvey->update($validated);
@@ -258,11 +272,14 @@ class NpsSurveyController extends Controller
             ->with('survey')
             ->get();
 
-        // Also include active surveys without a response yet
+        // Also include active surveys without a response yet — but only those
+        // whose `declencheur` condition is currently satisfied for this collab.
+        // (Previously every active survey was auto-shown regardless of trigger.)
         $respondedSurveyIds = $responses->pluck('survey_id')->toArray();
         $unrepondedSurveys = NpsSurvey::where('actif', true)
             ->whereNotIn('id', $respondedSurveyIds)
-            ->get();
+            ->get()
+            ->filter(fn ($s) => $this->shouldShowSurvey($s, $collab));
 
         $result = [];
 
@@ -294,5 +311,73 @@ class NpsSurveyController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Translate the legacy frontend triggers `j_plus_7|30|60|90` into the new
+     * `delai_relatif` + `delai_jours` shape so existing UI keeps working while we
+     * migrate the admin form.
+     */
+    private function normalizeLegacyTrigger(Request $request): void
+    {
+        $declencheur = $request->input('declencheur');
+        if (is_string($declencheur) && preg_match('/^j_plus_(\d+)$/', $declencheur, $m)) {
+            $request->merge([
+                'declencheur' => 'delai_relatif',
+                'delai_jours' => (int) $m[1],
+            ]);
+        }
+    }
+
+    /**
+     * Decide whether a survey should currently be presented to a given collaborateur,
+     * based on its declencheur (trigger). Surveys gated to "manuel" or "fin_phase"
+     * are never auto-shown — they require an explicit admin action (manuel) or per-
+     * phase completion tracking (fin_phase, not yet implemented).
+     */
+    private function shouldShowSurvey(NpsSurvey $survey, Collaborateur $collab): bool
+    {
+        // Per-parcours scoping: if survey targets a specific parcours, the collab
+        // must be on that parcours.
+        if ($survey->parcours_id && (int) $survey->parcours_id !== (int) $collab->parcours_id) {
+            return false;
+        }
+
+        return match ($survey->declencheur) {
+            'manuel' => false,
+            'fin_parcours' => ($collab->status === 'termine') || ((int) ($collab->progression ?? 0) >= 100),
+            'fin_phase' => $this->phaseCompletedFor($survey, $collab),
+            'date_specifique' => $survey->date_envoi !== null && now()->greaterThanOrEqualTo($survey->date_envoi),
+            'delai_relatif' => $this->relativeDelayElapsed($survey, $collab),
+            default => true,
+        };
+    }
+
+    /**
+     * For declencheur=delai_relatif: true once `delai_jours` days have elapsed
+     * since the collab's date_debut. Returns false if either field is missing.
+     */
+    private function relativeDelayElapsed(NpsSurvey $survey, Collaborateur $collab): bool
+    {
+        if (!$collab->date_debut || $survey->delai_jours === null) return false;
+        $start = $collab->date_debut instanceof Carbon
+            ? $collab->date_debut
+            : Carbon::parse($collab->date_debut);
+        return now()->greaterThanOrEqualTo($start->copy()->addDays((int) $survey->delai_jours));
+    }
+
+    /**
+     * For declencheur=fin_phase: true once every Action of the targeted phase that
+     * is assigned to this collab has status='termine'. Returns false if phase_id
+     * is missing or the collab has no assigned actions in that phase yet.
+     */
+    private function phaseCompletedFor(NpsSurvey $survey, Collaborateur $collab): bool
+    {
+        if (!$survey->phase_id) return false;
+        $assigned = \App\Models\CollaborateurAction::where('collaborateur_id', $collab->id)
+            ->whereHas('action', fn ($q) => $q->where('phase_id', $survey->phase_id))
+            ->get();
+        if ($assigned->isEmpty()) return false;
+        return $assigned->every(fn ($a) => $a->status === 'termine');
     }
 }

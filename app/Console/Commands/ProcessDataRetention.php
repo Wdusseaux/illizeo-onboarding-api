@@ -229,7 +229,7 @@ HTML;
             $email = \App\Models\CompanySetting::where('key', 'billing_contact_email')->value('value');
             if (!$email) {
                 // Fallback: first admin user
-                $admin = \App\Models\User::role(['super_admin', 'admin'])->first();
+                $admin = \App\Models\User::whereHas('roles', fn ($q) => $q->whereIn('name', ['super_admin', 'admin']))->first();
                 $email = $admin?->email;
             }
             tenancy()->end();

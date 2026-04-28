@@ -25,6 +25,7 @@ use App\Events\PostArrivalMilestone;
 use App\Events\PreArrivalReminder;
 use App\Events\SignatureReminder;
 use App\Events\WeeklyDigest;
+use App\Listeners\AssignParcoursActions;
 use App\Listeners\WorkflowListener;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
@@ -50,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(function ($user) {
             return $user->hasRole('super_admin') ? true : null;
         });
+
+        // Auto-assign Spatie role `collaborateur` when a Collaborateur fiche is created
+        \App\Models\Collaborateur::observe(\App\Observers\CollaborateurObserver::class);
 
         // Workflow engine: listen to all onboarding events
         $workflowEvents = [
@@ -81,6 +85,9 @@ class AppServiceProvider extends ServiceProvider
         foreach ($workflowEvents as $event) {
             Event::listen($event, WorkflowListener::class);
         }
+
+        // Auto-create per-collaborateur action assignments when a parcours is assigned
+        Event::listen(ParcoursCreated::class, AssignParcoursActions::class);
 
         // Single recipient: redirect all emails in dev to one address
         $singleRecipient = env('MAIL_SINGLE_RECIPIENT');

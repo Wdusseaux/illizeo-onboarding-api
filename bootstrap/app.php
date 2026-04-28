@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [
             \App\Http\Middleware\CheckIpWhitelist::class,
             \App\Http\Middleware\CheckSecurityRestrictions::class,
+            \App\Http\Middleware\TrackUserPresence::class,
         ]);
         $middleware->alias([
             'ai.rate' => \App\Http\Middleware\AiRateLimiter::class,

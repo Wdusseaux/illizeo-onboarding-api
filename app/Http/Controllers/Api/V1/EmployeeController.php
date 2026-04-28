@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Badge;
 use App\Models\Collaborateur;
+use App\Models\CollaborateurAction;
 use App\Models\CompanyBlock;
 use App\Models\Integration;
+use App\Models\QuizCompletion;
 use App\Models\UserNotification;
 use App\Services\SlackService;
 use App\Services\TeamsService;
@@ -223,15 +225,23 @@ class EmployeeController extends Controller
             return response()->json(['error' => 'Non authentifié'], 401);
         }
 
+        // 24h cooldown enforced via cache. The Stancl tenancy CacheManager wraps
+        // every Cache call with `tags()`, which throws on non-tagging stores
+        // (file/database). Wrap in try/catch so the cooldown is best-effort and
+        // a misconfigured cache store can never break the user-facing action.
         $cacheKey = "employee_excited:{$user->id}";
-        if (Cache::has($cacheKey)) {
-            $remaining = Cache::get($cacheKey);
-            return response()->json([
-                'ok' => false,
-                'cooldown' => true,
-                'message' => 'Vous avez déjà partagé votre enthousiasme aujourd\'hui',
-                'until' => $remaining,
-            ], 429);
+        try {
+            if (Cache::has($cacheKey)) {
+                $remaining = Cache::get($cacheKey);
+                return response()->json([
+                    'ok' => false,
+                    'cooldown' => true,
+                    'message' => 'Vous avez déjà partagé votre enthousiasme aujourd\'hui',
+                    'until' => $remaining,
+                ], 429);
+            }
+        } catch (\Throwable) {
+            // Cache unavailable — proceed without cooldown enforcement.
         }
 
         $collab = Collaborateur::with(['manager:id,user_id,prenom,nom', 'hrManager:id,user_id,prenom,nom'])
@@ -252,7 +262,18 @@ class EmployeeController extends Controller
                 $recipientUserIds->push($collab->hrManager->user_id);
             }
         }
-        $recipientUserIds = $recipientUserIds->unique()->filter()->values();
+        // Fallback: when no manager / HR assigned, route the notification to tenant
+        // admins so the message isn't silently dropped (the toast was misleading
+        // employees into thinking someone had been notified).
+        if ($recipientUserIds->isEmpty()) {
+            // Use whereHas instead of Spatie's role() scope: the latter throws
+            // RoleDoesNotExist when a role isn't seeded on the tenant DB.
+            $adminIds = \App\Models\User::whereHas('roles', fn ($q) => $q->whereIn('name', ['super_admin', 'admin']))->pluck('id');
+            $recipientUserIds = $recipientUserIds->merge($adminIds);
+        }
+        $recipientUserIds = $recipientUserIds->unique()->filter()
+            ->reject(fn ($uid) => $uid === $user->id) // never notify the sender
+            ->values();
 
         $payload = [
             'type' => 'employee_excited',
@@ -275,7 +296,11 @@ class EmployeeController extends Controller
 
         $channels = $this->broadcastToChannels($collab, $employeeName);
 
-        Cache::put($cacheKey, now()->addDay()->toIso8601String(), now()->addDay());
+        try {
+            Cache::put($cacheKey, now()->addDay()->toIso8601String(), now()->addDay());
+        } catch (\Throwable) {
+            // Cache unavailable — cooldown not enforced. Notification still sent.
+        }
 
         $parts = [];
         if ($created > 0) $parts[] = "{$created} personne" . ($created > 1 ? 's' : '');
@@ -333,5 +358,142 @@ class EmployeeController extends Controller
         }
 
         return $notified;
+    }
+
+    /**
+     * POST /me/quiz/complete
+     * Persists a culture-quiz completion and the XP earned for the leaderboard.
+     * Idempotent per (user, block): subsequent submissions update the row in place
+     * (so the player can retry — only their best/most-recent score is kept).
+     */
+    public function submitQuiz(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['error' => 'Non authentifié'], 401);
+
+        $data = $request->validate([
+            'block_id' => 'nullable|integer',
+            'correct' => 'required|integer|min:0',
+            'total' => 'required|integer|min:1',
+            'xp_per_correct' => 'nullable|integer|min:0',
+            'answers' => 'nullable|array',
+        ]);
+
+        $collab = Collaborateur::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+
+        $xpPerCorrect = $data['xp_per_correct'] ?? 10;
+        $xpEarned = $data['correct'] * $xpPerCorrect;
+
+        $completion = QuizCompletion::updateOrCreate(
+            ['user_id' => $user->id, 'block_id' => $data['block_id'] ?? null],
+            [
+                'collaborateur_id' => $collab?->id,
+                'correct' => $data['correct'],
+                'total' => $data['total'],
+                'xp_earned' => $xpEarned,
+                'answers' => $data['answers'] ?? null,
+                'completed_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'ok' => true,
+            'xp_earned' => $xpEarned,
+            'completion' => $completion,
+        ]);
+    }
+
+    /**
+     * GET /me/leaderboard
+     * Returns the cohort (peers in the same parcours, status != "termine") with
+     * cumulative XP per person, sorted descending. The current user is flagged is_me.
+     *
+     * XP formula (deterministic from existing data — no separate XP wallet table):
+     *   - Each completed CollaborateurAction: +50 XP
+     *   - Each Badge earned: +100 XP
+     *   - Sum of QuizCompletion.xp_earned
+     */
+    public function leaderboard(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['error' => 'Non authentifié'], 401);
+
+        $me = Collaborateur::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+
+        if (!$me) {
+            return response()->json(['cohort' => [], 'my_rank' => null, 'my_xp' => 0]);
+        }
+
+        // Cohort = same parcours_id, not finished. Always include self even if no parcours_id.
+        $peers = Collaborateur::query()
+            ->when($me->parcours_id, fn ($q) => $q->where('parcours_id', $me->parcours_id))
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'termine');
+            })
+            ->get();
+
+        if (!$peers->contains('id', $me->id)) $peers->push($me);
+
+        $userIds = $peers->pluck('user_id')->filter()->unique()->values();
+        $collabIds = $peers->pluck('id');
+
+        // Pre-aggregate XP from completed actions per collaborateur, using each
+        // Action's configured `xp` value (defaults to 50 via the column default).
+        $actionXpByCollab = CollaborateurAction::whereIn('collaborateur_id', $collabIds)
+            ->where('status', 'termine')
+            ->join('actions', 'actions.id', '=', 'collaborateur_actions.action_id')
+            ->selectRaw('collaborateur_actions.collaborateur_id, SUM(actions.xp) as xp_sum')
+            ->groupBy('collaborateur_actions.collaborateur_id')
+            ->pluck('xp_sum', 'collaborateur_id');
+
+        // Pre-aggregate badge counts per user
+        $badgeCounts = Badge::whereIn('user_id', $userIds)
+            ->selectRaw('user_id, COUNT(*) as n')
+            ->groupBy('user_id')
+            ->pluck('n', 'user_id');
+
+        // Pre-aggregate quiz XP per user
+        $quizXp = QuizCompletion::whereIn('user_id', $userIds)
+            ->selectRaw('user_id, SUM(xp_earned) as xp')
+            ->groupBy('user_id')
+            ->pluck('xp', 'user_id');
+
+        $palette = ['#E91E8C', '#1A73E8', '#9C27B0', '#00897B', '#F9A825', '#1A1A2E'];
+
+        $rows = $peers->map(function ($c, $i) use ($actionXpByCollab, $badgeCounts, $quizXp, $me, $palette) {
+            $actionXp = (int) ($actionXpByCollab[$c->id] ?? 0);
+            $badgeXp = ((int) ($badgeCounts[$c->user_id] ?? 0)) * 100;
+            $qXp = (int) ($quizXp[$c->user_id] ?? 0);
+            $total = $actionXp + $badgeXp + $qXp;
+            $first = $c->prenom ? mb_substr($c->prenom, 0, 1) : '';
+            $last = $c->nom ? mb_substr($c->nom, 0, 1) : '';
+            return [
+                'id' => $c->id,
+                'name' => trim("{$c->prenom} " . ($c->nom ? mb_substr($c->nom, 0, 1) . '.' : '')),
+                'initials' => mb_strtoupper($first . $last),
+                'color' => $palette[$i % count($palette)],
+                'xp' => $total,
+                'xp_breakdown' => [
+                    'actions' => $actionXp,
+                    'badges' => $badgeXp,
+                    'quiz' => $qXp,
+                ],
+                'is_me' => $c->id === $me->id,
+            ];
+        })->sortByDesc('xp')->values();
+
+        $myRow = $rows->firstWhere('is_me', true);
+        $myRank = $rows->search(fn ($r) => $r['is_me']);
+
+        return response()->json([
+            'cohort' => $rows,
+            'my_rank' => $myRank !== false ? $myRank + 1 : null,
+            'my_xp' => $myRow['xp'] ?? 0,
+            'my_breakdown' => $myRow['xp_breakdown'] ?? null,
+        ]);
     }
 }

@@ -155,7 +155,13 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
                 $assignments = \App\Models\CollaborateurAction::where('collaborateur_id', $collab->id)
                     ->get()
                     ->keyBy('action_id');
-                $data['parcours_actions'] = $actions->map(function ($action) use ($assignments) {
+                // Map accompagnant role → user info so the dashboard can show
+                // "Avec Mehdi K. · Manager" on the focus action card.
+                $accompagnantsByRole = \App\Models\CollaborateurAccompagnant::where('collaborateur_id', $collab->id)
+                    ->with('user:id,name')
+                    ->get()
+                    ->keyBy('role');
+                $data['parcours_actions'] = $actions->map(function ($action) use ($assignments, $accompagnantsByRole) {
                     $a = $action->toArray();
                     $a['phase_nom'] = $action->phase?->nom;
                     $a['type'] = $action->actionType?->slug ?? 'tache';
@@ -163,15 +169,39 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
                     $a['assignment_id'] = $assignment?->id;
                     $a['assignment_status'] = $assignment?->status ?? 'a_faire';
                     $a['completed_at'] = $assignment?->completed_at;
+                    // Resolve responsible accompagnant (if action.accompagnant_role is set)
+                    if ($action->accompagnant_role && isset($accompagnantsByRole[$action->accompagnant_role])) {
+                        $acc = $accompagnantsByRole[$action->accompagnant_role];
+                        $a['accompagnant'] = [
+                            'role' => $action->accompagnant_role,
+                            'user_id' => $acc->user_id,
+                            'name' => $acc->user?->name,
+                        ];
+                    }
                     return $a;
                 });
             }
-            // Include team/accompagnants
-            $accompagnants = \App\Models\CollaborateurAccompagnant::where('collaborateur_id', $collab->id)
+            // Include team/accompagnants — enrich with email + phone so the
+            // employee can reach out directly without going through messaging.
+            $accompagnantsRaw = \App\Models\CollaborateurAccompagnant::where('collaborateur_id', $collab->id)
                 ->with('user')
-                ->get()
-                ->map(fn ($a) => ['user_id' => $a->user_id, 'name' => $a->user?->name, 'role' => $a->role]);
-            $data['accompagnants'] = $accompagnants;
+                ->get();
+            $accompUserIds = $accompagnantsRaw->pluck('user_id')->filter()->unique();
+            $accompCollabsByUserId = \App\Models\Collaborateur::whereIn('user_id', $accompUserIds)
+                ->get(['user_id', 'telephone', 'poste'])
+                ->keyBy('user_id');
+            $data['accompagnants'] = $accompagnantsRaw->map(function ($a) use ($accompCollabsByUserId) {
+                $accCollab = $accompCollabsByUserId->get($a->user_id);
+                return [
+                    'user_id' => $a->user_id,
+                    'name' => $a->user?->name,
+                    'role' => $a->role,
+                    'email' => $a->user?->email,
+                    'telephone' => $accCollab?->telephone,
+                    'poste' => $accCollab?->poste,
+                    'last_seen_at' => $a->user?->last_seen_at?->toIso8601String(),
+                ];
+            });
 
             return response()->json($data);
         });
@@ -266,7 +296,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('documents', [DocumentController::class, 'index'])->middleware('permission:documents,view');
         Route::get('documents/summary', [DocumentController::class, 'summary'])->middleware('permission:documents,view');
         Route::post('documents', [DocumentController::class, 'store'])->middleware('permission:documents,edit');
-        Route::post('documents/upload', [DocumentController::class, 'upload'])->middleware('permission:documents,edit');
+        Route::post('documents/upload', [DocumentController::class, 'upload']); // Auth gated in controller (self-upload OR documents:edit)
         Route::get('documents/{document}', [DocumentController::class, 'show'])->middleware('permission:documents,view');
         Route::get('documents/{document}/download', [DocumentController::class, 'download'])->middleware('permission:documents,view');
         Route::put('documents/{document}', [DocumentController::class, 'update'])->middleware('permission:documents,edit');
@@ -464,6 +494,23 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('employee/excited', [EmployeeController::class, 'markExcited']);
         Route::get('me/journey', [EmployeeController::class, 'journey']);
         Route::post('me/check-milestones', [EmployeeController::class, 'checkMilestones']);
+        Route::post('me/quiz/complete', [EmployeeController::class, 'submitQuiz']);
+        Route::get('me/leaderboard', [EmployeeController::class, 'leaderboard']);
+
+        // Feedback hub (employee → RH/admin channels)
+        Route::post('me/mood', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'storeMood']);
+        Route::get('me/mood', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'listMyMoods']);
+        Route::post('me/feedback/suggestion', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'storeSuggestion']);
+        Route::post('me/feedback/buddy-rating', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'storeBuddyRating']);
+        Route::get('me/feedback/buddy-rating', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'listMyBuddyRatings']);
+        Route::post('me/feedback/confidential', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'storeConfidentialAlert']);
+
+        // Admin views (admin/super_admin only — enforced inside the controller)
+        Route::get('admin/feedback/moods', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListMoods']);
+        Route::get('admin/feedback/suggestions', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListSuggestions']);
+        Route::patch('admin/feedback/suggestions/{id}', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminUpdateSuggestion']);
+        Route::get('admin/feedback/buddy-ratings', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListBuddyRatings']);
+        Route::get('admin/feedback/excited', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListExcited']);
 
         // Recurring meetings (admin CRUD + employee instances)
         Route::get('recurring-meetings', [RecurringMeetingController::class, 'index']);
@@ -568,7 +615,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // ── Badges & Gamification ───────────────────────────
         Route::get('badges', [BadgeController::class, 'earned'])->middleware('permission:gamification,view');
-        Route::get('badges/my', [BadgeController::class, 'myBadges'])->middleware('permission:gamification,view');
+        Route::get('badges/my', [BadgeController::class, 'myBadges']); // Self-endpoint, no permission gate
         Route::get('badges/user/{userId}', [BadgeController::class, 'userBadges'])->middleware('permission:gamification,view');
         Route::get('badge-templates', [BadgeController::class, 'templates'])->middleware('permission:gamification,view');
         Route::post('badge-templates', [BadgeController::class, 'storeTemplate'])->middleware('permission:gamification,edit');
@@ -616,12 +663,15 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::put('signature-documents/{signatureDocument}', [SignatureDocumentController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
         Route::delete('signature-documents/{signatureDocument}', [SignatureDocumentController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('signature-documents/{signatureDocument}/upload', [SignatureDocumentController::class, 'uploadFile'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('signature-documents/{signatureDocument}/file', [SignatureDocumentController::class, 'viewFile']); // self-view if has acknowledgement, else admin only
         Route::post('signature-documents/{signatureDocument}/send', [SignatureDocumentController::class, 'sendTo'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('signature-documents/{signatureDocument}/send-all', [SignatureDocumentController::class, 'sendToAll'])->middleware('role:super_admin|admin|admin_rh');
         Route::get('signature-documents/{signatureDocument}/acknowledgements', [SignatureDocumentController::class, 'acknowledgements']);
         Route::post('acknowledgements/{acknowledgement}/sign', [SignatureDocumentController::class, 'acknowledge']);
         Route::post('acknowledgements/{acknowledgement}/refuse', [SignatureDocumentController::class, 'refuse']);
         Route::get('my-pending-signatures', [SignatureDocumentController::class, 'myPending']);
+        Route::get('me/signature-documents', [SignatureDocumentController::class, 'myAll']);
+        Route::get('me/signature-history', [SignatureDocumentController::class, 'myHistory']);
         Route::get('signature-documents/{signatureDocument}/my-acknowledgement', [SignatureDocumentController::class, 'myAcknowledgement']);
 
         // ── Dossier Validation & SIRH Export ───────────────

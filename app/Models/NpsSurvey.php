@@ -10,7 +10,7 @@ class NpsSurvey extends Model
 {
     protected $fillable = [
         'titre', 'description', 'type', 'parcours_id',
-        'declencheur', 'date_envoi', 'questions', 'actif', 'translations',
+        'declencheur', 'delai_jours', 'phase_id', 'date_envoi', 'questions', 'actif', 'translations',
     ];
 
     protected function casts(): array

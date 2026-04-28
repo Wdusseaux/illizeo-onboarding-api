@@ -119,6 +119,40 @@ class DocumentController extends Controller
         $file = $request->file('file');
         $collabId = $request->collaborateur_id;
 
+        // Authorization: an employee can upload for their own collaborateur record;
+        // anyone else needs documents:edit permission (admin / RH).
+        $user = $request->user();
+        $myCollab = \App\Models\Collaborateur::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+        $isSelfUpload = $myCollab && (int) $myCollab->id === (int) $collabId;
+        if (!$isSelfUpload && !$user->hasModulePermission('documents', 'edit')) {
+            abort(403, 'Insufficient permission to upload for this collaborateur.');
+        }
+
+        // Resolve a categorie_id (NOT NULL column). Order:
+        //   1. explicit categorie_id from the payload
+        //   2. lookup by title string (request->categorie)
+        //   3. find-or-create a generic "Onboarding" bucket so self-uploads always succeed
+        $categorieId = $request->categorie_id;
+        if (!$categorieId && $request->categorie) {
+            $cat = DocumentCategorie::where('titre', $request->categorie)->first();
+            if (!$cat) {
+                $cat = DocumentCategorie::create([
+                    'slug' => \Illuminate\Support\Str::slug($request->categorie) ?: 'onboarding',
+                    'titre' => $request->categorie,
+                ]);
+            }
+            $categorieId = $cat->id;
+        }
+        if (!$categorieId) {
+            $cat = DocumentCategorie::firstOrCreate(
+                ['slug' => 'onboarding'],
+                ['titre' => 'Onboarding']
+            );
+            $categorieId = $cat->id;
+        }
+
         // Store in tenant-specific directory
         $path = $file->store("documents/{$collabId}", 'local');
 
@@ -142,7 +176,7 @@ class DocumentController extends Controller
             $document = Document::create([
                 'collaborateur_id' => $collabId,
                 'user_id' => auth()->id(),
-                'categorie_id' => $request->categorie_id,
+                'categorie_id' => $categorieId,
                 'nom' => $request->nom,
                 'fichier_original' => $file->getClientOriginalName(),
                 'fichier_path' => $path,

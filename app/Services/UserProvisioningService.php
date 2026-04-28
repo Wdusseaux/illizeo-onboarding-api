@@ -56,7 +56,7 @@ class UserProvisioningService
             // De-provisioning: find users with this role who are NOT in the AD group
             if ($mapping->auto_deprovision) {
                 $adEmails = collect($members)->map(fn ($u) => $u['mail'] ?? $u['userPrincipalName'])->filter()->all();
-                $usersToDisable = User::role($mapping->illizeo_role)
+                $usersToDisable = User::whereHas('roles', fn ($q) => $q->where('name', $mapping->illizeo_role))
                     ->whereNotIn('email', $adEmails)
                     ->get();
 
