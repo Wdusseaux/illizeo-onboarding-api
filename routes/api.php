@@ -129,6 +129,10 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
     Route::get('nps/respond/{token}', [NpsSurveyController::class, 'getByToken']);
     Route::post('nps/respond/{token}', [NpsSurveyController::class, 'respond']);
 
+    // Public cooptation campaign (no auth — anyone with the share link can view + submit)
+    Route::get('cooptation/public/{shareToken}', [CooptationController::class, 'publicCampaign']);
+    Route::post('cooptation/public/{shareToken}', [CooptationController::class, 'publicSubmit']);
+
     // Protected (auth required)
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -252,6 +256,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::patch('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs,edit');
         Route::delete('collaborateurs/{collaborateur}', [CollaborateurController::class, 'destroy'])->middleware('permission:collaborateurs,edit');
         Route::post('collaborateurs/purge-demo', [CollaborateurController::class, 'purgeDemo'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('collaborateurs/{collaborateur}/relancer', [CollaborateurController::class, 'relancer'])->middleware('permission:collaborateurs,edit');
 
         // ── Parcours ────────────────────────────────────────
         Route::get('parcours', [ParcoursController::class, 'index'])->middleware('permission:parcours,view');
@@ -613,6 +618,10 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::delete('cooptation-campaigns/{campaign}', [CooptationController::class, 'deleteCampaign'])->middleware('permission:cooptation,edit');
         Route::get('cooptation-leaderboard', [CooptationController::class, 'leaderboard']);
 
+        // AI priority scoring (admin-only — uses Claude)
+        Route::post('cooptations/{cooptation}/score', [CooptationController::class, 'scoreOne'])->middleware('permission:cooptation,edit');
+        Route::post('cooptations/score-all', [CooptationController::class, 'scoreAllInProgress'])->middleware('permission:cooptation,edit');
+
         // ── Badges & Gamification ───────────────────────────
         Route::get('badges', [BadgeController::class, 'earned'])->middleware('permission:gamification,view');
         Route::get('badges/my', [BadgeController::class, 'myBadges']); // Self-endpoint, no permission gate
@@ -730,16 +739,18 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::post('ai/admin-chat', [AiChatController::class, 'adminChat']);
             Route::post('ai/generate-parcours', [AiChatController::class, 'generateParcours']);
             Route::get('ai/insights', [AiChatController::class, 'getInsights']);
+            Route::post('ai/translate', [AiChatController::class, 'translate']);
         });
 
         // ── Calendar ─────────────────────────────────────────────
         Route::get('calendar-events', [CalendarController::class, 'index']);
+        // Settings/admin endpoints — must NOT go through ai.rate so admins can always
+        // manage their cap / buy credits even when AI calls are blocked.
         Route::get('ai/auto-recharge', [AiChatController::class, 'getAutoRechargeConfig']);
         Route::post('ai/auto-recharge', [AiChatController::class, 'updateAutoRechargeConfig']);
         Route::get('ai/spending-cap', [AiChatController::class, 'getSpendingCap']);
         Route::post('ai/spending-cap', [AiChatController::class, 'updateSpendingCap']);
         Route::post('ai/recharge', [AiChatController::class, 'manualRecharge']);
-        Route::post('ai/translate', [AiChatController::class, 'translate']);
         Route::get('ai/recharges', [AiChatController::class, 'getRechargeHistory']);
 
         // ── Stripe / Payments ─────────────────────────────────

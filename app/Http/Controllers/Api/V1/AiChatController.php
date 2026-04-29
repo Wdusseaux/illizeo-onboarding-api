@@ -26,13 +26,7 @@ class AiChatController extends Controller
             'history.*.content' => 'required|string|max:4000',
         ]);
 
-        // Check AI plan (usage-based, no quota)
-        if (!$this->hasActiveAiPlan()) {
-            return response()->json([
-                'reply' => "L'assistant IA n'est pas disponible. Contactez votre administrateur pour activer le module IA.",
-                'no_plan' => true,
-            ]);
-        }
+        if ($r = \App\Services\AiUsageGuard::blockIfExceeded('bot_message')) return $r;
 
         $apiKey = config('services.anthropic.api_key');
         if (!$apiKey) {
@@ -131,9 +125,7 @@ class AiChatController extends Controller
             'history.*.content' => 'required|string|max:4000',
         ]);
 
-        if (!$this->hasActiveAiPlan()) {
-            return response()->json(['reply' => "Module IA non activé. Souscrivez un add-on IA."]);
-        }
+        if ($r = \App\Services\AiUsageGuard::blockIfExceeded('bot_message')) return $r;
 
         $apiKey = config('services.anthropic.api_key');
         if (!$apiKey) {
@@ -146,6 +138,8 @@ class AiChatController extends Controller
         foreach ($request->input('history', []) as $msg) {
             $messages[] = ['role' => $msg['role'], 'content' => $msg['content']];
         }
+        // Append the current user message — without this, Anthropic rejects with 400 "at least one message is required"
+        $messages[] = ['role' => 'user', 'content' => $request->input('message')];
 
         $model = 'claude-haiku-4-5-20251001';
 
@@ -163,7 +157,8 @@ class AiChatController extends Controller
 
             if (!$response->successful()) {
                 Log::error('Claude Admin Chat API error', ['status' => $response->status(), 'body' => $response->body()]);
-                return response()->json(['reply' => "Erreur API IA."], 502);
+                $upstream = $response->json('error.message') ?: $response->json('message') ?: ('HTTP '.$response->status());
+                return response()->json(['reply' => "Erreur côté assistant IA : ".$upstream], 502);
             }
 
             $result = $response->json();
@@ -202,6 +197,11 @@ class AiChatController extends Controller
 
         if ($this->isStarterPlan()) {
             return response()->json(['insights' => [], 'reason' => 'plan_upgrade_required', 'message' => 'Les insights IA sont disponibles à partir du plan IA Business.']);
+        }
+
+        $quota = \App\Services\AiUsageGuard::status('insights');
+        if ($quota['exceeded']) {
+            return response()->json(['insights' => [], 'reason' => 'quota_exceeded', 'quota_status' => $quota]);
         }
 
         $apiKey = config('services.anthropic.api_key');
@@ -368,6 +368,8 @@ PROMPT;
         if ($this->isStarterPlan()) {
             return response()->json(['error' => 'La génération de parcours IA est disponible à partir du plan IA Business.'], 403);
         }
+
+        if ($r = \App\Services\AiUsageGuard::blockIfExceeded('generate_parcours')) return $r;
 
         $apiKey = config('services.anthropic.api_key');
         if (!$apiKey) {
@@ -1135,6 +1137,8 @@ PROMPT;
         if (empty($langsToTranslate)) {
             return response()->json(['translations' => $results, 'from_cache' => true]);
         }
+
+        if ($r = \App\Services\AiUsageGuard::blockIfExceeded('translation')) return $r;
 
         // Call AI for remaining languages
         $langNames = [

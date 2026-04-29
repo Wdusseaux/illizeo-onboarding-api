@@ -133,12 +133,20 @@ class CollaborateurActionController extends Controller
         $collaborateurAction->update($data);
 
         if ($request->status === 'termine') {
-            $collaborateurAction->load(['collaborateur', 'action']);
+            $collaborateurAction->load(['collaborateur', 'action.actionType']);
             if ($collaborateurAction->collaborateur && $collaborateurAction->action) {
                 ActionCompleted::dispatch(
                     $collaborateurAction->collaborateur_id,
                     $collaborateurAction->action->titre
                 );
+                $typeName = strtolower($collaborateurAction->action->actionType?->nom ?? '');
+                if ($typeName === 'formation' && $collaborateurAction->collaborateur->user_id) {
+                    \App\Services\BadgeAutoAwardService::checkAndAward(
+                        $collaborateurAction->collaborateur->user_id,
+                        'formation_complete',
+                        $collaborateurAction->collaborateur_id
+                    );
+                }
             }
         }
 
@@ -219,7 +227,7 @@ class CollaborateurActionController extends Controller
             'response_data' => $request->input('response_data'),
         ]);
 
-        $collaborateurAction->load('action.actionType');
+        $collaborateurAction->load('action.actionType', 'collaborateur');
         if ($collaborateurAction->action) {
             ActionCompleted::dispatch(
                 $collaborateurAction->collaborateur_id,
@@ -232,6 +240,13 @@ class CollaborateurActionController extends Controller
                 FormulaireSubmitted::dispatch(
                     $collaborateurAction->collaborateur_id,
                     $collaborateurAction->action->titre
+                );
+            }
+            if (strtolower($typeName) === 'formation' && $collaborateurAction->collaborateur?->user_id) {
+                \App\Services\BadgeAutoAwardService::checkAndAward(
+                    $collaborateurAction->collaborateur->user_id,
+                    'formation_complete',
+                    $collaborateurAction->collaborateur_id
                 );
             }
 

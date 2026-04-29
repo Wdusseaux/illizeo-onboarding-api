@@ -6,10 +6,13 @@ use App\Events\NewCollaborateur;
 use App\Events\ParcoursCompleted;
 use App\Events\ParcoursCreated;
 use App\Http\Controllers\Controller;
+use App\Mail\NotificationMail;
 use App\Models\Collaborateur;
 use App\Models\Parcours;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class CollaborateurController extends Controller
 {
@@ -118,6 +121,9 @@ class CollaborateurController extends Controller
         if (isset($validated['progression']) && (int) $validated['progression'] === 100 && (int) $previousProgression !== 100) {
             $parcoursName = $collaborateur->parcours?->nom ?? 'Parcours';
             ParcoursCompleted::dispatch($collaborateur->id, $parcoursName);
+            if ($collaborateur->user_id) {
+                \App\Services\BadgeAutoAwardService::checkAndAward($collaborateur->user_id, 'parcours_termine', $collaborateur->id);
+            }
         }
 
         // Fire ParcoursCreated when parcours_id is newly assigned
@@ -171,5 +177,40 @@ class CollaborateurController extends Controller
         \App\Models\CompanySetting::updateOrCreate(['key' => 'demo_mode'], ['value' => 'false']);
 
         return response()->json(['deleted_collaborateurs' => $deleted, 'demo_mode' => false]);
+    }
+
+    /**
+     * Send a manual reminder email to a collaborateur (relance RH).
+     */
+    public function relancer(Request $request, Collaborateur $collaborateur): JsonResponse
+    {
+        $data = $request->validate([
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+        ]);
+
+        if (empty($collaborateur->email)) {
+            return response()->json(['success' => false, 'message' => "Le collaborateur n'a pas d'adresse email."], 422);
+        }
+
+        $recipientName = trim(($collaborateur->prenom ?? '').' '.($collaborateur->nom ?? '')) ?: 'Collaborateur';
+        $bodyHtml = nl2br(e($data['body']));
+
+        try {
+            Mail::to($collaborateur->email)->send(new NotificationMail(
+                recipientName: $recipientName,
+                emailSubject: $data['subject'],
+                heading: $data['subject'],
+                body: $bodyHtml,
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Relance email failed', ['collab_id' => $collaborateur->id, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => "Échec de l'envoi : ".$e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Relance envoyée à {$recipientName}.",
+        ]);
     }
 }

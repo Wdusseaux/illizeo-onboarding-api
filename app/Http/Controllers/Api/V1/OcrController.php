@@ -22,7 +22,10 @@ class OcrController extends Controller
             'image' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ]);
 
-        // Check AI quota
+        // Check AI quota — first the unified guard (covers spending cap + monthly quota),
+        // then the legacy OCR-specific check below for backward-compatible messaging.
+        if ($r = \App\Services\AiUsageGuard::blockIfExceeded('ocr_scan')) return $r;
+
         $aiQuota = $this->getAiQuota();
         if (!$aiQuota) {
             return response()->json(['error' => 'Aucun plan IA actif. Souscrivez un add-on IA pour utiliser cette fonctionnalité.', 'quota_exceeded' => true, 'no_plan' => true], 403);

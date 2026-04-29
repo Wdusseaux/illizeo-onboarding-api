@@ -446,6 +446,27 @@ class IllizeoSeeder extends Seeder
             EmailTemplate::create($et);
         }
 
+        // ── 11.bis Badge Templates (catalogue) ──────────────────
+        // Each `critere` matches a trigger string passed to BadgeAutoAwardService::checkAndAward()
+        $badgeTemplatesData = [
+            ['nom' => 'Explorateur', 'description' => "Premier message envoyé — bienvenue dans l'aventure !", 'icon' => 'rocket', 'color' => '#9C27B0', 'critere' => 'premier_message', 'actif' => true],
+            ['nom' => 'Première semaine', 'description' => "7 jours dans l'équipe — vous avez survécu à la première semaine !", 'icon' => 'calendar-check', 'color' => '#26A69A', 'critere' => 'j_plus_7', 'actif' => true],
+            ['nom' => 'Intégré', 'description' => 'Dossier administratif complet — tous les documents validés.', 'icon' => 'check-circle', 'color' => '#4CAF50', 'critere' => 'docs_complete', 'actif' => true],
+            ['nom' => 'Apprenant', 'description' => "Première formation terminée — la connaissance c'est le pouvoir.", 'icon' => 'book-open', 'color' => '#7B5EA7', 'critere' => 'formation_complete', 'actif' => true],
+            ['nom' => 'Voix entendue', 'description' => "Premier feedback NPS partagé — merci pour votre avis !", 'icon' => 'message-circle', 'color' => '#1A73E8', 'critere' => 'nps_complete', 'actif' => true],
+            ['nom' => 'Mentor', 'description' => 'A coopté un nouveau talent — merci pour votre engagement.', 'icon' => 'users', 'color' => '#FF9800', 'critere' => 'cooptation', 'actif' => true],
+            ['nom' => 'Ambassadeur', 'description' => '3 cooptations validées — vous êtes un véritable ambassadeur Illizeo.', 'icon' => 'award', 'color' => '#D81B60', 'critere' => 'cooptation_3', 'actif' => true],
+            ['nom' => 'Cap des 100j', 'description' => "100 jours dans l'aventure — un vrai pilier de l'équipe.", 'icon' => 'target', 'color' => '#EF6C00', 'critere' => 'j_plus_100', 'actif' => true],
+            ['nom' => 'Champion', 'description' => "Parcours d'intégration terminé à 100% — bravo !", 'icon' => 'trophy', 'color' => '#F9A825', 'critere' => 'parcours_termine', 'actif' => true],
+        ];
+
+        foreach ($badgeTemplatesData as $bt) {
+            \Illuminate\Support\Facades\DB::table('badge_templates')->insert(array_merge($bt, [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        }
+
         // ── 12. Notifications Config ────────────────────────────
         $notifications = [
             'Anniversaire', 'Changement de rôle avant la date de début du parcours',

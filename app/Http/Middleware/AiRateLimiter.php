@@ -119,11 +119,12 @@ class AiRateLimiter
                     'cap_chf' => $spendingCap,
                 ]);
                 return response()->json([
-                    'reply' => "Plafond de dépense IA atteint ce mois (" . round($billedChf, 2) . " CHF / {$spendingCap} CHF). Contactez votre administrateur pour augmenter le plafond.",
+                    'reply' => "Plafond de dépense IA atteint ce mois (" . round($billedChf, 2) . " CHF / {$spendingCap} CHF). Contactez votre administrateur pour augmenter le plafond ou achetez des crédits supplémentaires.",
                     'error' => 'spending_cap',
                     'billed_chf' => round($billedChf, 2),
                     'cap_chf' => $spendingCap,
-                ]);
+                    'percent_used' => round($percentUsed, 1),
+                ], 402);
             }
         }
 

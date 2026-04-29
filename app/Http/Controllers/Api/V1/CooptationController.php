@@ -40,6 +40,7 @@ class CooptationController extends Controller
             'candidate_email' => 'required|email|max:255',
             'candidate_poste' => 'nullable|string|max:255',
             'collaborateur_id' => 'nullable|exists:collaborateurs,id',
+            'campaign_id' => 'nullable|exists:cooptation_campaigns,id',
             'date_cooptation' => 'required|date',
             'date_embauche' => 'nullable|date',
             'mois_requis' => 'nullable|integer|min:1',
@@ -81,6 +82,7 @@ class CooptationController extends Controller
             'candidate_email' => 'sometimes|email|max:255',
             'candidate_poste' => 'nullable|string|max:255',
             'collaborateur_id' => 'nullable|exists:collaborateurs,id',
+            'campaign_id' => 'nullable|exists:cooptation_campaigns,id',
             'date_cooptation' => 'sometimes|date',
             'date_embauche' => 'nullable|date',
             'mois_requis' => 'nullable|integer|min:1',
@@ -89,6 +91,8 @@ class CooptationController extends Controller
             'montant_recompense' => 'nullable|numeric|min:0',
             'description_recompense' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'linkedin_url' => 'nullable|string|url|max:255',
+            'telephone' => 'nullable|string|max:30',
         ]);
 
         $cooptation->update($validated);
@@ -170,6 +174,13 @@ class CooptationController extends Controller
                 "Votre cooptation de {$cooptation->candidate_name} est validée. Votre récompense sera versée.",
                 'check-circle', '#4CAF50');
             \App\Services\BadgeAutoAwardService::checkAndAward($cooptation->referrer_user_id, 'cooptation');
+            // Ambassadeur: 3+ cooptations validées
+            $validatedCount = \App\Models\Cooptation::where('referrer_user_id', $cooptation->referrer_user_id)
+                ->where('statut', 'valide')
+                ->count();
+            if ($validatedCount >= 3) {
+                \App\Services\BadgeAutoAwardService::checkAndAward($cooptation->referrer_user_id, 'cooptation_3');
+            }
         }
 
         return response()->json($cooptation->load(['referrerUser', 'collaborateur']));
@@ -222,9 +233,13 @@ class CooptationController extends Controller
         $cooptations = Cooptation::all();
         $total = $cooptations->count();
 
-        // Advanced stats
+        // Advanced stats — DATEDIFF works on MySQL (prod), JULIANDAY is SQLite-only.
+        $driver = \DB::connection()->getDriverName();
+        $expr = $driver === 'sqlite'
+            ? 'AVG(JULIANDAY(date_embauche) - JULIANDAY(date_cooptation))'
+            : 'AVG(DATEDIFF(date_embauche, date_cooptation))';
         $avgDaysToHire = Cooptation::whereNotNull('date_embauche')
-            ->selectRaw('AVG(JULIANDAY(date_embauche) - JULIANDAY(date_cooptation)) as avg_days')
+            ->selectRaw("{$expr} as avg_days")
             ->value('avg_days');
 
         $conversionRate = $total > 0
@@ -311,6 +326,73 @@ class CooptationController extends Controller
         );
     }
 
+    // Public endpoint — no auth, used by the share landing page.
+    // Returns only the safe-to-share fields (no internal counters, no recompense audit).
+    public function publicCampaign(string $shareToken): JsonResponse
+    {
+        $campaign = CooptationCampaign::where('share_token', $shareToken)
+            ->where('statut', 'active')
+            ->first();
+        if (!$campaign) return response()->json(['message' => 'Cooptation introuvable ou clôturée.'], 404);
+        $tenantName = \App\Models\CompanySetting::where('key', 'company_name')->value('value');
+        return response()->json([
+            'titre' => $campaign->titre,
+            'description' => $campaign->description,
+            'departement' => $campaign->departement,
+            'site' => $campaign->site,
+            'type_contrat' => $campaign->type_contrat,
+            'type_recompense' => $campaign->type_recompense,
+            'montant_recompense' => $campaign->montant_recompense,
+            'description_recompense' => $campaign->description_recompense,
+            'boost_active' => (bool) $campaign->boost_active,
+            'boost_multiplier' => (float) $campaign->boost_multiplier,
+            'boost_label' => $campaign->boost_label,
+            'boost_until' => $campaign->boost_until,
+            'tenant_name' => $tenantName,
+        ]);
+    }
+
+    // Public submission — anyone with the share link can submit a candidate.
+    // The cooptation is created with referrer_email = the candidate's email
+    // when the submitter is the candidate themselves, or a custom one if a
+    // referrer is identified. We default to candidate as referrer for self-applications.
+    public function publicSubmit(Request $request, string $shareToken): JsonResponse
+    {
+        $campaign = CooptationCampaign::where('share_token', $shareToken)
+            ->where('statut', 'active')
+            ->first();
+        if (!$campaign) return response()->json(['message' => 'Cooptation introuvable ou clôturée.'], 404);
+
+        $data = $request->validate([
+            'candidate_name' => 'required|string|max:255',
+            'candidate_email' => 'required|email|max:255',
+            'candidate_phone' => 'nullable|string|max:50',
+            'candidate_linkedin' => 'nullable|string|max:500',
+            'message' => 'nullable|string|max:5000',
+            'referrer_name' => 'nullable|string|max:255',
+            'referrer_email' => 'nullable|email|max:255',
+        ]);
+
+        $cooptation = Cooptation::create([
+            'campaign_id' => $campaign->id,
+            'candidate_name' => $data['candidate_name'],
+            'candidate_email' => $data['candidate_email'],
+            'candidate_poste' => $campaign->titre,
+            'telephone' => $data['candidate_phone'] ?? null,
+            'linkedin_url' => $data['candidate_linkedin'] ?? null,
+            'notes' => $data['message'] ?? null,
+            'referrer_name' => $data['referrer_name'] ?? $data['candidate_name'],
+            'referrer_email' => $data['referrer_email'] ?? $data['candidate_email'],
+            'date_cooptation' => now()->toDateString(),
+            'type_recompense' => $campaign->type_recompense,
+            'montant_recompense' => $campaign->montant_recompense,
+            'mois_requis' => $campaign->mois_requis,
+            'statut' => 'en_attente',
+        ]);
+
+        return response()->json(['message' => 'Candidature reçue', 'id' => $cooptation->id], 201);
+    }
+
     public function createCampaign(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -365,6 +447,37 @@ class CooptationController extends Controller
         $campaign->delete();
 
         return response()->json(null, 204);
+    }
+
+    // ── AI scoring ─────────────────────────────────────────────
+
+    public function scoreOne(Cooptation $cooptation): JsonResponse
+    {
+        // Parse CV if not already done and a CV is present.
+        if ($cooptation->cv_path && !$cooptation->cv_parsed_at) {
+            try { app(\App\Services\CvParsingService::class)->parse($cooptation); $cooptation->refresh(); }
+            catch (\Throwable $e) { /* CV parsing best-effort */ }
+        }
+        $result = app(\App\Services\CooptationScoringService::class)->score($cooptation);
+        if (!$result) return response()->json(['message' => 'Scoring failed — see logs'], 500);
+        $cooptation->refresh();
+        return response()->json($cooptation->load(['referrerUser', 'collaborateur', 'campaign']));
+    }
+
+    public function scoreAllInProgress(): JsonResponse
+    {
+        $cooptations = Cooptation::whereIn('statut', ['en_attente', 'embauche'])->get();
+        $svc = app(\App\Services\CooptationScoringService::class);
+        $cvSvc = app(\App\Services\CvParsingService::class);
+        $ok = 0; $fail = 0;
+        foreach ($cooptations as $c) {
+            if ($c->cv_path && !$c->cv_parsed_at) {
+                try { $cvSvc->parse($c); $c->refresh(); } catch (\Throwable $e) {}
+            }
+            $r = $svc->score($c);
+            $r ? $ok++ : $fail++;
+        }
+        return response()->json(['scored' => $ok, 'failed' => $fail, 'total' => $cooptations->count()]);
     }
 
     // ── Leaderboard ─────────────────────────────────────────

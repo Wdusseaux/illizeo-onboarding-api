@@ -28,9 +28,43 @@ class CheckDeadlines extends Command
         $this->checkRetards();
         $this->checkPreArrival();
         $this->checkPostArrivalMilestones();
+        $this->checkBadgeMilestones();
         $this->checkWeeklyDigest();
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Award day-based badges (Première semaine J+7, Cap des 100j J+100, etc.)
+     */
+    private function checkBadgeMilestones(): void
+    {
+        $today = Carbon::today();
+        $milestones = [
+            7 => 'j_plus_7',
+            100 => 'j_plus_100',
+        ];
+        $awarded = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_debut')
+            ->whereNotNull('user_id')
+            ->where('status', '!=', 'termine')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            $daysElapsed = (int) $collab->date_debut->diffInDays($today, false);
+            if (!isset($milestones[$daysElapsed])) {
+                continue;
+            }
+            \App\Services\BadgeAutoAwardService::checkAndAward(
+                $collab->user_id,
+                $milestones[$daysElapsed],
+                $collab->id
+            );
+            $awarded++;
+        }
+
+        $this->info("Awarded {$awarded} milestone badge(s) (J+7 / J+100).");
     }
 
     /**

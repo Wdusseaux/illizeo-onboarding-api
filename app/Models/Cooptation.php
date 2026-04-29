@@ -21,6 +21,9 @@ class Cooptation extends Model
         'recompense_versee', 'date_versement', 'notes',
         'cv_path', 'cv_original_name', 'linkedin_url', 'telephone',
         'campaign_id',
+        'priority_score', 'priority_reason', 'priority_action',
+        'priority_computed_at', 'priority_model_version',
+        'cv_parsed_data', 'cv_parsed_at',
     ];
 
     protected function casts(): array
@@ -33,7 +36,16 @@ class Cooptation extends Model
             'montant_recompense' => 'decimal:2',
             'recompense_versee' => 'boolean',
             'mois_requis' => 'integer',
+            'priority_score' => 'decimal:2',
+            'priority_computed_at' => 'datetime',
+            'cv_parsed_data' => 'array',
+            'cv_parsed_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::observe(\App\Observers\CooptationObserver::class);
     }
 
     public function referrerUser(): BelongsTo
