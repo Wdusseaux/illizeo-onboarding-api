@@ -472,12 +472,48 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('export/encrypted', [DataExportController::class, 'exportEncrypted'])->middleware('role:super_admin|admin|admin_rh');
 
         // ── Demo Mode ─────────────────────────────────────────
-        Route::post('demo/seed', function () {
+        // Reactivation is non-destructive: if demo data was already seeded once,
+        // we just flip the flag back on. Re-running the IllizeoSeeder would
+        // truncate collaborateurs, parcours, documents, etc. — wiping any real
+        // data the admin added on top. Force a re-seed only when demo has never
+        // been loaded, or when the caller explicitly passes ?force=1 (used by
+        // the "Régénérer les données démo" admin action).
+        Route::post('demo/seed', function (\Illuminate\Http\Request $request) {
+            $alreadyLoaded = \App\Models\CompanySetting::get('demo_data_loaded') === 'true';
+            $hasAnyCollab = \App\Models\Collaborateur::query()->exists();
+            $force = $request->boolean('force');
+
             \App\Models\CompanySetting::updateOrCreate(['key' => 'demo_mode'], ['value' => 'true']);
-            // Run the demo seeder
-            $seeder = new \Database\Seeders\IllizeoSeeder();
-            $seeder->run();
-            return response()->json(['message' => 'Données de démonstration créées', 'demo_mode' => true]);
+
+            // Safe path: never re-run the truncating seeder when there is already
+            // any collaborateur in the tenant — even one real one. Reactivation
+            // becomes a pure flag flip and never wipes the admin's data.
+            if (($alreadyLoaded || $hasAnyCollab) && !$force) {
+                return response()->json([
+                    'message' => 'Mode démo réactivé — données existantes conservées',
+                    'demo_mode' => true,
+                    'reseeded' => false,
+                ]);
+            }
+
+            try {
+                $seeder = new \Database\Seeders\IllizeoSeeder();
+                $seeder->run();
+            } catch (\Throwable $e) {
+                \Log::error('Demo seed failed', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'message' => 'Mode démo activé — création des données partielle ('.$e->getMessage().')',
+                    'demo_mode' => true,
+                    'reseeded' => false,
+                    'error' => $e->getMessage(),
+                ], 200);
+            }
+
+            return response()->json([
+                'message' => 'Données de démonstration créées',
+                'demo_mode' => true,
+                'reseeded' => true,
+            ]);
         })->middleware('role:super_admin|admin|admin_rh');
         Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
 
