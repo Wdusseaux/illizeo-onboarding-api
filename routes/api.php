@@ -399,6 +399,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         // User management (admin only)
         Route::get('users', [UserManagementController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
         Route::post('users', [UserManagementController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('users/invite', [UserManagementController::class, 'invite'])->middleware('role:super_admin|admin|admin_rh');
         Route::put('users/{user}', [UserManagementController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
         Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->middleware('role:super_admin|admin');
 
