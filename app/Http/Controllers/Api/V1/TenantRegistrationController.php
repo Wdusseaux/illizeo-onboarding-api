@@ -88,6 +88,11 @@ try {
         (new Database\Seeders\DefaultDataSeeder())->run();
     }
 
+    // Persist company_name as a setting so the setup wizard can pre-populate
+    // step 1 with the value the user typed at signup. Without this, wizard.s.company_name
+    // is empty and the admin has to retype the entreprise name they just gave.
+    App\Models\CompanySetting::updateOrCreate(['key' => 'company_name'], ['value' => '{$companyName}']);
+
     // Create admin user
     \$user = App\Models\User::create([
         'name' => '{$adminName}',
