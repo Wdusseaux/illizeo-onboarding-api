@@ -502,6 +502,39 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('me/quiz/complete', [EmployeeController::class, 'submitQuiz']);
         Route::get('me/leaderboard', [EmployeeController::class, 'leaderboard']);
 
+        // Profile customization (avatar/banner) — open to all authenticated users so
+        // employees can save their own image without needing the admin role required
+        // by the global PUT /company-settings endpoint.
+        Route::post('me/avatar', function (\Illuminate\Http\Request $request) {
+            $request->validate(['avatar' => 'required|string']);
+            $userId = $request->user()->id;
+            \App\Models\CompanySetting::updateOrCreate(
+                ['key' => "avatar_{$userId}"],
+                ['value' => $request->avatar]
+            );
+            return response()->json(['ok' => true]);
+        });
+        Route::delete('me/avatar', function (\Illuminate\Http\Request $request) {
+            $userId = $request->user()->id;
+            \App\Models\CompanySetting::where('key', "avatar_{$userId}")->delete();
+            return response()->json(['ok' => true]);
+        });
+        Route::post('me/banner', function (\Illuminate\Http\Request $request) {
+            $request->validate(['image' => 'nullable|string', 'color' => 'nullable|string|max:32']);
+            $userId = $request->user()->id;
+            if ($request->filled('image')) {
+                \App\Models\CompanySetting::updateOrCreate(
+                    ['key' => "banner_image_{$userId}"], ['value' => $request->image]
+                );
+            }
+            if ($request->filled('color')) {
+                \App\Models\CompanySetting::updateOrCreate(
+                    ['key' => "banner_color_{$userId}"], ['value' => $request->color]
+                );
+            }
+            return response()->json(['ok' => true]);
+        });
+
         // Feedback hub (employee → RH/admin channels)
         Route::post('me/mood', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'storeMood']);
         Route::get('me/mood', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'listMyMoods']);
