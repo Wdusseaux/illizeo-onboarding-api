@@ -539,6 +539,12 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('me/quiz/complete', [EmployeeController::class, 'submitQuiz']);
         Route::get('me/leaderboard', [EmployeeController::class, 'leaderboard']);
 
+        // Mon compte — profil + préférences notifications (perso, pas tenant).
+        Route::get('me/profile', [\App\Http\Controllers\Api\V1\MeController::class, 'profile']);
+        Route::put('me/profile', [\App\Http\Controllers\Api\V1\MeController::class, 'updateProfile']);
+        Route::get('me/notification-preferences', [\App\Http\Controllers\Api\V1\MeController::class, 'notificationPreferences']);
+        Route::put('me/notification-preferences', [\App\Http\Controllers\Api\V1\MeController::class, 'updateNotificationPreferences']);
+
         // Profile customization (avatar/banner) — open to all authenticated users so
         // employees can save their own image without needing the admin role required
         // by the global PUT /company-settings endpoint.
