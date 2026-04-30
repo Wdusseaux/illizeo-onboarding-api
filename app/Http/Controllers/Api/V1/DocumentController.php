@@ -101,66 +101,80 @@ class DocumentController extends Controller
      * checklists per country (see docs/country-packs.md if you need rationale).
      */
     private const COUNTRY_PACKS = [
+        // Slug + titre matchent la convention existante du DefaultDataSeeder
+        // (slug = code pays lowercase, titre = "Documents administratifs – Pays").
+        // Tous les docs d'un pack vont dans la même catégorie pour qu'on les
+        // retrouve facilement dans l'UI groupé par catégorie.
         'CH' => [
             'label' => 'Suisse',
+            'slug'  => 'suisse',
+            'titre' => 'Documents administratifs – Suisse',
             'docs' => [
-                ['nom' => "Pièce d'identité (CNI / Passeport)",            'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
-                ['nom' => 'Attestation sécurité sociale (AVS)',            'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Carte AVS — numéro à 13 chiffres.'],
-                ['nom' => 'IBAN CH (RIB)',                                 'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
-                ['nom' => "Photo d'identité",                              'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Format passeport, fond clair.'],
-                ['nom' => 'Permis de travail / Titre de séjour',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les frontaliers (G), résidents (B/C) et étrangers hors UE.'],
-                ['nom' => 'Casier judiciaire',                             'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Selon le poste (postes sensibles, encadrement)."],
-                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => 'Copie des diplômes mentionnés au CV.'],
-                ['nom' => 'Justificatif de domicile',                      'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Bail, facture (électricité, internet…) récente.'],
+                ['nom' => "Pièce d'identité (CNI / Passeport)",            'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
+                ['nom' => 'Attestation sécurité sociale (AVS)',            'obligatoire' => true,  'desc' => 'Carte AVS — numéro à 13 chiffres.'],
+                ['nom' => 'IBAN CH (RIB)',                                 'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => "Photo d'identité",                              'obligatoire' => true,  'desc' => 'Format passeport, fond clair.'],
+                ['nom' => 'Permis de travail / Titre de séjour',           'obligatoire' => false, 'desc' => 'Pour les frontaliers (G), résidents (B/C) et étrangers hors UE.'],
+                ['nom' => 'Casier judiciaire',                             'obligatoire' => false, 'desc' => "Selon le poste (postes sensibles, encadrement)."],
+                ['nom' => 'Diplômes et certifications',                    'obligatoire' => false, 'desc' => 'Copie des diplômes mentionnés au CV.'],
+                ['nom' => 'Justificatif de domicile',                      'obligatoire' => false, 'desc' => 'Bail, facture (électricité, internet…) récente.'],
             ],
         ],
         'FR' => [
             'label' => 'France',
+            'slug'  => 'france',
+            'titre' => 'Documents administratifs – France',
             'docs' => [
-                ['nom' => 'Carte Vitale',                                  'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Photocopie recto-verso de la carte d'assurance maladie."],
-                ['nom' => 'RIB / IBAN français',                           'cat' => 'Banque',           'obligatoire' => true,  'desc' => "Relevé d'identité bancaire pour le versement du salaire."],
-                ['nom' => 'Justificatif de domicile (moins de 3 mois)',    'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Quittance de loyer, facture EDF/eau/internet récente, attestation hébergeur.'],
-                ['nom' => "Pièce d'identité (CNI / Passeport)",            'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
-                ['nom' => 'Casier judiciaire (Bulletin n°3)',              'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Selon le poste (postes sensibles, encadrement, etc.)."],
-                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => 'Copie des diplômes mentionnés au CV.'],
-                ['nom' => 'Titre de séjour / Permis de travail',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les ressortissants hors UE.'],
-                ['nom' => "Photo d'identité",                              'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Format passeport, fond clair."],
+                ['nom' => 'Carte Vitale',                                  'obligatoire' => true,  'desc' => "Photocopie recto-verso de la carte d'assurance maladie."],
+                ['nom' => 'RIB / IBAN français',                           'obligatoire' => true,  'desc' => "Relevé d'identité bancaire pour le versement du salaire."],
+                ['nom' => 'Justificatif de domicile (moins de 3 mois)',    'obligatoire' => true,  'desc' => 'Quittance de loyer, facture EDF/eau/internet récente, attestation hébergeur.'],
+                ['nom' => "Pièce d'identité (CNI / Passeport)",            'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
+                ['nom' => 'Casier judiciaire (Bulletin n°3)',              'obligatoire' => false, 'desc' => "Selon le poste (postes sensibles, encadrement, etc.)."],
+                ['nom' => 'Diplômes et certifications',                    'obligatoire' => false, 'desc' => 'Copie des diplômes mentionnés au CV.'],
+                ['nom' => 'Titre de séjour / Permis de travail',           'obligatoire' => false, 'desc' => 'Pour les ressortissants hors UE.'],
+                ['nom' => "Photo d'identité",                              'obligatoire' => false, 'desc' => "Format passeport, fond clair."],
             ],
         ],
         'BE' => [
             'label' => 'Belgique',
+            'slug'  => 'belgique',
+            'titre' => 'Documents administratifs – Belgique',
             'docs' => [
-                ['nom' => 'Carte d\'identité belge (eID)',                 'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
-                ['nom' => 'Numéro de registre national',                   'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Numéro à 11 chiffres figurant sur l\'eID.'],
-                ['nom' => 'IBAN BE (RIB)',                                 'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
-                ['nom' => 'Attestation mutuelle',                          'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Affiliation à une mutualité belge.'],
-                ['nom' => 'DIMONA — déclaration immédiate emploi',         'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Confirmation de la déclaration DIMONA par l'employeur."],
-                ['nom' => 'Permis de travail / titre de séjour',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les non-ressortissants UE.'],
-                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => null],
+                ['nom' => 'Carte d\'identité belge (eID)',                 'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
+                ['nom' => 'Numéro de registre national',                   'obligatoire' => true,  'desc' => 'Numéro à 11 chiffres figurant sur l\'eID.'],
+                ['nom' => 'IBAN BE (RIB)',                                 'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => 'Attestation mutuelle',                          'obligatoire' => true,  'desc' => 'Affiliation à une mutualité belge.'],
+                ['nom' => 'DIMONA — déclaration immédiate emploi',         'obligatoire' => true,  'desc' => "Confirmation de la déclaration DIMONA par l'employeur."],
+                ['nom' => 'Permis de travail / titre de séjour',           'obligatoire' => false, 'desc' => 'Pour les non-ressortissants UE.'],
+                ['nom' => 'Diplômes et certifications',                    'obligatoire' => false, 'desc' => null],
             ],
         ],
         'LU' => [
             'label' => 'Luxembourg',
+            'slug'  => 'luxembourg',
+            'titre' => 'Documents administratifs – Luxembourg',
             'docs' => [
-                ['nom' => 'Pièce d\'identité (CNI / Passeport)',           'cat' => 'Identité',         'obligatoire' => true,  'desc' => null],
-                ['nom' => 'N° matricule sécurité sociale (CCSS)',          'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Matricule à 13 chiffres délivré par le Centre commun de la sécurité sociale.'],
-                ['nom' => 'IBAN LU',                                       'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
-                ['nom' => 'Carte de séjour / Permis de travail',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les frontaliers et étrangers hors UE.'],
-                ['nom' => 'Casier judiciaire (Bulletin n°3 ou n°5)',       'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Selon le poste.'],
-                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => null],
+                ['nom' => 'Pièce d\'identité (CNI / Passeport)',           'obligatoire' => true,  'desc' => null],
+                ['nom' => 'N° matricule sécurité sociale (CCSS)',          'obligatoire' => true,  'desc' => 'Matricule à 13 chiffres délivré par le Centre commun de la sécurité sociale.'],
+                ['nom' => 'IBAN LU',                                       'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => 'Carte de séjour / Permis de travail',           'obligatoire' => false, 'desc' => 'Pour les frontaliers et étrangers hors UE.'],
+                ['nom' => 'Casier judiciaire (Bulletin n°3 ou n°5)',       'obligatoire' => false, 'desc' => 'Selon le poste.'],
+                ['nom' => 'Diplômes et certifications',                    'obligatoire' => false, 'desc' => null],
             ],
         ],
         'DE' => [
             'label' => 'Allemagne',
+            'slug'  => 'allemagne',
+            'titre' => 'Documents administratifs – Allemagne',
             'docs' => [
-                ['nom' => 'Personalausweis / Reisepass',                   'cat' => 'Identité',         'obligatoire' => true,  'desc' => "Carte d'identité allemande ou passeport."],
-                ['nom' => 'Sozialversicherungsausweis',                    'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Carte d'assurance sociale."],
-                ['nom' => 'Steuer-Identifikationsnummer (Steuer-ID)',      'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Numéro fiscal à 11 chiffres.'],
-                ['nom' => 'Krankenversicherung — preuve d\'affiliation',   'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Attestation de l'organisme d'assurance maladie."],
-                ['nom' => 'IBAN DE',                                       'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
-                ['nom' => 'Aufenthaltstitel / Arbeitserlaubnis',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Titre de séjour / permis de travail (étrangers hors UE).'],
-                ['nom' => 'Führungszeugnis',                               'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Casier judiciaire — selon le poste."],
-                ['nom' => 'Zeugnisse / Diplomes',                          'cat' => 'Formation',        'obligatoire' => false, 'desc' => 'Diplômes et certificats.'],
+                ['nom' => 'Personalausweis / Reisepass',                   'obligatoire' => true,  'desc' => "Carte d'identité allemande ou passeport."],
+                ['nom' => 'Sozialversicherungsausweis',                    'obligatoire' => true,  'desc' => "Carte d'assurance sociale."],
+                ['nom' => 'Steuer-Identifikationsnummer (Steuer-ID)',      'obligatoire' => true,  'desc' => 'Numéro fiscal à 11 chiffres.'],
+                ['nom' => 'Krankenversicherung — preuve d\'affiliation',   'obligatoire' => true,  'desc' => "Attestation de l'organisme d'assurance maladie."],
+                ['nom' => 'IBAN DE',                                       'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => 'Aufenthaltstitel / Arbeitserlaubnis',           'obligatoire' => false, 'desc' => 'Titre de séjour / permis de travail (étrangers hors UE).'],
+                ['nom' => 'Führungszeugnis',                               'obligatoire' => false, 'desc' => "Casier judiciaire — selon le poste."],
+                ['nom' => 'Zeugnisse / Diplomes',                          'obligatoire' => false, 'desc' => 'Diplômes et certificats.'],
             ],
         ],
     ];
@@ -181,17 +195,17 @@ class DocumentController extends Controller
         $code = strtoupper($request->country);
         $pack = self::COUNTRY_PACKS[$code];
 
+        // 1 catégorie par pack — slug + titre matchent la convention existante.
+        $category = DocumentCategorie::firstOrCreate(
+            ['slug' => $pack['slug']],
+            ['titre' => $pack['titre']]
+        );
+
         $created = 0;
         $skipped = 0;
         $createdDocs = [];
 
         foreach ($pack['docs'] as $doc) {
-            // Catégorie : trouve par nom, sinon crée.
-            $category = DocumentCategorie::firstOrCreate(
-                ['nom' => $doc['cat']],
-                ['couleur' => $this->categoryColor($doc['cat']), 'ordre' => 0]
-            );
-
             // Skip si un template avec ce nom existe déjà dans cette catégorie.
             $exists = Document::where('is_template', true)
                 ->where('nom', $doc['nom'])
@@ -213,26 +227,11 @@ class DocumentController extends Controller
         return response()->json([
             'country' => $code,
             'label' => $pack['label'],
+            'category_id' => $category->id,
             'created' => $created,
             'skipped' => $skipped,
             'documents' => $createdDocs,
         ]);
-    }
-
-    /**
-     * Couleur par défaut pour une catégorie créée à la volée. Garde une
-     * cohérence visuelle avec les catégories seedées par DefaultDataSeeder.
-     */
-    private function categoryColor(string $catName): string
-    {
-        return match (true) {
-            str_contains(strtolower($catName), 'identi')   => '#1A73E8',
-            str_contains(strtolower($catName), 'banque')   => '#26A69A',
-            str_contains(strtolower($catName), 'sécurit')  => '#7B5EA7',
-            str_contains(strtolower($catName), 'sociale')  => '#7B5EA7',
-            str_contains(strtolower($catName), 'formation') => '#FF9800',
-            default                                         => '#78909C',
-        };
     }
 
     /**
