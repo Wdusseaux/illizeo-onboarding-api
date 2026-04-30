@@ -91,6 +91,154 @@ class DocumentController extends Controller
     /**
      * List all document templates (is_template = true).
      */
+    /**
+     * Country-specific document packs. Each entry maps a country code to a
+     * list of documents to seed in the GED. Categories are matched by name —
+     * created on-the-fly if they don't exist on the tenant. Run by the
+     * importCountryPack endpoint when the admin clicks "Importer pack pays".
+     *
+     * Sources: requirements collected from local labour laws / standard hiring
+     * checklists per country (see docs/country-packs.md if you need rationale).
+     */
+    private const COUNTRY_PACKS = [
+        'FR' => [
+            'label' => 'France',
+            'docs' => [
+                ['nom' => 'Carte Vitale',                                  'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Photocopie recto-verso de la carte d'assurance maladie."],
+                ['nom' => 'RIB / IBAN français',                           'cat' => 'Banque',           'obligatoire' => true,  'desc' => "Relevé d'identité bancaire pour le versement du salaire."],
+                ['nom' => 'Justificatif de domicile (moins de 3 mois)',    'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Quittance de loyer, facture EDF/eau/internet récente, attestation hébergeur.'],
+                ['nom' => "Pièce d'identité (CNI / Passeport)",            'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
+                ['nom' => 'Casier judiciaire (Bulletin n°3)',              'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Selon le poste (postes sensibles, encadrement, etc.)."],
+                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => 'Copie des diplômes mentionnés au CV.'],
+                ['nom' => 'Titre de séjour / Permis de travail',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les ressortissants hors UE.'],
+                ['nom' => "Photo d'identité",                              'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Format passeport, fond clair."],
+            ],
+        ],
+        'BE' => [
+            'label' => 'Belgique',
+            'docs' => [
+                ['nom' => 'Carte d\'identité belge (eID)',                 'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
+                ['nom' => 'Numéro de registre national',                   'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Numéro à 11 chiffres figurant sur l\'eID.'],
+                ['nom' => 'IBAN BE (RIB)',                                 'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => 'Attestation mutuelle',                          'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Affiliation à une mutualité belge.'],
+                ['nom' => 'DIMONA — déclaration immédiate emploi',         'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Confirmation de la déclaration DIMONA par l'employeur."],
+                ['nom' => 'Permis de travail / titre de séjour',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les non-ressortissants UE.'],
+                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => null],
+            ],
+        ],
+        'LU' => [
+            'label' => 'Luxembourg',
+            'docs' => [
+                ['nom' => 'Pièce d\'identité (CNI / Passeport)',           'cat' => 'Identité',         'obligatoire' => true,  'desc' => null],
+                ['nom' => 'N° matricule sécurité sociale (CCSS)',          'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Matricule à 13 chiffres délivré par le Centre commun de la sécurité sociale.'],
+                ['nom' => 'IBAN LU',                                       'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => 'Carte de séjour / Permis de travail',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les frontaliers et étrangers hors UE.'],
+                ['nom' => 'Casier judiciaire (Bulletin n°3 ou n°5)',       'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Selon le poste.'],
+                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => null],
+            ],
+        ],
+        'DE' => [
+            'label' => 'Allemagne',
+            'docs' => [
+                ['nom' => 'Personalausweis / Reisepass',                   'cat' => 'Identité',         'obligatoire' => true,  'desc' => "Carte d'identité allemande ou passeport."],
+                ['nom' => 'Sozialversicherungsausweis',                    'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Carte d'assurance sociale."],
+                ['nom' => 'Steuer-Identifikationsnummer (Steuer-ID)',      'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Numéro fiscal à 11 chiffres.'],
+                ['nom' => 'Krankenversicherung — preuve d\'affiliation',   'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => "Attestation de l'organisme d'assurance maladie."],
+                ['nom' => 'IBAN DE',                                       'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => 'Aufenthaltstitel / Arbeitserlaubnis',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Titre de séjour / permis de travail (étrangers hors UE).'],
+                ['nom' => 'Führungszeugnis',                               'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Casier judiciaire — selon le poste."],
+                ['nom' => 'Zeugnisse / Diplomes',                          'cat' => 'Formation',        'obligatoire' => false, 'desc' => 'Diplômes et certificats.'],
+            ],
+        ],
+    ];
+
+    /**
+     * POST /document-templates/import-country-pack
+     * Body: { country: 'FR' | 'BE' | 'LU' | 'DE' }
+     *
+     * Crée tous les documents-templates manquants pour le pays demandé.
+     * Idempotent : un template avec le même nom dans la même catégorie n'est
+     * pas dupliqué — on retourne combien ont été créés vs déjà présents.
+     */
+    public function importCountryPack(Request $request): JsonResponse
+    {
+        $request->validate([
+            'country' => 'required|string|in:' . implode(',', array_keys(self::COUNTRY_PACKS)),
+        ]);
+        $code = strtoupper($request->country);
+        $pack = self::COUNTRY_PACKS[$code];
+
+        $created = 0;
+        $skipped = 0;
+        $createdDocs = [];
+
+        foreach ($pack['docs'] as $doc) {
+            // Catégorie : trouve par nom, sinon crée.
+            $category = DocumentCategorie::firstOrCreate(
+                ['nom' => $doc['cat']],
+                ['couleur' => $this->categoryColor($doc['cat']), 'ordre' => 0]
+            );
+
+            // Skip si un template avec ce nom existe déjà dans cette catégorie.
+            $exists = Document::where('is_template', true)
+                ->where('nom', $doc['nom'])
+                ->where('categorie_id', $category->id)
+                ->exists();
+            if ($exists) { $skipped++; continue; }
+
+            $created++;
+            $createdDocs[] = Document::create([
+                'nom' => $doc['nom'],
+                'description' => $doc['desc'] ?? null,
+                'obligatoire' => $doc['obligatoire'] ?? false,
+                'type' => 'upload',
+                'is_template' => true,
+                'categorie_id' => $category->id,
+            ])->load('categorie');
+        }
+
+        return response()->json([
+            'country' => $code,
+            'label' => $pack['label'],
+            'created' => $created,
+            'skipped' => $skipped,
+            'documents' => $createdDocs,
+        ]);
+    }
+
+    /**
+     * Couleur par défaut pour une catégorie créée à la volée. Garde une
+     * cohérence visuelle avec les catégories seedées par DefaultDataSeeder.
+     */
+    private function categoryColor(string $catName): string
+    {
+        return match (true) {
+            str_contains(strtolower($catName), 'identi')   => '#1A73E8',
+            str_contains(strtolower($catName), 'banque')   => '#26A69A',
+            str_contains(strtolower($catName), 'sécurit')  => '#7B5EA7',
+            str_contains(strtolower($catName), 'sociale')  => '#7B5EA7',
+            str_contains(strtolower($catName), 'formation') => '#FF9800',
+            default                                         => '#78909C',
+        };
+    }
+
+    /**
+     * GET /document-templates/country-packs — liste les packs disponibles
+     * pour affichage dans le UI admin (label + nb de docs).
+     */
+    public function countryPacks(): JsonResponse
+    {
+        $packs = [];
+        foreach (self::COUNTRY_PACKS as $code => $pack) {
+            $packs[] = [
+                'code' => $code,
+                'label' => $pack['label'],
+                'docs_count' => count($pack['docs']),
+            ];
+        }
+        return response()->json($packs);
+    }
+
     public function templates(): JsonResponse
     {
         $templates = Document::where('is_template', true)

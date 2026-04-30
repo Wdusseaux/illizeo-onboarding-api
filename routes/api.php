@@ -311,6 +311,8 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->middleware('permission:documents,edit');
         Route::get('document-categories', [DocumentController::class, 'categories'])->middleware('permission:documents,view');
         Route::get('document-templates', [DocumentController::class, 'templates'])->middleware('permission:documents,view');
+        Route::get('document-templates/country-packs', [DocumentController::class, 'countryPacks'])->middleware('permission:documents,view');
+        Route::post('document-templates/import-country-pack', [DocumentController::class, 'importCountryPack'])->middleware('permission:documents,edit');
         Route::post('documents/{document}/upload-template', [DocumentController::class, 'uploadTemplate'])->middleware('permission:documents,edit');
         Route::get('documents/{document}/download-template', [DocumentController::class, 'downloadTemplate'])->middleware('permission:documents,view');
 
