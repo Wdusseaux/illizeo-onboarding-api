@@ -101,6 +101,19 @@ class DocumentController extends Controller
      * checklists per country (see docs/country-packs.md if you need rationale).
      */
     private const COUNTRY_PACKS = [
+        'CH' => [
+            'label' => 'Suisse',
+            'docs' => [
+                ['nom' => "Pièce d'identité (CNI / Passeport)",            'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Recto-verso, en cours de validité.'],
+                ['nom' => 'Attestation sécurité sociale (AVS)',            'cat' => 'Sécurité sociale', 'obligatoire' => true,  'desc' => 'Carte AVS — numéro à 13 chiffres.'],
+                ['nom' => 'IBAN CH (RIB)',                                 'cat' => 'Banque',           'obligatoire' => true,  'desc' => 'Pour le versement du salaire.'],
+                ['nom' => "Photo d'identité",                              'cat' => 'Identité',         'obligatoire' => true,  'desc' => 'Format passeport, fond clair.'],
+                ['nom' => 'Permis de travail / Titre de séjour',           'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Pour les frontaliers (G), résidents (B/C) et étrangers hors UE.'],
+                ['nom' => 'Casier judiciaire',                             'cat' => 'Identité',         'obligatoire' => false, 'desc' => "Selon le poste (postes sensibles, encadrement)."],
+                ['nom' => 'Diplômes et certifications',                    'cat' => 'Formation',        'obligatoire' => false, 'desc' => 'Copie des diplômes mentionnés au CV.'],
+                ['nom' => 'Justificatif de domicile',                      'cat' => 'Identité',         'obligatoire' => false, 'desc' => 'Bail, facture (électricité, internet…) récente.'],
+            ],
+        ],
         'FR' => [
             'label' => 'France',
             'docs' => [
