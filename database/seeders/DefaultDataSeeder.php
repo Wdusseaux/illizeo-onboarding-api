@@ -598,22 +598,20 @@ class DefaultDataSeeder extends Seeder
         // Privileged roles (super_admin / admin / admin_rh) bypass via FieldVisibilityService.
         // Non-listed fields = NULL = visible/editable by everyone (matricule, job_title, etc.).
         $sensitiveDefaults = [
-            // ── Identité critique : RGPD/payroll, jamais au manager ──
-            'numero_avs'           => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
-            'iban'                 => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
-            // ── Coordonnées privées : domicile = vie privée ──
-            'adresse'              => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
-            'ville'                => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
-            'code_postal'          => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
-            'pays'                 => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            // ── Section "Informations personnelles" : tous les rôles voient, HRBP seul édite ──
+            'civilite'             => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'date_naissance'       => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'nationalite'          => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'numero_avs'           => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'telephone'            => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'adresse'              => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'ville'                => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'code_postal'          => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'pays'                 => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
+            'iban'                 => ['view' => ['hrbp', 'manager', 'collaborateur', 'auditeur'], 'edit' => ['hrbp']],
             // ── Compensation : pay equity, manager exclu ──
             'salaire_brut'         => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
             'devise'               => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
-            // ── Identité de base : manager doit contacter/souhaiter anniv ──
-            'civilite'             => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
-            'date_naissance'       => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
-            'nationalite'          => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
-            'telephone'            => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
             // ── Contrat sensible : manager planifie selon contrat ──
             'type_contrat'         => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
             'taux_activite'        => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
