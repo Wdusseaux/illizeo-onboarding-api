@@ -617,6 +617,18 @@ class DefaultDataSeeder extends Seeder
             ['nom' => 'Super Coopteur', 'description' => 'Vous avez recommandé un candidat qui a été embauché.', 'icon' => 'handshake', 'color' => '#E91E8C', 'critere' => 'cooptation'],
             ['nom' => 'NPS Champion', 'description' => 'Merci d\'avoir partagé votre feedback !', 'icon' => 'smile', 'color' => '#00897B', 'critere' => 'nps_complete'],
             ['nom' => 'Bienvenue', 'description' => 'Bienvenue dans l\'équipe !', 'icon' => 'party-popper', 'color' => '#FF6B35', 'critere' => 'manual'],
+            // Reboarding milestones
+            ['nom' => 'De retour', 'description' => 'Bienvenue de retour. Mise à jour des changements.', 'icon' => 'rocket', 'color' => '#9C27B0', 'critere' => 'reboarding_j1'],
+            ['nom' => 'Réadaptation', 'description' => "Réacclimatation à l'équipe et aux outils.", 'icon' => 'sparkles', 'color' => '#1A73E8', 'critere' => 'reboarding_j7'],
+            ['nom' => 'Réintégré(e)', 'description' => 'Retour à plein régime. Bilan retour.', 'icon' => 'award', 'color' => '#00897B', 'critere' => 'reboarding_j30'],
+            // Offboarding milestones
+            ['nom' => 'Transparence', 'description' => "Communication du départ à l'équipe.", 'icon' => 'message-circle', 'color' => '#1A73E8', 'critere' => 'offboarding_j1'],
+            ['nom' => 'Transmission', 'description' => 'Transfert des dossiers et responsabilités.', 'icon' => 'handshake', 'color' => '#F9A825', 'critere' => 'offboarding_j14'],
+            ['nom' => 'Bonne route', 'description' => 'Dernier jour. Restitution matériel, debrief, ouverture.', 'icon' => 'heart', 'color' => '#9C27B0', 'critere' => 'offboarding_j30'],
+            // Crossboarding milestones
+            ['nom' => 'Mobilité', 'description' => 'Bienvenue dans votre nouveau rôle.', 'icon' => 'rocket', 'color' => '#9C27B0', 'critere' => 'crossboarding_j1'],
+            ['nom' => 'Polyvalent(e)', 'description' => 'Vous prenez vos marques dans le nouveau périmètre.', 'icon' => 'sparkles', 'color' => '#1A73E8', 'critere' => 'crossboarding_j14'],
+            ['nom' => 'Évolution', 'description' => 'Bilan positif. Vous êtes à l\'aise dans vos nouvelles fonctions.', 'icon' => 'trophy', 'color' => '#E91E8C', 'critere' => 'crossboarding_j60'],
         ];
 
         foreach ($badgeTemplates as $bt) {
