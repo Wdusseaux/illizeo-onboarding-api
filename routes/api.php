@@ -236,6 +236,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::post('invoices/{invoiceId}/mark-paid', [SuperAdminController::class, 'markInvoicePaid']);
             Route::get('stripe-config', [SuperAdminController::class, 'getStripeConfig']);
             Route::put('stripe-config', [SuperAdminController::class, 'updateStripeConfig']);
+            Route::post('stripe/sync-prices', [SuperAdminController::class, 'syncStripePrices']);
             Route::get('ai-config', [SuperAdminController::class, 'getAiConfig']);
             Route::post('ai-config', [SuperAdminController::class, 'updateAiConfig']);
             Route::get('ai-usage', [SuperAdminController::class, 'getAiUsage']);

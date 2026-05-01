@@ -373,6 +373,119 @@ class SuperAdminController extends Controller
         return response()->json(['message' => 'Configuration Stripe mise à jour.']);
     }
 
+    /**
+     * Sync Stripe Price IDs onto local Plan records.
+     *
+     * Pour chaque Price Stripe actif :
+     *   1. On essaie d'identifier le plan local via metadata.illizeo_plan_slug
+     *      ou metadata.plan_slug (clé recommandée à mettre côté Stripe).
+     *   2. Sinon, on tente un fuzzy match sur le Product.name (ex: "Illizeo Starter"
+     *      → plan slug "starter") et on prend le Price récurrent le plus récent
+     *      pour chaque (plan × devise).
+     * On stocke selon la currency : stripe_price_id_eur / stripe_price_id_chf.
+     */
+    public function syncStripePrices(Request $request): JsonResponse
+    {
+        $this->authorize($request);
+
+        $mode = $request->input('mode', config('services.stripe.mode') ?: env('STRIPE_MODE', 'live'));
+        $secret = $mode === 'test'
+            ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+            : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+
+        if (empty($secret)) {
+            return response()->json(['error' => "Aucune clé secrète Stripe configurée pour le mode '{$mode}'."], 422);
+        }
+
+        $stripe = new \Stripe\StripeClient($secret);
+
+        // Récupère TOUS les Prices actifs récurrents avec leur Product expandé
+        $prices = [];
+        $params = ['active' => true, 'expand' => ['data.product'], 'limit' => 100];
+        do {
+            $page = $stripe->prices->all($params);
+            foreach ($page->data as $p) {
+                if (($p->type ?? null) !== 'recurring') continue;
+                $prices[] = $p;
+            }
+            $params['starting_after'] = end($page->data)->id ?? null;
+        } while (!empty($page->has_more));
+
+        $plans = Plan::all();
+        $report = [
+            'mode' => $mode,
+            'stripe_prices_scanned' => count($prices),
+            'plans_count' => $plans->count(),
+            'matched' => [],
+            'unmatched_plans' => [],
+            'unmatched_prices' => [],
+        ];
+
+        $matchedPriceIds = [];
+
+        foreach ($plans as $plan) {
+            $bestEur = null;
+            $bestChf = null;
+            foreach ($prices as $price) {
+                $product = $price->product;
+                $productName = is_object($product) ? ($product->name ?? '') : '';
+                $metaSlug = $price->metadata->illizeo_plan_slug
+                    ?? $price->metadata->plan_slug
+                    ?? (is_object($product) ? ($product->metadata->illizeo_plan_slug ?? $product->metadata->plan_slug ?? null) : null);
+
+                $matches = false;
+                if ($metaSlug && strtolower($metaSlug) === strtolower($plan->slug)) {
+                    $matches = true;
+                } elseif (!$metaSlug) {
+                    // Fuzzy match sur le nom du produit
+                    $haystack = strtolower($productName);
+                    $needle = strtolower($plan->nom);
+                    if ($needle && str_contains($haystack, $needle)) {
+                        $matches = true;
+                    } elseif ($plan->slug && str_contains($haystack, str_replace('_', ' ', $plan->slug))) {
+                        $matches = true;
+                    }
+                }
+
+                if (!$matches) continue;
+
+                $currency = strtolower($price->currency ?? '');
+                if ($currency === 'eur' && !$bestEur) $bestEur = $price;
+                if ($currency === 'chf' && !$bestChf) $bestChf = $price;
+            }
+
+            $update = [];
+            if ($bestEur) { $update['stripe_price_id_eur'] = $bestEur->id; $matchedPriceIds[] = $bestEur->id; }
+            if ($bestChf) { $update['stripe_price_id_chf'] = $bestChf->id; $matchedPriceIds[] = $bestChf->id; }
+
+            if (!empty($update)) {
+                $plan->update($update);
+                $report['matched'][] = [
+                    'plan_slug' => $plan->slug,
+                    'plan_nom' => $plan->nom,
+                    'eur_price_id' => $bestEur?->id,
+                    'chf_price_id' => $bestChf?->id,
+                ];
+            } else {
+                $report['unmatched_plans'][] = ['plan_slug' => $plan->slug, 'plan_nom' => $plan->nom];
+            }
+        }
+
+        foreach ($prices as $price) {
+            if (in_array($price->id, $matchedPriceIds)) continue;
+            $product = $price->product;
+            $report['unmatched_prices'][] = [
+                'price_id' => $price->id,
+                'product_name' => is_object($product) ? ($product->name ?? '?') : '?',
+                'currency' => strtoupper($price->currency ?? '?'),
+                'amount' => ($price->unit_amount ?? 0) / 100,
+                'interval' => $price->recurring->interval ?? '?',
+            ];
+        }
+
+        return response()->json($report);
+    }
+
     // ── AI / Claude Configuration ────────────────────────────
 
     public function getAiConfig(): JsonResponse
