@@ -247,6 +247,10 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('exchange-rates', [\App\Http\Controllers\Api\V1\ExchangeRateController::class, 'index']);
         Route::get('exchange-rates/convert', [\App\Http\Controllers\Api\V1\ExchangeRateController::class, 'convert']);
 
+        // ── VAT validation & computation ──
+        Route::post('vat/validate', [\App\Http\Controllers\Api\V1\VatController::class, 'validateVat']);
+        Route::post('vat/compute', [\App\Http\Controllers\Api\V1\VatController::class, 'compute']);
+
         // 2FA management (auth required)
         Route::get('2fa/status', [TwoFactorController::class, 'status']);
         Route::post('2fa/setup', [TwoFactorController::class, 'setup']);

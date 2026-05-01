@@ -22,6 +22,11 @@ class Subscription extends Model
         'trial_ends_at',
         'canceled_at',
         'nombre_collaborateurs',
+        // ── TVA / VAT ─────────────────────────────────────────
+        'country', 'customer_type', 'vat_number',
+        'vat_validation_status', 'vat_validated_at',
+        'vat_rate', 'vat_amount_cents', 'amount_ht_cents', 'amount_ttc_cents',
+        'vat_treatment',
     ];
 
     protected $casts = [
@@ -30,6 +35,11 @@ class Subscription extends Model
         'trial_ends_at' => 'date',
         'canceled_at' => 'datetime',
         'nombre_collaborateurs' => 'integer',
+        'vat_validated_at' => 'datetime',
+        'vat_rate' => 'decimal:2',
+        'vat_amount_cents' => 'integer',
+        'amount_ht_cents' => 'integer',
+        'amount_ttc_cents' => 'integer',
     ];
 
     public function plan(): BelongsTo
