@@ -588,28 +588,28 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('me/feedback/buddy-rating', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'listMyBuddyRatings']);
         Route::post('me/feedback/confidential', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'storeConfidentialAlert']);
 
-        // Admin views (admin/super_admin only — enforced inside the controller)
-        Route::get('admin/feedback/moods', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListMoods']);
-        Route::get('admin/feedback/suggestions', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListSuggestions']);
-        Route::patch('admin/feedback/suggestions/{id}', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminUpdateSuggestion']);
-        Route::get('admin/feedback/buddy-ratings', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListBuddyRatings']);
-        Route::get('admin/feedback/excited', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListExcited']);
+        // Admin views (gated by feedback_hub permission, view ou edit selon l'action)
+        Route::get('admin/feedback/moods', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListMoods'])->middleware('permission:feedback_hub,view');
+        Route::get('admin/feedback/suggestions', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListSuggestions'])->middleware('permission:feedback_hub,view');
+        Route::patch('admin/feedback/suggestions/{id}', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminUpdateSuggestion'])->middleware('permission:feedback_hub,edit');
+        Route::get('admin/feedback/buddy-ratings', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListBuddyRatings'])->middleware('permission:feedback_hub,view');
+        Route::get('admin/feedback/excited', [\App\Http\Controllers\Api\V1\FeedbackHubController::class, 'adminListExcited'])->middleware('permission:feedback_hub,view');
 
         // Recurring meetings (admin CRUD + employee instances)
-        Route::get('recurring-meetings', [RecurringMeetingController::class, 'index']);
-        Route::post('recurring-meetings', [RecurringMeetingController::class, 'store']);
-        Route::put('recurring-meetings/{recurringMeeting}', [RecurringMeetingController::class, 'update']);
-        Route::delete('recurring-meetings/{recurringMeeting}', [RecurringMeetingController::class, 'destroy']);
-        Route::get('recurring-meetings/instances/{collaborateur}', [RecurringMeetingController::class, 'instancesForCollaborateur']);
-        Route::post('recurring-meetings/sync', [RecurringMeetingController::class, 'syncInstance']);
+        Route::get('recurring-meetings', [RecurringMeetingController::class, 'index'])->middleware('permission:recurring_meetings,view');
+        Route::post('recurring-meetings', [RecurringMeetingController::class, 'store'])->middleware('permission:recurring_meetings,edit');
+        Route::put('recurring-meetings/{recurringMeeting}', [RecurringMeetingController::class, 'update'])->middleware('permission:recurring_meetings,edit');
+        Route::delete('recurring-meetings/{recurringMeeting}', [RecurringMeetingController::class, 'destroy'])->middleware('permission:recurring_meetings,edit');
+        Route::get('recurring-meetings/instances/{collaborateur}', [RecurringMeetingController::class, 'instancesForCollaborateur'])->middleware('permission:recurring_meetings,view');
+        Route::post('recurring-meetings/sync', [RecurringMeetingController::class, 'syncInstance'])->middleware('permission:recurring_meetings,edit');
 
         // Quotes (admin referential + employee read)
-        Route::get('quotes', [QuoteController::class, 'index']);
-        Route::get('quotes/of-the-day', [QuoteController::class, 'ofTheDay']);
-        Route::post('quotes', [QuoteController::class, 'store']);
-        Route::put('quotes/{quote}', [QuoteController::class, 'update']);
-        Route::patch('quotes/{quote}/toggle', [QuoteController::class, 'toggle']);
-        Route::delete('quotes/{quote}', [QuoteController::class, 'destroy']);
+        Route::get('quotes', [QuoteController::class, 'index'])->middleware('permission:quotes,view');
+        Route::get('quotes/of-the-day', [QuoteController::class, 'ofTheDay']); // ouvert à tous (utilisé dans le dashboard collab)
+        Route::post('quotes', [QuoteController::class, 'store'])->middleware('permission:quotes,edit');
+        Route::put('quotes/{quote}', [QuoteController::class, 'update'])->middleware('permission:quotes,edit');
+        Route::patch('quotes/{quote}/toggle', [QuoteController::class, 'toggle'])->middleware('permission:quotes,edit');
+        Route::delete('quotes/{quote}', [QuoteController::class, 'destroy'])->middleware('permission:quotes,edit');
 
         // Messaging
         Route::get('messages/conversations', [MessageController::class, 'conversations']);

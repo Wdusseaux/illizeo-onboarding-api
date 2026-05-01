@@ -446,6 +446,13 @@ class DefaultDataSeeder extends Seeder
             ['nom' => "Évaluation fin de période d'essai", 'sujet' => "Évaluation de fin de période d'essai — {{collab_nom}}", 'declencheur' => 'Parcours complété à 100%', 'variables' => ['{{manager}}', '{{collab_nom}}', '{{date_fin_essai}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{manager}},</h2><p>La période d'essai de <strong>{{collab_nom}}</strong> arrive à son terme le <strong>{{date_fin_essai}}</strong>.</p><p>Merci de compléter le formulaire d'évaluation afin de confirmer ou non la poursuite du contrat.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Compléter l'évaluation</a></p>"],
             ['nom' => 'Entretien de sortie (Exit Interview)', 'sujet' => 'Votre avis compte — Entretien de sortie', 'declencheur' => 'Création du parcours', 'variables' => ['{{prenom}}', '{{date_depart}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Votre départ est prévu le <strong>{{date_depart}}</strong>. Nous aimerions recueillir votre retour d'expérience.</p><p>Ce questionnaire est confidentiel et prend environ 5 minutes.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Répondre au questionnaire</a></p>"],
             ['nom' => "Rapport d'étonnement (1 mois)", 'sujet' => "Votre regard compte — Rapport d'étonnement", 'declencheur' => 'J+30', 'variables' => ['{{prenom}}', '{{parcours_nom}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Cela fait maintenant 1 mois que vous avez rejoint l'équipe. Nous aimerions recueillir votre regard neuf sur notre entreprise et notre processus d'intégration.</p><p>Ce questionnaire est confidentiel et prend environ 5 minutes.</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#C2185B;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Partager mon retour</a></p>"],
+            // ── Nouvelles features ───────────────────────────
+            ['nom' => 'Demande RDV soumise', 'sujet' => '📅 Nouvelle demande de RDV — {{collab_nom}}', 'declencheur' => 'Feedback soumis avec rdv_request', 'variables' => ['{{prenom}}', '{{collab_nom}}', '{{role_cible}}', '{{date_souhaitee}}', '{{motif}}', '{{lien}}'], 'actif' => true, 'contenu' => "<h2>Nouvelle demande de RDV</h2><p><strong>{{collab_nom}}</strong> a demandé un RDV avec son <strong>{{role_cible}}</strong>.</p><p><strong>Date souhaitée :</strong> {{date_souhaitee}}</p><p><strong>Motif :</strong><br>{{motif}}</p><p><a href='{{lien}}' style='display:inline-block;padding:10px 28px;background:#E41076;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Traiter la demande</a></p>"],
+            ['nom' => 'Équipement assigné', 'sujet' => '💻 Votre matériel professionnel est prêt', 'declencheur' => 'Équipement attribué', 'variables' => ['{{prenom}}', '{{equipement_nom}}', '{{numero_serie}}', '{{date_attribution}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Votre équipement <strong>{{equipement_nom}}</strong> (n° de série : {{numero_serie}}) vous a été attribué le {{date_attribution}}.</p><p>Vous pouvez consulter la liste de votre matériel depuis la rubrique <strong>Mon matériel</strong> de votre espace.</p>"],
+            ['nom' => 'Restitution équipement (offboarding)', 'sujet' => '📦 Checklist de restitution matériel — {{prenom}}', 'declencheur' => 'Parcours offboarding créé', 'variables' => ['{{prenom}}', '{{date_depart}}', '{{equipement_liste}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Votre départ est prévu le <strong>{{date_depart}}</strong>. Voici la liste du matériel à restituer avant cette date :</p>{{equipement_liste}}<p>Merci de prendre rendez-vous avec votre IT ou RH pour la restitution.</p>"],
+            ['nom' => 'Citation hebdomadaire', 'sujet' => '✨ Votre citation de la semaine', 'declencheur' => 'Hebdomadaire (lundi)', 'variables' => ['{{prenom}}', '{{citation_text}}', '{{citation_author}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><blockquote style='border-left:4px solid #E41076;padding:12px 20px;margin:20px 0;background:#fff5fb;font-style:italic;font-size:16px;'>« {{citation_text}} »<br><br>— <strong>{{citation_author}}</strong></blockquote><p>Bonne semaine !</p>"],
+            ['nom' => 'Rappel RDV récurrent J-1', 'sujet' => '⏰ Rappel : {{rdv_titre}} demain à {{heure}}', 'declencheur' => 'J-1 avant RDV récurrent', 'variables' => ['{{prenom}}', '{{rdv_titre}}', '{{date}}', '{{heure}}', '{{participants}}'], 'actif' => true, 'contenu' => "<h2>Bonjour {{prenom}},</h2><p>Petit rappel : votre RDV récurrent <strong>{{rdv_titre}}</strong> a lieu demain ({{date}}) à <strong>{{heure}}</strong>.</p><p>Avec : {{participants}}</p>"],
+            ['nom' => 'Badge milestone obtenu', 'sujet' => '🏆 Nouveau badge : {{badge_nom}} !', 'declencheur' => 'Badge milestone attribué', 'variables' => ['{{prenom}}', '{{badge_nom}}', '{{badge_description}}', '{{badge_color}}', '{{lien_badges}}'], 'actif' => true, 'contenu' => "<h2>Félicitations {{prenom}} !</h2><p>Vous venez de débloquer le badge <strong style='color:{{badge_color}}'>{{badge_nom}}</strong>.</p><p>{{badge_description}}</p><p><a href='{{lien_badges}}' style='display:inline-block;padding:10px 28px;background:#E41076;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;'>Voir mes badges</a></p>"],
         ];
 
         foreach ($emailTemplatesData as $et) {
@@ -1217,6 +1224,7 @@ class DefaultDataSeeder extends Seeder
             'parcours', 'collaborateurs', 'documents', 'equipements', 'nps',
             'workflows', 'company_page', 'integrations', 'settings', 'reports',
             'cooptation', 'contrats', 'signatures', 'gamification',
+            'feedback_hub', 'recurring_meetings', 'quotes',
         ], 'admin');
 
         Role::updateOrCreate(['name' => 'super_admin'], [
@@ -1274,6 +1282,9 @@ class DefaultDataSeeder extends Seeder
                 'contrats' => 'none',
                 'signatures' => 'none',
                 'gamification' => 'view',
+                'feedback_hub' => 'view',
+                'recurring_meetings' => 'view',
+                'quotes' => 'view',
             ],
             'ordre' => 2,
             'actif' => true,
@@ -1303,6 +1314,9 @@ class DefaultDataSeeder extends Seeder
                 'contrats' => 'edit',
                 'signatures' => 'edit',
                 'gamification' => 'edit',
+                'feedback_hub' => 'edit',
+                'recurring_meetings' => 'edit',
+                'quotes' => 'view',
             ],
             'ordre' => 3,
             'actif' => true,
@@ -1332,6 +1346,9 @@ class DefaultDataSeeder extends Seeder
                 'contrats' => 'none',
                 'signatures' => 'none',
                 'gamification' => 'view',
+                'feedback_hub' => 'none',
+                'recurring_meetings' => 'none',
+                'quotes' => 'view',
             ],
             'ordre' => 4,
             'actif' => true,
