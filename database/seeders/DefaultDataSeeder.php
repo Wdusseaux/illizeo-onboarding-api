@@ -611,13 +611,40 @@ class DefaultDataSeeder extends Seeder
                 ['icon' => 'shield', 'title' => 'Intégrité', 'desc' => 'Nous agissons avec transparence et éthique'],
             ]], 'ordre' => 5],
             ['type' => 'team', 'titre' => "L'équipe qui vous accompagne", 'contenu' => null, 'data' => ['members' => []], 'ordre' => 6],
+            ['type' => 'office_tour', 'titre' => 'Tour des bureaux', 'contenu' => null, 'data' => [
+                'site' => 'Siège Paris',
+                'etage' => 'Étage 4',
+                'treasure_title' => 'Trouvez la mascotte !',
+                'treasure_desc' => "Une peluche cachée à chaque étage. Photo + #welcome = mug collector.",
+                'rooms' => [
+                    ['id' => 'openspace',   'title' => 'Open-space RSE',    'subtitle' => '✓ Votre poste · 4.12', 'span' => 1],
+                    ['id' => 'atrium',      'title' => 'Salle Atrium',      'subtitle' => '✓ Petit-déj équipe',   'span' => 1],
+                    ['id' => 'cafet',       'title' => "Cafét' du 4e",      'subtitle' => '● Prochain stop',      'span' => 1],
+                    ['id' => 'vision',      'title' => 'Salle Vision',      'subtitle' => 'RDV avec DG (J+13)',   'span' => 1],
+                    ['id' => 'phone',       'title' => 'Phone box',         'subtitle' => '×4',                    'span' => 1],
+                    ['id' => 'babyfoot',    'title' => 'Détente',           'subtitle' => 'Babyfoot 🎮',          'span' => 1],
+                    ['id' => 'directionrh', 'title' => 'Direction & RH',    'subtitle' => 'Marie · Hélène',       'span' => 2],
+                    ['id' => 'brainstorm',  'title' => 'Salle Brainstorm',  'subtitle' => '16 places',            'span' => 1],
+                ],
+            ], 'ordre' => 7],
+            ['type' => 'gamification_quests', 'titre' => 'Quêtes du moment', 'contenu' => null, 'data' => [
+                'quests' => [
+                    ['title' => 'Compléter 3 actions urgentes',  'reward' => 60],
+                    ['title' => 'Quiz culture : 4/5 bonnes réponses', 'reward' => 40],
+                    ['title' => 'Rencontrer 3 collègues hors équipe', 'reward' => 50],
+                    ['title' => 'Découvrir 5 lieux du bureau',    'reward' => 40],
+                ],
+            ], 'ordre' => 8],
         ];
 
         foreach ($blocks as $b) {
-            CompanyBlock::firstOrCreate(
-                ['type' => $b['type'], 'ordre' => $b['ordre']],
-                $b
-            );
+            // For singleton block types (office_tour, gamification_quests), use type-only
+            // lookup so we never create duplicates on tenants that already have one.
+            $singletonTypes = ['office_tour', 'gamification_quests'];
+            $lookup = in_array($b['type'], $singletonTypes)
+                ? ['type' => $b['type']]
+                : ['type' => $b['type'], 'ordre' => $b['ordre']];
+            CompanyBlock::firstOrCreate($lookup, $b);
         }
 
         // ── 16. Badge Templates ─────────────────────────────────
