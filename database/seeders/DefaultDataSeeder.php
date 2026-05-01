@@ -545,6 +545,15 @@ class DefaultDataSeeder extends Seeder
 
         // ── 14. Collaborateur field config ──────────────────
         $fieldConfigs = [
+            // Identity (champs de base, toujours actifs et obligatoires)
+            ['field_key' => 'prenom',     'label' => 'Prénom',          'label_en' => 'First name',       'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => true,  'ordre' => 1],
+            ['field_key' => 'nom',        'label' => 'Nom',             'label_en' => 'Last name',        'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => true,  'ordre' => 2],
+            ['field_key' => 'email',      'label' => 'Email pro',       'label_en' => 'Work email',       'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => true,  'ordre' => 3],
+            ['field_key' => 'photo',      'label' => 'Photo',           'label_en' => 'Photo',            'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => false, 'ordre' => 4],
+            ['field_key' => 'date_debut', 'label' => "Date d'embauche", 'label_en' => 'Start date',       'section' => 'identity', 'field_type' => 'date', 'actif' => true,  'obligatoire' => true,  'ordre' => 5],
+            ['field_key' => 'poste',      'label' => 'Poste',           'label_en' => 'Position',         'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => false, 'ordre' => 6],
+            ['field_key' => 'site',       'label' => 'Site',            'label_en' => 'Site',             'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => false, 'ordre' => 7],
+            ['field_key' => 'departement','label' => 'Département',     'label_en' => 'Department',       'section' => 'identity', 'field_type' => 'text', 'actif' => true,  'obligatoire' => false, 'ordre' => 8],
             // Personal
             ['field_key' => 'civilite', 'label' => 'Civilité', 'label_en' => 'Salutation', 'section' => 'personal', 'field_type' => 'list', 'list_values' => ['M.', 'Mme'], 'actif' => true, 'obligatoire' => false, 'ordre' => 1],
             ['field_key' => 'date_naissance', 'label' => 'Date de naissance', 'label_en' => 'Date of birth', 'section' => 'personal', 'field_type' => 'date', 'actif' => true, 'obligatoire' => false, 'ordre' => 2],

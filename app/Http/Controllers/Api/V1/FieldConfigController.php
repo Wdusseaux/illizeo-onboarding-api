@@ -38,7 +38,7 @@ class FieldConfigController extends Controller
             'field_key' => 'required|string|unique:collaborateur_field_config,field_key',
             'label' => 'required|string',
             'label_en' => 'nullable|string',
-            'section' => 'required|in:personal,contract,org,job,position',
+            'section' => 'required|in:identity,personal,contract,org,job,position',
             'field_type' => 'nullable|in:text,number,date,list,boolean',
             'list_values' => 'nullable|array',
             'actif' => 'nullable|boolean',
