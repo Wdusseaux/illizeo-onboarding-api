@@ -96,7 +96,7 @@ class FeedbackHubController extends Controller
         $user = $request->user();
         if (!$user) return response()->json(['error' => 'Non authentifié'], 401);
         $data = $request->validate([
-            'category' => 'nullable|string|in:suggestion,bug,improvement,other',
+            'category' => 'nullable|string|in:suggestion,bug,improvement,other,rdv_request',
             'content' => 'required|string|max:5000',
             'anonymous' => 'nullable|boolean',
         ]);
@@ -111,7 +111,7 @@ class FeedbackHubController extends Controller
             'status' => 'open',
         ]);
         $name = $isAnon ? 'Anonyme' : ($collab ? trim("{$collab->prenom} {$collab->nom}") : ($user->name ?? $user->email));
-        $catLabel = match ($entry->category) { 'bug' => '🐛 Bug', 'improvement' => '✨ Amélioration', 'other' => '💬 Autre', default => '💡 Suggestion' };
+        $catLabel = match ($entry->category) { 'bug' => '🐛 Bug', 'improvement' => '✨ Amélioration', 'rdv_request' => '📅 Demande de RDV', 'other' => '💬 Autre', default => '💡 Suggestion' };
         $this->notifyAdmins(
             "{$catLabel} — {$name}",
             mb_substr($data['content'], 0, 160),
