@@ -590,8 +590,9 @@ class DefaultDataSeeder extends Seeder
             ['field_key' => 'location_code', 'label' => 'Code site', 'label_en' => 'Location code', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 6],
             ['field_key' => 'manager_id', 'label' => 'Manager (ID)', 'label_en' => 'Manager ID', 'section' => 'position', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 7],
             ['field_key' => 'dotted_line_manager', 'label' => 'Manager fonctionnel', 'label_en' => 'Dotted-line manager', 'section' => 'position', 'field_type' => 'text', 'actif' => false, 'obligatoire' => false, 'ordre' => 8],
-            ['field_key' => 'work_schedule', 'label' => 'Horaire de travail', 'label_en' => 'Work schedule', 'section' => 'position', 'field_type' => 'list', 'list_values' => ['Temps plein', 'Temps partiel', 'Horaires flexibles', 'Travail posté'], 'actif' => true, 'obligatoire' => false, 'ordre' => 9],
-            ['field_key' => 'fte', 'label' => 'FTE (équivalent temps plein)', 'label_en' => 'FTE', 'section' => 'position', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
+            ['field_key' => 'hr_manager_id', 'label' => 'HRBP', 'label_en' => 'HR Business Partner', 'section' => 'position', 'field_type' => 'text', 'actif' => true, 'obligatoire' => false, 'ordre' => 9],
+            ['field_key' => 'work_schedule', 'label' => 'Horaire de travail', 'label_en' => 'Work schedule', 'section' => 'position', 'field_type' => 'list', 'list_values' => ['Temps plein', 'Temps partiel', 'Horaires flexibles', 'Travail posté'], 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
+            ['field_key' => 'fte', 'label' => 'FTE (équivalent temps plein)', 'label_en' => 'FTE', 'section' => 'position', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 11],
         ];
 
         // Default field-level visibility based on HR best practices.
