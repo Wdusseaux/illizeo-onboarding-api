@@ -392,6 +392,19 @@ class DefaultDataSeeder extends Seeder
             ['nom' => 'Alerte action sensible (audit)', 'declencheur' => 'Action sensible détectée', 'action' => 'Notifier admin', 'destinataire' => 'Admin RH', 'actif' => true],
             // Organigramme
             ['nom' => 'Notification changement organigramme', 'declencheur' => 'Organigramme mis à jour', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => false],
+            // Badges milestones (auto-attribués via CheckDeadlines)
+            ['nom' => 'Badge Première semaine (J+7)', 'declencheur' => 'J+7 onboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Premier mois (J+30)', 'declencheur' => 'J+30 onboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Cap des 100j (J+100)', 'declencheur' => 'J+100 onboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge De retour (reboarding J+1)', 'declencheur' => 'J+1 reboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Réadaptation (reboarding J+7)', 'declencheur' => 'J+7 reboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Réintégré (reboarding J+30)', 'declencheur' => 'J+30 reboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Transparence (offboarding J+1)', 'declencheur' => 'J+1 offboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Transmission (offboarding J+14)', 'declencheur' => 'J+14 offboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Bonne route (offboarding J+30)', 'declencheur' => 'J+30 offboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Mobilité (crossboarding J+1)', 'declencheur' => 'J+1 crossboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Polyvalent (crossboarding J+14)', 'declencheur' => 'J+14 crossboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Badge Évolution (crossboarding J+60)', 'declencheur' => 'J+60 crossboarding', 'action' => 'Attribuer un badge', 'destinataire' => 'Collaborateur', 'actif' => true],
         ];
 
         foreach ($workflowsData as $w) {

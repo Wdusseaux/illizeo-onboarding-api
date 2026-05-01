@@ -35,24 +35,32 @@ class CheckDeadlines extends Command
     }
 
     /**
-     * Award day-based badges (Première semaine J+7, Cap des 100j J+100, etc.)
+     * Award day-based badges per parcours category.
+     * onboarding: J+7, J+30, J+100 ; reboarding: J+1/J+7/J+30 ; offboarding: J+1/J+14/J+30 ;
+     * crossboarding: J+1/J+14/J+60. Falls back to onboarding milestones when no category set.
      */
     private function checkBadgeMilestones(): void
     {
         $today = Carbon::today();
-        $milestones = [
-            7 => 'j_plus_7',
-            100 => 'j_plus_100',
+        $milestonesByCategory = [
+            'onboarding'    => [7 => 'j_plus_7', 30 => 'first_month', 100 => 'j_plus_100'],
+            'reboarding'    => [1 => 'reboarding_j1', 7 => 'reboarding_j7', 30 => 'reboarding_j30'],
+            'offboarding'   => [1 => 'offboarding_j1', 14 => 'offboarding_j14', 30 => 'offboarding_j30'],
+            'crossboarding' => [1 => 'crossboarding_j1', 14 => 'crossboarding_j14', 60 => 'crossboarding_j60'],
         ];
         $awarded = 0;
 
         $collaborateurs = Collaborateur::whereNotNull('date_debut')
             ->whereNotNull('user_id')
             ->where('status', '!=', 'termine')
+            ->with('parcours.categorie')
             ->get();
 
         foreach ($collaborateurs as $collab) {
             $daysElapsed = (int) $collab->date_debut->diffInDays($today, false);
+            $catSlug = $collab->parcours?->categorie?->slug ?? 'onboarding';
+            $milestones = $milestonesByCategory[$catSlug] ?? $milestonesByCategory['onboarding'];
+
             if (!isset($milestones[$daysElapsed])) {
                 continue;
             }
@@ -64,7 +72,7 @@ class CheckDeadlines extends Command
             $awarded++;
         }
 
-        $this->info("Awarded {$awarded} milestone badge(s) (J+7 / J+100).");
+        $this->info("Awarded {$awarded} milestone badge(s) across all parcours categories.");
     }
 
     /**
