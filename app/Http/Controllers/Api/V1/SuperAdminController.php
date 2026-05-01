@@ -314,13 +314,51 @@ class SuperAdminController extends Controller
     {
         $this->authorize($request);
 
+        // Aperçu d'une clé : préfixe (jusqu'au 2e _) + 4 derniers caractères.
+        // Permet de vérifier que la clé stockée est bien celle attendue (sk_live_*, sk_test_*, etc.)
+        $preview = function ($val) {
+            if (empty($val)) return null;
+            $len = strlen($val);
+            $prefix = substr($val, 0, 12);
+            $suffix = $len > 16 ? substr($val, -4) : '';
+            return $suffix ? $prefix . '...' . $suffix : $prefix . '...';
+        };
+
+        $live_secret = env('STRIPE_SECRET', '');
+        $live_key = env('STRIPE_KEY', '');
+        $live_webhook = env('STRIPE_WEBHOOK_SECRET', '');
+        $test_secret = env('STRIPE_TEST_SECRET', '');
+        $test_key = env('STRIPE_TEST_KEY', '');
+        $test_webhook = env('STRIPE_TEST_WEBHOOK_SECRET', '');
+
+        // Validation prefix : sk_live_*, sk_test_*, pk_live_*, pk_test_*, whsec_*
+        $valid = function ($val, $expected_prefix) {
+            return !empty($val) && str_starts_with($val, $expected_prefix);
+        };
+
         return response()->json([
             'mode' => config('services.stripe.mode', 'live'),
             'has_key' => !empty(config('services.stripe.key')),
             'has_secret' => !empty(config('services.stripe.secret')),
             'has_webhook' => !empty(config('services.stripe.webhook_secret')),
-            'live_configured' => !empty(config('services.stripe.live_secret')),
-            'test_configured' => !empty(config('services.stripe.test_secret')),
+            'live_configured' => !empty($live_secret),
+            'test_configured' => !empty($test_secret),
+            'live' => [
+                'key_preview' => $preview($live_key),
+                'secret_preview' => $preview($live_secret),
+                'webhook_preview' => $preview($live_webhook),
+                'key_valid' => $valid($live_key, 'pk_live_'),
+                'secret_valid' => $valid($live_secret, 'sk_live_'),
+                'webhook_valid' => $valid($live_webhook, 'whsec_'),
+            ],
+            'test' => [
+                'key_preview' => $preview($test_key),
+                'secret_preview' => $preview($test_secret),
+                'webhook_preview' => $preview($test_webhook),
+                'key_valid' => $valid($test_key, 'pk_test_'),
+                'secret_valid' => $valid($test_secret, 'sk_test_'),
+                'webhook_valid' => $valid($test_webhook, 'whsec_'),
+            ],
         ]);
     }
 
