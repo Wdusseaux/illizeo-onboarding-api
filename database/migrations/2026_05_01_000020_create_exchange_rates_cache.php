@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->string('base_currency', 3)->default('CHF');
             $table->string('target_currency', 3);
-            $table->decimal('rate', 12, 6); // 1 CHF = X target_currency
+            $table->decimal('rate', 20, 8); // 1 CHF = X target_currency (IRR ≈ 1.3M, donc precision large)
             $table->timestamp('fetched_at');
             $table->timestamps();
             $table->unique(['base_currency', 'target_currency']);
