@@ -70,6 +70,18 @@ class BadgeController extends Controller
     }
 
     /**
+     * Active badge templates exposed to employees (no admin permission required).
+     */
+    public function publicTemplates(): JsonResponse
+    {
+        $templates = BadgeTemplate::where('actif', true)
+            ->orderBy('nom')
+            ->get(['id', 'nom', 'description', 'icon', 'color', 'critere']);
+
+        return response()->json($templates);
+    }
+
+    /**
      * Create a badge template.
      */
     public function storeTemplate(Request $request): JsonResponse

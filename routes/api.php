@@ -703,6 +703,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         // ── Badges & Gamification ───────────────────────────
         Route::get('badges', [BadgeController::class, 'earned'])->middleware('permission:gamification,view');
         Route::get('badges/my', [BadgeController::class, 'myBadges']); // Self-endpoint, no permission gate
+        Route::get('me/badge-templates', [BadgeController::class, 'publicTemplates']); // Active templates visible to all collaborateurs
         Route::get('badges/user/{userId}', [BadgeController::class, 'userBadges'])->middleware('permission:gamification,view');
         Route::get('badge-templates', [BadgeController::class, 'templates'])->middleware('permission:gamification,view');
         Route::post('badge-templates', [BadgeController::class, 'storeTemplate'])->middleware('permission:gamification,edit');
