@@ -594,11 +594,42 @@ class DefaultDataSeeder extends Seeder
             ['field_key' => 'fte', 'label' => 'FTE (équivalent temps plein)', 'label_en' => 'FTE', 'section' => 'position', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
         ];
 
+        // Default field-level visibility for sensitive fields. Only applied when
+        // visible_roles/editable_roles are still NULL (admin custo not yet touched).
+        // Keys map to role slugs : super_admin/admin/admin_rh ALWAYS bypass via the
+        // FieldVisibilityService, so we list the additional roles that get access.
+        $sensitiveDefaults = [
+            // Compensation — RH + manager voient, RH seul édite
+            'salaire_brut'        => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            'devise'              => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            'taux_activite'       => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            // Identification stricte — RH seulement
+            'iban'                => ['view' => ['hrbp'],                       'edit' => ['hrbp']],
+            'numero_avs'          => ['view' => ['hrbp'],                       'edit' => ['hrbp']],
+            'date_naissance'      => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            // Contrat sensible — RH + manager view
+            'type_contrat'        => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            'date_fin_essai'      => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            'date_fin_contrat'    => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            'motif_embauche'      => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+        ];
+
         foreach ($fieldConfigs as $fc) {
             CollaborateurFieldConfig::firstOrCreate(
                 ['field_key' => $fc['field_key']],
                 $fc
             );
+        }
+
+        // Apply role visibility defaults to sensitive fields ONLY if not customized yet
+        foreach ($sensitiveDefaults as $key => $roles) {
+            CollaborateurFieldConfig::where('field_key', $key)
+                ->whereNull('visible_roles')
+                ->whereNull('editable_roles')
+                ->update([
+                    'visible_roles' => json_encode($roles['view']),
+                    'editable_roles' => json_encode($roles['edit']),
+                ]);
         }
 
         // ── 15. Company page blocks ──────────────────────────

@@ -23,6 +23,10 @@ class FieldConfigController extends Controller
             'label_en' => 'nullable|string',
             'field_type' => 'nullable|in:text,number,date,list,boolean',
             'list_values' => 'nullable|array',
+            'visible_roles' => 'nullable|array',
+            'visible_roles.*' => 'string',
+            'editable_roles' => 'nullable|array',
+            'editable_roles.*' => 'string',
             'ordre' => 'nullable|integer',
         ]));
         return response()->json($collaborateurFieldConfig);

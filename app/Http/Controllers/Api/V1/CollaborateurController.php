@@ -33,7 +33,23 @@ class CollaborateurController extends Controller
             $query->where('parcours_id', $request->parcours_id);
         }
 
-        return response()->json($query->get());
+        $list = $query->get();
+        $hidden = \App\Services\FieldVisibilityService::hiddenFieldKeys($request->user());
+        if (!empty($hidden)) {
+            $userId = $request->user()?->id;
+            $userEmail = $request->user()?->email;
+            $list = $list->map(function ($c) use ($hidden, $userId, $userEmail) {
+                $arr = $c->toArray();
+                $isOwn = ($c->user_id && $c->user_id === $userId) || ($c->email && $c->email === $userEmail);
+                if ($isOwn) return $arr;
+                foreach ($hidden as $k) {
+                    unset($arr[$k]);
+                    if (isset($arr['custom_fields'][$k])) unset($arr['custom_fields'][$k]);
+                }
+                return $arr;
+            });
+        }
+        return response()->json($list);
     }
 
     public function store(Request $request): JsonResponse
@@ -70,11 +86,15 @@ class CollaborateurController extends Controller
         return response()->json($collaborateur, 201);
     }
 
-    public function show(Collaborateur $collaborateur): JsonResponse
+    public function show(Request $request, Collaborateur $collaborateur): JsonResponse
     {
-        return response()->json(
-            $collaborateur->load(['parcours.categorie', 'groupes', 'documents.categorie', 'manager:id,prenom,nom', 'hrManager:id,prenom,nom'])
+        $loaded = $collaborateur->load(['parcours.categorie', 'groupes', 'documents.categorie', 'manager:id,prenom,nom', 'hrManager:id,prenom,nom']);
+        $isOwn = $request->user() && (
+            ($collaborateur->user_id && $collaborateur->user_id === $request->user()->id)
+            || ($collaborateur->email && $collaborateur->email === $request->user()->email)
         );
+        $data = \App\Services\FieldVisibilityService::filterCollaborateurArray($loaded->toArray(), $request->user(), $isOwn);
+        return response()->json($data);
     }
 
     public function update(Request $request, Collaborateur $collaborateur): JsonResponse
