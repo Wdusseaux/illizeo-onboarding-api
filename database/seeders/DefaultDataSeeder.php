@@ -340,7 +340,7 @@ class DefaultDataSeeder extends Seeder
             ['nom' => "Validation pièce d'identité", 'declencheur' => 'Document soumis', 'action' => 'Envoyer pour validation au Manager', 'destinataire' => 'Manager direct', 'actif' => true],
             ['nom' => 'Relance documents en retard', 'declencheur' => 'J-7 avant date limite', 'action' => 'Envoyer email de relance', 'destinataire' => 'Collaborateur', 'actif' => true],
             ['nom' => 'Notification nouveau collaborateur', 'declencheur' => 'Parcours créé', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
-            ['nom' => 'Validation dossier complet', 'declencheur' => 'Tous documents validés', 'action' => 'Envoyer confirmation au collaborateur', 'destinataire' => 'Collaborateur', 'actif' => false],
+            ['nom' => 'Validation dossier complet', 'declencheur' => 'Tous documents validés', 'action' => 'Envoyer confirmation au collaborateur', 'destinataire' => 'Collaborateur', 'actif' => true],
             ['nom' => 'Approbation formulaires Suisse', 'declencheur' => 'Formulaire soumis', 'action' => 'Envoyer pour approbation Admin RH', 'destinataire' => 'Admin RH Suisse', 'actif' => true],
             ['nom' => 'Alerte collaborateur en retard', 'declencheur' => 'Collaborateur en retard', 'action' => 'Envoyer email de relance', 'destinataire' => 'Manager direct', 'actif' => true],
             ['nom' => 'Message bienvenue IllizeoBot', 'declencheur' => 'Nouveau collaborateur', 'action' => 'Envoyer un message IllizeoBot', 'destinataire' => 'Collaborateur', 'actif' => true],
@@ -349,7 +349,7 @@ class DefaultDataSeeder extends Seeder
             ['nom' => "Évaluation fin période d'essai", 'declencheur' => "Période d'essai terminée", 'action' => 'Envoyer pour validation au Manager', 'destinataire' => 'Manager direct', 'actif' => true],
             ['nom' => 'Relance document refusé', 'declencheur' => 'Document refusé', 'action' => 'Envoyer email de relance', 'destinataire' => 'Collaborateur', 'actif' => true],
             ['nom' => 'Alerte NPS négatif', 'declencheur' => 'Questionnaire NPS soumis', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
-            ['nom' => 'Récompense cooptation', 'declencheur' => 'Cooptation validée', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => false],
+            ['nom' => 'Récompense cooptation', 'declencheur' => 'Cooptation validée', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
             ['nom' => 'Félicitations anniversaire', 'declencheur' => "Anniversaire d'embauche", 'action' => 'Envoyer un message IllizeoBot', 'destinataire' => 'Collaborateur', 'actif' => true],
             ['nom' => 'Désactivation accès offboarding', 'declencheur' => 'Fin de parcours offboarding', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
             ['nom' => 'Rappel pré-arrivée J-3', 'declencheur' => "J-3 avant date d'arrivée", 'action' => 'Envoyer email pré-arrivée', 'destinataire' => 'Collaborateur', 'actif' => true],
@@ -365,6 +365,33 @@ class DefaultDataSeeder extends Seeder
             ['nom' => "Envoi formulaire fin de période d'essai", 'declencheur' => "Période d'essai terminée", 'action' => 'Envoyer formulaire évaluation', 'destinataire' => 'Manager direct', 'actif' => true],
             ['nom' => 'Envoi entretien de sortie', 'declencheur' => 'Parcours offboarding créé', 'action' => 'Envoyer questionnaire exit interview', 'destinataire' => 'Collaborateur', 'actif' => true],
             ['nom' => "Envoi rapport d'étonnement J+30", 'declencheur' => 'J+30 après arrivée', 'action' => "Envoyer questionnaire rapport d'étonnement", 'destinataire' => 'Collaborateur', 'actif' => true],
+            // Feedback Hub
+            ['nom' => 'Alerte feedback collaborateur reçu', 'declencheur' => 'Feedback soumis', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
+            ['nom' => 'Accusé réception feedback', 'declencheur' => 'Feedback soumis', 'action' => 'Envoyer email confirmation', 'destinataire' => 'Collaborateur', 'actif' => true],
+            // Buddy / Parrain
+            ['nom' => 'Confirmation assignation buddy', 'declencheur' => 'Buddy assigné', 'action' => 'Envoyer email confirmation', 'destinataire' => 'Buddy / Parrain', 'actif' => true],
+            ['nom' => 'Présentation buddy au collaborateur', 'declencheur' => 'Buddy assigné', 'action' => 'Envoyer email présentation', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Check-in buddy J+30', 'declencheur' => 'J+30 après arrivée', 'action' => 'Envoyer demande feedback', 'destinataire' => 'Buddy / Parrain', 'actif' => true],
+            // Équipement & Provisioning
+            ['nom' => 'Checklist équipement assignée', 'declencheur' => 'Équipement attribué', 'action' => 'Envoyer checklist équipement', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Notification IT — Provisioning', 'declencheur' => 'Nouveau collaborateur', 'action' => 'Notifier équipe IT', 'destinataire' => 'IT', 'actif' => true],
+            ['nom' => 'Restitution équipement offboarding', 'declencheur' => 'Parcours offboarding créé', 'action' => 'Envoyer checklist restitution', 'destinataire' => 'Collaborateur', 'actif' => true],
+            // RDV / Calendar
+            ['nom' => 'Rappel RDV J-1', 'declencheur' => 'J-1 avant RDV', 'action' => 'Envoyer rappel RDV', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Confirmation RDV planifié', 'declencheur' => 'RDV créé', 'action' => 'Envoyer email confirmation', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Rappel RDV récurrent', 'declencheur' => 'J-1 avant RDV récurrent', 'action' => 'Envoyer rappel RDV récurrent', 'destinataire' => 'Collaborateur', 'actif' => true],
+            // Contrats / Signatures
+            ['nom' => 'Alerte contrat refusé', 'declencheur' => 'Contrat refusé', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => true],
+            ['nom' => 'Toutes signatures complètes', 'declencheur' => 'Toutes signatures collectées', 'action' => 'Envoyer email confirmation', 'destinataire' => 'Collaborateur', 'actif' => true],
+            // Citations du jour
+            ['nom' => 'Citation hebdomadaire', 'declencheur' => 'Hebdomadaire (lundi)', 'action' => 'Envoyer citation du jour', 'destinataire' => 'Collaborateur', 'actif' => true],
+            // Formations
+            ['nom' => 'Certificat formation complétée', 'declencheur' => 'Formation complétée', 'action' => 'Envoyer certificat formation', 'destinataire' => 'Collaborateur', 'actif' => true],
+            ['nom' => 'Notification manager — Formation terminée', 'declencheur' => 'Formation complétée', 'action' => 'Notifier le manager', 'destinataire' => 'Manager direct', 'actif' => true],
+            // Audit / Sécurité
+            ['nom' => 'Alerte action sensible (audit)', 'declencheur' => 'Action sensible détectée', 'action' => 'Notifier admin', 'destinataire' => 'Admin RH', 'actif' => true],
+            // Organigramme
+            ['nom' => 'Notification changement organigramme', 'declencheur' => 'Organigramme mis à jour', 'action' => "Notifier l'équipe RH", 'destinataire' => 'Équipe RH', 'actif' => false],
         ];
 
         foreach ($workflowsData as $w) {
