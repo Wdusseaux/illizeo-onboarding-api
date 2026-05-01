@@ -594,24 +594,45 @@ class DefaultDataSeeder extends Seeder
             ['field_key' => 'fte', 'label' => 'FTE (équivalent temps plein)', 'label_en' => 'FTE', 'section' => 'position', 'field_type' => 'number', 'actif' => true, 'obligatoire' => false, 'ordre' => 10],
         ];
 
-        // Default field-level visibility for sensitive fields. Only applied when
-        // visible_roles/editable_roles are still NULL (admin custo not yet touched).
-        // Keys map to role slugs : super_admin/admin/admin_rh ALWAYS bypass via the
-        // FieldVisibilityService, so we list the additional roles that get access.
+        // Default field-level visibility based on HR best practices.
+        // Privileged roles (super_admin / admin / admin_rh) bypass via FieldVisibilityService.
+        // Non-listed fields = NULL = visible/editable by everyone (matricule, job_title, etc.).
         $sensitiveDefaults = [
-            // Compensation — RH + manager voient, RH seul édite
-            'salaire_brut'        => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            'devise'              => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            'taux_activite'       => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            // Identification stricte — RH seulement
-            'iban'                => ['view' => ['hrbp'],                       'edit' => ['hrbp']],
-            'numero_avs'          => ['view' => ['hrbp'],                       'edit' => ['hrbp']],
-            'date_naissance'      => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            // Contrat sensible — RH + manager view
-            'type_contrat'        => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            'date_fin_essai'      => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            'date_fin_contrat'    => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
-            'motif_embauche'      => ['view' => ['hrbp', 'manager'],            'edit' => ['hrbp']],
+            // ── Identité critique : RGPD/payroll, jamais au manager ──
+            'numero_avs'           => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            'iban'                 => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            // ── Coordonnées privées : domicile = vie privée ──
+            'adresse'              => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            'ville'                => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            'code_postal'          => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            'pays'                 => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            // ── Compensation : pay equity, manager exclu ──
+            'salaire_brut'         => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            'devise'               => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            // ── Identité de base : manager doit contacter/souhaiter anniv ──
+            'civilite'             => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'date_naissance'       => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'nationalite'          => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'telephone'            => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            // ── Contrat sensible : manager planifie selon contrat ──
+            'type_contrat'         => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'taux_activite'        => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'periode_essai'        => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'date_fin_essai'       => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'date_fin_contrat'     => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'duree_contrat'        => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            // ── Confidentiel RH : détails contractuels stricts ──
+            'convention_collective' => ['view' => ['hrbp', 'auditeur'],                      'edit' => ['hrbp']],
+            'motif_embauche'       => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            'entite_juridique'     => ['view' => ['hrbp', 'auditeur'],                       'edit' => ['hrbp']],
+            // ── Org sensible : manager pilote/promote ──
+            'centre_cout'          => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'cost_center'          => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'categorie_pro'        => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'niveau_hierarchique'  => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'job_level'            => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'fte'                  => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
+            'recruteur'            => ['view' => ['hrbp', 'manager', 'auditeur'],            'edit' => ['hrbp']],
         ];
 
         foreach ($fieldConfigs as $fc) {
