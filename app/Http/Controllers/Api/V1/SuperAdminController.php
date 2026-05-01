@@ -524,6 +524,105 @@ class SuperAdminController extends Controller
         return response()->json($report);
     }
 
+    /**
+     * Crée les Products + Prices Stripe automatiquement à partir des Plans locaux.
+     *
+     * Pour chaque Plan, crée :
+     *   - 1 Product avec metadata illizeo_plan_slug
+     *   - 1 Price EUR (recurring monthly) avec metadata
+     *   - 1 Price CHF (recurring monthly) avec metadata
+     * Met à jour stripe_price_id_eur / stripe_price_id_chf sur le Plan.
+     *
+     * Idempotent : skip un plan déjà mappé à un Price existant côté Stripe.
+     */
+    public function seedStripeProducts(Request $request): JsonResponse
+    {
+        $this->authorize($request);
+
+        $mode = $request->input('mode', config('services.stripe.mode') ?: env('STRIPE_MODE', 'live'));
+        $secret = $mode === 'test'
+            ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+            : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+
+        if (empty($secret)) {
+            return response()->json(['error' => "Aucune clé secrète Stripe configurée pour le mode '{$mode}'."], 422);
+        }
+        if (!str_starts_with($secret, $mode === 'test' ? 'sk_test_' : 'sk_live_')) {
+            return response()->json(['error' => "La clé secrète Stripe stockée pour le mode '{$mode}' a un préfixe invalide. Attendu : " . ($mode === 'test' ? 'sk_test_' : 'sk_live_')], 422);
+        }
+
+        $stripe = new \Stripe\StripeClient($secret);
+        $plans = Plan::all();
+        $report = ['mode' => $mode, 'created' => [], 'skipped' => [], 'errors' => []];
+
+        foreach ($plans as $plan) {
+            try {
+                // Recharger Stripe pour vérifier si un Product existe déjà avec ce slug
+                $existingProducts = $stripe->products->all(['limit' => 100, 'active' => true]);
+                $product = null;
+                foreach ($existingProducts->data as $p) {
+                    if (($p->metadata->illizeo_plan_slug ?? null) === $plan->slug) {
+                        $product = $p;
+                        break;
+                    }
+                }
+
+                if (!$product) {
+                    $product = $stripe->products->create([
+                        'name' => 'Illizeo ' . $plan->nom,
+                        'description' => $plan->description ?: "Plan Illizeo {$plan->nom}",
+                        'metadata' => ['illizeo_plan_slug' => $plan->slug],
+                    ]);
+                }
+
+                // Créer ou récupérer Prices EUR + CHF
+                $existingPrices = $stripe->prices->all(['product' => $product->id, 'active' => true, 'limit' => 50]);
+                $eurPrice = null; $chfPrice = null;
+                foreach ($existingPrices->data as $pr) {
+                    if (($pr->type ?? null) !== 'recurring') continue;
+                    if (strtolower($pr->currency) === 'eur') $eurPrice = $pr;
+                    if (strtolower($pr->currency) === 'chf') $chfPrice = $pr;
+                }
+
+                if (!$eurPrice && $plan->prix_eur_mensuel > 0) {
+                    $eurPrice = $stripe->prices->create([
+                        'product' => $product->id,
+                        'unit_amount' => (int) round($plan->prix_eur_mensuel * 100),
+                        'currency' => 'eur',
+                        'recurring' => ['interval' => 'month'],
+                        'metadata' => ['illizeo_plan_slug' => $plan->slug],
+                    ]);
+                }
+                if (!$chfPrice && $plan->prix_chf_mensuel > 0) {
+                    $chfPrice = $stripe->prices->create([
+                        'product' => $product->id,
+                        'unit_amount' => (int) round($plan->prix_chf_mensuel * 100),
+                        'currency' => 'chf',
+                        'recurring' => ['interval' => 'month'],
+                        'metadata' => ['illizeo_plan_slug' => $plan->slug],
+                    ]);
+                }
+
+                $update = [];
+                if ($eurPrice) $update['stripe_price_id_eur'] = $eurPrice->id;
+                if ($chfPrice) $update['stripe_price_id_chf'] = $chfPrice->id;
+                if (!empty($update)) $plan->update($update);
+
+                $report['created'][] = [
+                    'plan' => $plan->nom,
+                    'slug' => $plan->slug,
+                    'product_id' => $product->id,
+                    'eur_price_id' => $eurPrice?->id,
+                    'chf_price_id' => $chfPrice?->id,
+                ];
+            } catch (\Exception $e) {
+                $report['errors'][] = ['plan' => $plan->nom, 'error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json($report);
+    }
+
     // ── AI / Claude Configuration ────────────────────────────
 
     public function getAiConfig(): JsonResponse

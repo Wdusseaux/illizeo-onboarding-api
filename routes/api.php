@@ -237,10 +237,15 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::get('stripe-config', [SuperAdminController::class, 'getStripeConfig']);
             Route::put('stripe-config', [SuperAdminController::class, 'updateStripeConfig']);
             Route::post('stripe/sync-prices', [SuperAdminController::class, 'syncStripePrices']);
+            Route::post('stripe/seed-products', [SuperAdminController::class, 'seedStripeProducts']);
             Route::get('ai-config', [SuperAdminController::class, 'getAiConfig']);
             Route::post('ai-config', [SuperAdminController::class, 'updateAiConfig']);
             Route::get('ai-usage', [SuperAdminController::class, 'getAiUsage']);
         });
+
+        // ── Exchange Rates (auth required, public to all logged-in users) ──
+        Route::get('exchange-rates', [\App\Http\Controllers\Api\V1\ExchangeRateController::class, 'index']);
+        Route::get('exchange-rates/convert', [\App\Http\Controllers\Api\V1\ExchangeRateController::class, 'convert']);
 
         // 2FA management (auth required)
         Route::get('2fa/status', [TwoFactorController::class, 'status']);
