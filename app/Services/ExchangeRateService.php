@@ -86,12 +86,23 @@ class ExchangeRateService
             }
 
             $now = now();
+            // Bulk upsert : beaucoup plus rapide que 166 updateOrInsert
+            $rows = [];
             foreach ($data['conversion_rates'] as $target => $rate) {
-                DB::table('exchange_rates_cache')->updateOrInsert(
-                    ['base_currency' => self::BASE_CURRENCY, 'target_currency' => $target],
-                    ['rate' => $rate, 'fetched_at' => $now, 'updated_at' => $now, 'created_at' => $now]
-                );
+                $rows[] = [
+                    'base_currency' => self::BASE_CURRENCY,
+                    'target_currency' => $target,
+                    'rate' => $rate,
+                    'fetched_at' => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
+            DB::table('exchange_rates_cache')->upsert(
+                $rows,
+                ['base_currency', 'target_currency'],
+                ['rate', 'fetched_at', 'updated_at']
+            );
             return true;
         } catch (\Exception $e) {
             Log::error('Erreur refresh exchange rates : ' . $e->getMessage());
