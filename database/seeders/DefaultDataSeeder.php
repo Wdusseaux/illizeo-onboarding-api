@@ -286,7 +286,7 @@ class DefaultDataSeeder extends Seeder
             ]],
             ['slug' => 'suisse', 'titre' => 'Documents administratifs – Suisse', 'pieces' => [
                 ['nom' => 'Pièce d\'identité / Passeport', 'obligatoire' => true, 'type' => 'upload'],
-                ['nom' => 'Carte d'assuré social', 'obligatoire' => false, 'type' => 'upload'],
+                ['nom' => 'Carte d\'assuré social', 'obligatoire' => false, 'type' => 'upload'],
                 ['nom' => 'Permis de travail ou de résidence', 'obligatoire' => false, 'type' => 'upload'],
                 ['nom' => 'Photo d\'identité', 'obligatoire' => true, 'type' => 'upload'],
             ]],
