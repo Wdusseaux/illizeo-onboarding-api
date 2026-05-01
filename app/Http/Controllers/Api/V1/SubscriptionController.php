@@ -43,6 +43,10 @@ class SubscriptionController extends Controller
             'billing_cycle' => 'required|in:monthly,yearly',
             'payment_method' => 'required|in:stripe,sepa,invoice',
             'nombre_collaborateurs' => 'sometimes|integer|min:25',
+            'currency' => 'sometimes|string|in:CHF,EUR,USD,GBP,CAD,AUD,JPY',
+            'country' => 'sometimes|string|size:2',
+            'customer_type' => 'sometimes|in:company,individual,freelance',
+            'vat_number' => 'sometimes|nullable|string|max:32',
         ]);
 
         $newPlan = Plan::on('central')->with('modules')->findOrFail($request->plan_id);
@@ -235,16 +239,52 @@ class SubscriptionController extends Controller
             }
         }
 
+        // Currency : si fournie, on l'utilise ; sinon CHF par défaut
+        $currency = strtolower($request->input('currency', 'chf'));
+        if (!in_array($currency, ['chf', 'eur', 'usd', 'gbp', 'cad', 'aud', 'jpy'])) $currency = 'chf';
+
+        // Calcul TVA selon profil client
+        $country = strtoupper($request->input('country', 'CH'));
+        $customerType = $request->input('customer_type', 'company');
+        $vatNumber = $request->input('vat_number');
+        $vatValidated = false;
+        if ($vatNumber && \App\Services\ViesService::isEuCountry($country)) {
+            $check = \App\Services\ViesService::validate($country, $vatNumber);
+            $vatValidated = (bool) ($check['valid'] ?? false);
+        }
+
+        // Prix dans la devise choisie (par employé × nombre)
+        $priceField = "prix_{$currency}_mensuel";
+        $unitPrice = (float) ($newPlan->{$priceField} ?? $newPlan->prix_chf_mensuel);
+        $isAddon = $newPlan->is_addon || $newPlan->slug === 'cooptation';
+        $totalHt = $newPlan->addon_type === 'ai' ? $unitPrice
+            : ($isAddon ? $unitPrice * $nbCollabs
+                : ($request->billing_cycle === 'yearly' ? $unitPrice * 0.9 : $unitPrice) * $nbCollabs);
+        $totalHtCents = (int) round($totalHt * 100);
+
+        $tenantVatRegistered = !empty(env('ILLIZEO_VAT_NUMBER'));
+        $vat = \App\Services\VatCalculationService::compute($totalHtCents, $country, $customerType, $vatNumber, $vatValidated, $tenantVatRegistered);
+
         $subscription = Subscription::create([
             'tenant_id' => $tenant->id,
             'plan_id' => $newPlan->id,
             'status' => $newStatus,
-            'currency' => 'chf',
+            'currency' => $currency,
             'billing_cycle' => $request->billing_cycle,
             'current_period_start' => $effectiveDate,
             'current_period_end' => $periodEnd,
             'trial_ends_at' => $newStatus === 'trialing' ? now()->addDays(14) : null,
             'nombre_collaborateurs' => $nbCollabs,
+            'country' => $country,
+            'customer_type' => $customerType,
+            'vat_number' => $vatNumber,
+            'vat_validation_status' => $vatNumber ? ($vatValidated ? 'valid' : 'invalid') : null,
+            'vat_validated_at' => $vatValidated ? now() : null,
+            'vat_rate' => $vat['rate'],
+            'amount_ht_cents' => $vat['amount_ht_cents'],
+            'vat_amount_cents' => $vat['vat_amount_cents'],
+            'amount_ttc_cents' => $vat['amount_ttc_cents'],
+            'vat_treatment' => $vat['treatment'],
         ]);
 
         // Billing is handled by the daily CRON command (billing:process)
