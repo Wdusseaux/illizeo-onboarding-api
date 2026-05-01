@@ -146,6 +146,25 @@ class EquipmentController extends Controller
         return response()->json($equipment->load(['type']));
     }
 
+    // ── Employee self-view ───────────────────────────────────
+
+    public function myEquipment(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $collab = \App\Models\Collaborateur::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->first();
+
+        if (!$collab) return response()->json([]);
+
+        return response()->json(
+            Equipment::with(['type', 'assignedBy:id,name'])
+                ->where('collaborateur_id', $collab->id)
+                ->orderBy('assigned_at', 'desc')
+                ->get()
+        );
+    }
+
     // ── Stats ────────────────────────────────────────────────
 
     public function stats(): JsonResponse

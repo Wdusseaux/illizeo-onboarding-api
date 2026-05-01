@@ -759,6 +759,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('my-pending-signatures', [SignatureDocumentController::class, 'myPending']);
         Route::get('me/signature-documents', [SignatureDocumentController::class, 'myAll']);
         Route::get('me/signature-history', [SignatureDocumentController::class, 'myHistory']);
+        Route::get('me/equipment', [EquipmentController::class, 'myEquipment']);
         Route::get('signature-documents/{signatureDocument}/my-acknowledgement', [SignatureDocumentController::class, 'myAcknowledgement']);
 
         // ── Dossier Validation & SIRH Export ───────────────
