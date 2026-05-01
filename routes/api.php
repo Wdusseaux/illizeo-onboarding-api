@@ -238,6 +238,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::put('stripe-config', [SuperAdminController::class, 'updateStripeConfig']);
             Route::post('stripe/sync-prices', [SuperAdminController::class, 'syncStripePrices']);
             Route::post('stripe/seed-products', [SuperAdminController::class, 'seedStripeProducts']);
+            Route::post('stripe/seed-multi-currency', [SuperAdminController::class, 'seedMultiCurrencyPrices']);
             Route::get('ai-config', [SuperAdminController::class, 'getAiConfig']);
             Route::post('ai-config', [SuperAdminController::class, 'updateAiConfig']);
             Route::get('ai-usage', [SuperAdminController::class, 'getAiUsage']);

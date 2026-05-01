@@ -623,6 +623,111 @@ class SuperAdminController extends Controller
         return response()->json($report);
     }
 
+    /**
+     * Étend les Plans avec des prix dans 5 devises supplémentaires (USD, GBP, CAD, AUD, JPY)
+     * et crée les Stripe Prices correspondants. Les prix sont calculés depuis le CHF
+     * via exchangerate-api et arrondis à 2 décimales (sauf JPY = entier).
+     *
+     * Stripe convertira les paiements en CHF lors du payout (FX ~1%).
+     */
+    public function seedMultiCurrencyPrices(Request $request): JsonResponse
+    {
+        $this->authorize($request);
+
+        $mode = $request->input('mode', config('services.stripe.mode') ?: env('STRIPE_MODE', 'live'));
+        $secret = $mode === 'test'
+            ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+            : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+        if (empty($secret)) return response()->json(['error' => "Aucune clé Stripe pour le mode '{$mode}'"], 422);
+
+        $stripe = new \Stripe\StripeClient($secret);
+        $rates = \App\Services\ExchangeRateService::getRates();
+        $targetCurrencies = ['USD', 'GBP', 'CAD', 'AUD', 'JPY'];
+        $missingRates = array_diff($targetCurrencies, array_keys($rates));
+        if (!empty($missingRates)) {
+            return response()->json(['error' => 'Taux de change manquants : ' . implode(', ', $missingRates)], 422);
+        }
+
+        $report = ['mode' => $mode, 'plans' => [], 'errors' => []];
+        $plans = Plan::all();
+
+        foreach ($plans as $plan) {
+            try {
+                // Récupère le Product Stripe correspondant
+                $existingProducts = $stripe->products->all(['limit' => 100, 'active' => true]);
+                $product = null;
+                foreach ($existingProducts->data as $p) {
+                    if (($p->metadata->illizeo_plan_slug ?? null) === $plan->slug) { $product = $p; break; }
+                }
+                if (!$product) {
+                    $report['errors'][] = ['plan' => $plan->nom, 'error' => 'Product Stripe introuvable - lance d\'abord seed-products'];
+                    continue;
+                }
+
+                $existingPrices = $stripe->prices->all(['product' => $product->id, 'active' => true, 'limit' => 50]);
+                $existingByCurrency = [];
+                foreach ($existingPrices->data as $pr) {
+                    if (($pr->type ?? null) === 'recurring') $existingByCurrency[strtolower($pr->currency)] = $pr;
+                }
+
+                $update = [];
+                $created = [];
+
+                foreach ($targetCurrencies as $cur) {
+                    $rate = $rates[$cur];
+                    $chfBase = (float) $plan->prix_chf_mensuel;
+                    if ($chfBase <= 0) continue;
+
+                    // Conversion + arrondi : JPY pas de centimes (yens entiers), autres au .99 supérieur
+                    $rawPrice = $chfBase * $rate;
+                    if ($cur === 'JPY') {
+                        $finalPrice = (int) ceil($rawPrice); // arrondi au yen supérieur
+                        $unitAmount = $finalPrice; // JPY est zero-decimal currency chez Stripe
+                    } else {
+                        // Arrondi à .99 supérieur pour le pricing psychologique
+                        $finalPrice = ceil($rawPrice) - 0.01;
+                        if ($finalPrice < $rawPrice) $finalPrice += 1;
+                        $unitAmount = (int) round($finalPrice * 100);
+                    }
+
+                    // Mettre à jour la colonne prix_*_mensuel
+                    $colName = 'prix_' . strtolower($cur) . '_mensuel';
+                    $update[$colName] = $finalPrice;
+
+                    $stripeColName = 'stripe_price_id_' . strtolower($cur);
+                    $existing = $existingByCurrency[strtolower($cur)] ?? null;
+
+                    if ($existing) {
+                        $update[$stripeColName] = $existing->id;
+                    } else {
+                        $price = $stripe->prices->create([
+                            'product' => $product->id,
+                            'unit_amount' => $unitAmount,
+                            'currency' => strtolower($cur),
+                            'recurring' => ['interval' => 'month'],
+                            'metadata' => ['illizeo_plan_slug' => $plan->slug],
+                        ]);
+                        $update[$stripeColName] = $price->id;
+                        $created[] = $cur . ' = ' . $finalPrice;
+                    }
+                }
+
+                if ($mode === 'live' && !empty($update)) $plan->update($update);
+
+                $report['plans'][] = [
+                    'plan' => $plan->nom,
+                    'slug' => $plan->slug,
+                    'created' => $created,
+                    'all_currencies_set' => count($update) >= count($targetCurrencies) * 2,
+                ];
+            } catch (\Exception $e) {
+                $report['errors'][] = ['plan' => $plan->nom, 'error' => $e->getMessage()];
+            }
+        }
+
+        return response()->json($report);
+    }
+
     // ── AI / Claude Configuration ────────────────────────────
 
     public function getAiConfig(): JsonResponse
