@@ -42,6 +42,8 @@ class StripeWebhookController extends Controller
             'checkout.session.completed' => $this->handleCheckoutCompleted($event->data->object),
             'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event->data->object),
             'customer.subscription.updated' => $this->handleSubscriptionUpdated($event->data->object),
+            'invoice.payment_succeeded' => $this->handleInvoicePaymentSucceeded($event->data->object),
+            'invoice.payment_failed' => $this->handleInvoicePaymentFailed($event->data->object),
             default => null,
         };
 
@@ -207,6 +209,96 @@ class StripeWebhookController extends Controller
         ]);
 
         \Log::info("Subscription {$sub->id} cancelled via Stripe");
+    }
+
+    /**
+     * Stripe Invoice paid — for recurring subscription billing.
+     * Marks the matching local Invoice as paid (or creates one if absent).
+     */
+    private function handleInvoicePaymentSucceeded($stripeInvoice): void
+    {
+        $stripeSubscriptionId = $stripeInvoice->subscription ?? null;
+        $stripeCustomerId = $stripeInvoice->customer ?? null;
+
+        // Find local subscription
+        $subscription = $stripeSubscriptionId
+            ? \App\Models\Subscription::where('stripe_subscription_id', $stripeSubscriptionId)->first()
+            : null;
+
+        // Try to match by stripe_invoice_id
+        $invoice = Invoice::where('stripe_invoice_id', $stripeInvoice->id)->first();
+
+        if ($invoice) {
+            $invoice->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'payment_error' => null,
+            ]);
+            \Log::info("Invoice {$invoice->invoice_number} paid via Stripe invoice {$stripeInvoice->id}");
+            return;
+        }
+
+        // No local invoice yet — create one if we have a subscription context
+        if (!$subscription) {
+            \Log::info("Invoice payment succeeded but no matching local subscription", ['stripe_invoice' => $stripeInvoice->id]);
+            return;
+        }
+
+        try {
+            $amountTtc = ($stripeInvoice->amount_paid ?? 0) / 100;
+            $amountHt = ($stripeInvoice->subtotal ?? 0) / 100;
+            $tax = ($stripeInvoice->tax ?? 0) / 100;
+
+            $newInvoice = Invoice::create([
+                'invoice_number' => Invoice::generateInvoiceNumber(),
+                'tenant_id' => $subscription->tenant_id,
+                'subscription_id' => $subscription->id,
+                'plan_id' => $subscription->plan_id,
+                'stripe_invoice_id' => $stripeInvoice->id,
+                'stripe_payment_intent_id' => $stripeInvoice->payment_intent ?? null,
+                'montant_ht' => $amountHt,
+                'taux_tva' => $amountHt > 0 ? round($tax / $amountHt * 100, 2) : 0,
+                'montant_tva' => $tax,
+                'montant_ttc' => $amountTtc,
+                'currency' => strtoupper($stripeInvoice->currency ?? 'chf'),
+                'payment_method' => 'stripe',
+                'nombre_collaborateurs' => $subscription->nombre_collaborateurs ?? 1,
+                'billing_cycle' => $subscription->billing_cycle ?? 'monthly',
+                'period_start' => isset($stripeInvoice->period_start) ? \Carbon\Carbon::createFromTimestamp($stripeInvoice->period_start) : now(),
+                'period_end' => isset($stripeInvoice->period_end) ? \Carbon\Carbon::createFromTimestamp($stripeInvoice->period_end) : now()->addMonth(),
+                'status' => 'paid',
+                'date_emission' => now(),
+                'date_echeance' => now(),
+                'paid_at' => now(),
+            ]);
+
+            \Log::info("Invoice {$newInvoice->invoice_number} created from Stripe invoice {$stripeInvoice->id}");
+        } catch (\Throwable $e) {
+            \Log::error("Failed to create local invoice from Stripe invoice {$stripeInvoice->id}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Stripe Invoice payment failed — mark the local Invoice as failed.
+     */
+    private function handleInvoicePaymentFailed($stripeInvoice): void
+    {
+        $invoice = Invoice::where('stripe_invoice_id', $stripeInvoice->id)->first();
+        if (!$invoice) return;
+
+        $error = 'Payment failed';
+        if (!empty($stripeInvoice->last_finalization_error->message)) {
+            $error = $stripeInvoice->last_finalization_error->message;
+        }
+
+        $invoice->update([
+            'status' => 'failed',
+            'payment_error' => $error,
+            'payment_attempts' => ($invoice->payment_attempts ?? 0) + 1,
+            'last_payment_attempt' => now(),
+        ]);
+
+        \Log::warning("Invoice {$invoice->invoice_number} payment failed: {$error}");
     }
 
     /**
