@@ -342,13 +342,37 @@ class SubscriptionController extends Controller
      */
     public function cancel(Subscription $subscription): JsonResponse
     {
-        // Cancel takes effect at the end of the current billing period
         $periodEnd = $subscription->current_period_end;
+        $stripeError = null;
+
+        // ── Propagate cancellation to Stripe if linked ──
+        if (!empty($subscription->stripe_subscription_id)) {
+            try {
+                $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
+                $secret = $mode === 'test'
+                    ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+                    : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+                $stripe = new \Stripe\StripeClient($secret);
+
+                if ($periodEnd && \Carbon\Carbon::parse($periodEnd)->isFuture()) {
+                    // Cancel at period end (keeps the sub running until period_end)
+                    $stripe->subscriptions->update($subscription->stripe_subscription_id, [
+                        'cancel_at_period_end' => true,
+                    ]);
+                } else {
+                    // Cancel immediately
+                    $stripe->subscriptions->cancel($subscription->stripe_subscription_id);
+                }
+            } catch (\Throwable $e) {
+                $stripeError = $e->getMessage();
+                \Log::error("Stripe cancellation failed for sub {$subscription->stripe_subscription_id}: " . $e->getMessage());
+            }
+        }
 
         if ($periodEnd && \Carbon\Carbon::parse($periodEnd)->isFuture()) {
-            // Schedule cancellation at period end — keep active until then
             $subscription->update([
                 'canceled_at' => $periodEnd,
+                'cancel_at_period_end' => true,
             ]);
 
             $formattedDate = \Carbon\Carbon::parse($periodEnd)->format('d/m/Y');
@@ -356,6 +380,8 @@ class SubscriptionController extends Controller
                 'message' => "Abonnement annulé. Il restera actif jusqu'au {$formattedDate}.",
                 'effective_date' => $periodEnd,
                 'immediate' => false,
+                'stripe_synced' => $stripeError === null,
+                'stripe_error' => $stripeError,
             ]);
         }
 
@@ -370,6 +396,8 @@ class SubscriptionController extends Controller
         return response()->json([
             'message' => 'Abonnement annulé immédiatement.',
             'immediate' => true,
+            'stripe_synced' => $stripeError === null,
+            'stripe_error' => $stripeError,
         ]);
     }
 

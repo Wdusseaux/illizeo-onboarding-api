@@ -27,6 +27,8 @@ class Subscription extends Model
         'vat_validation_status', 'vat_validated_at',
         'vat_rate', 'vat_amount_cents', 'amount_ht_cents', 'amount_ttc_cents',
         'vat_treatment',
+        'cancel_at_period_end',
+        'next_payment_amount_cents',
     ];
 
     protected $casts = [
@@ -40,6 +42,8 @@ class Subscription extends Model
         'vat_amount_cents' => 'integer',
         'amount_ht_cents' => 'integer',
         'amount_ttc_cents' => 'integer',
+        'cancel_at_period_end' => 'boolean',
+        'next_payment_amount_cents' => 'integer',
     ];
 
     public function plan(): BelongsTo

@@ -396,7 +396,7 @@ class StripeWebhookController extends Controller
     }
 
     /**
-     * Stripe subscription updated (status change, cancel_at_period_end, etc.).
+     * Stripe subscription updated (status change, cancel_at_period_end, period rolled, etc.).
      */
     private function handleSubscriptionUpdated($stripeSub): void
     {
@@ -404,18 +404,36 @@ class StripeWebhookController extends Controller
         if (!$sub) return;
 
         $update = [];
-        if ($stripeSub->status === 'past_due') {
-            $update['status'] = 'past_due';
-        } elseif ($stripeSub->status === 'unpaid') {
-            $update['status'] = 'unpaid';
-        } elseif ($stripeSub->status === 'active' && $sub->status !== 'active') {
-            $update['status'] = 'active';
+
+        // Status mapping
+        if (in_array($stripeSub->status, ['active', 'trialing', 'past_due', 'unpaid', 'canceled', 'incomplete', 'incomplete_expired'], true)) {
+            $update['status'] = $stripeSub->status === 'canceled' ? 'cancelled' : $stripeSub->status;
         }
-        if (!empty($stripeSub->cancel_at_period_end)) {
-            $update['cancel_at_period_end'] = true;
+
+        // cancel_at_period_end flag
+        $update['cancel_at_period_end'] = !empty($stripeSub->cancel_at_period_end);
+
+        // Period dates (refreshed every renewal)
+        if (!empty($stripeSub->current_period_start)) {
+            $update['current_period_start'] = \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_start);
         }
-        if (!empty($update)) {
-            $sub->update($update);
+        if (!empty($stripeSub->current_period_end)) {
+            $update['current_period_end'] = \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_end);
         }
+
+        // Next payment amount (sum of subscription items)
+        if (isset($stripeSub->items->data) && is_array($stripeSub->items->data)) {
+            $totalCents = 0;
+            foreach ($stripeSub->items->data as $item) {
+                $unit = (int) ($item->price->unit_amount ?? 0);
+                $qty = (int) ($item->quantity ?? 1);
+                $totalCents += $unit * $qty;
+            }
+            if ($totalCents > 0) {
+                $update['next_payment_amount_cents'] = $totalCents;
+            }
+        }
+
+        $sub->update($update);
     }
 }

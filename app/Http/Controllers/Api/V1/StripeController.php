@@ -459,7 +459,8 @@ class StripeController extends Controller
     }
 
     /**
-     * Save billing info (company, address, VAT).
+     * Save billing info (company, address, VAT) — syncs to Stripe Customer
+     * so future Stripe-generated invoices have the right address + tax_id.
      */
     public function saveBillingInfo(Request $request): JsonResponse
     {
@@ -473,6 +474,94 @@ class StripeController extends Controller
             }
         }
 
+        // ── Sync address + VAT to Stripe Customer ──
+        $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
+        $customerId = \App\Models\CompanySetting::where('key', $mode === 'test' ? 'stripe_test_customer_id' : 'stripe_customer_id')->value('value');
+
+        if ($customerId) {
+            try {
+                $stripe = $this->stripe();
+
+                // Build address — Stripe expects ISO country code
+                $countryIso = $this->countryNameToIso($request->pays ?? null);
+                $line1 = trim(($request->rue ?? '') . ' ' . ($request->numero ?? ''));
+
+                $update = [];
+                if ($line1 !== '' || !empty($request->ville) || !empty($request->code_postal) || $countryIso) {
+                    $update['address'] = array_filter([
+                        'line1' => $line1 ?: null,
+                        'line2' => $request->complement ?? null,
+                        'city' => $request->ville ?? $request->localite ?? null,
+                        'postal_code' => $request->code_postal ?? null,
+                        'state' => $request->canton ?? null,
+                        'country' => $countryIso,
+                    ]);
+                }
+                if ($request->has('company') && !empty($request->company)) {
+                    $update['name'] = $request->company;
+                }
+                if (!empty($update)) {
+                    $stripe->customers->update($customerId, $update);
+                }
+
+                // Sync VAT (tax_id) — Stripe doesn't allow modify, so we delete + recreate
+                if ($request->has('vat')) {
+                    $newVat = trim($request->vat ?? '');
+
+                    // Delete existing tax_ids
+                    try {
+                        $existing = $stripe->customers->allTaxIds($customerId, ['limit' => 10]);
+                        foreach ($existing->data as $tx) {
+                            $stripe->customers->deleteTaxId($customerId, $tx->id);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::info('Could not list/delete tax_ids: ' . $e->getMessage());
+                    }
+
+                    if ($newVat !== '') {
+                        try {
+                            $stripe->customers->createTaxId($customerId, [
+                                'type' => $this->guessTaxIdType($countryIso ?: 'CH'),
+                                'value' => $newVat,
+                            ]);
+                        } catch (\Throwable $e) {
+                            \Log::info('Could not attach new tax_id: ' . $e->getMessage());
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Stripe billing sync failed: ' . $e->getMessage());
+                // Non-blocking — settings are already saved locally
+            }
+        }
+
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Map French country names to ISO 2-letter code.
+     */
+    private function countryNameToIso(?string $name): ?string
+    {
+        if (!$name) return null;
+        $n = strtolower(trim($name));
+        // Already ISO
+        if (preg_match('/^[A-Z]{2}$/', $name)) return strtoupper($name);
+        $map = [
+            'suisse' => 'CH', 'switzerland' => 'CH', 'ch' => 'CH',
+            'france' => 'FR', 'fr' => 'FR',
+            'allemagne' => 'DE', 'germany' => 'DE', 'de' => 'DE',
+            'italie' => 'IT', 'italy' => 'IT', 'it' => 'IT',
+            'belgique' => 'BE', 'belgium' => 'BE', 'be' => 'BE',
+            'luxembourg' => 'LU', 'lu' => 'LU',
+            'pays-bas' => 'NL', 'nederland' => 'NL', 'netherlands' => 'NL', 'nl' => 'NL',
+            'espagne' => 'ES', 'spain' => 'ES', 'es' => 'ES',
+            'portugal' => 'PT', 'pt' => 'PT',
+            'autriche' => 'AT', 'austria' => 'AT', 'at' => 'AT',
+            'royaume-uni' => 'GB', 'uk' => 'GB', 'gb' => 'GB',
+            'états-unis' => 'US', 'united states' => 'US', 'usa' => 'US', 'us' => 'US',
+            'canada' => 'CA', 'ca' => 'CA',
+        ];
+        return $map[$n] ?? null;
     }
 }
