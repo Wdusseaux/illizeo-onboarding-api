@@ -253,7 +253,8 @@ class DocumentController extends Controller
 
     public function templates(): JsonResponse
     {
-        $templates = Document::where('is_template', true)
+        // Anything without a collaborateur_id is a template (covers seeded + user-created)
+        $templates = Document::whereNull('collaborateur_id')
             ->with('categorie')
             ->orderBy('categorie_id')
             ->orderBy('nom')
@@ -488,7 +489,13 @@ class DocumentController extends Controller
 
     public function categories(): JsonResponse
     {
-        return response()->json(DocumentCategorie::with('documents')->get());
+        // Only expose template documents (no collaborateur_id) — collab submissions
+        // are out of scope here and would otherwise pollute the "Bibliothèque de modèles".
+        return response()->json(
+            DocumentCategorie::with(['documents' => function ($q) {
+                $q->whereNull('collaborateur_id');
+            }])->get()
+        );
     }
 
     /**

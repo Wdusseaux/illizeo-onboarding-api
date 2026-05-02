@@ -1200,7 +1200,7 @@ class DefaultDataSeeder extends Seeder
                     $statusIdx = ($ci + $di) % count($docStatuses);
                     $status = $docStatuses[$statusIdx];
                     \App\Models\Document::firstOrCreate(
-                        ['nom' => $docNom . ' — ' . $collab->prenom, 'collaborateur_id' => $collab->id],
+                        ['nom' => $docNom, 'collaborateur_id' => $collab->id],
                         [
                             'nom' => $docNom,
                             'obligatoire' => $di < 2,
