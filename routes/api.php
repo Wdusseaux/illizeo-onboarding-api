@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\OcrController;
 use App\Http\Controllers\Api\V1\CalendarController;
 use App\Http\Controllers\Api\V1\AiChatController;
 use App\Http\Controllers\Api\V1\StripeController;
+use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\MessageController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\RecurringMeetingController;
@@ -234,6 +235,8 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::get('subscriptions', [SuperAdminController::class, 'listSubscriptions']);
             Route::get('invoices', [SuperAdminController::class, 'listInvoices']);
             Route::post('invoices/{invoiceId}/mark-paid', [SuperAdminController::class, 'markInvoicePaid']);
+            Route::post('invoices/{id}/regenerate-pdf', [InvoiceController::class, 'regenerate']);
+            Route::get('invoices/{id}/download', [InvoiceController::class, 'download']);
             Route::get('stripe-config', [SuperAdminController::class, 'getStripeConfig']);
             Route::put('stripe-config', [SuperAdminController::class, 'updateStripeConfig']);
             Route::post('stripe/sync-prices', [SuperAdminController::class, 'syncStripePrices']);
@@ -819,6 +822,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // ── Invoices ──────────────────────────────────────────
         Route::get('invoices', [SubscriptionController::class, 'listInvoices']);
+        Route::get('invoices/{id}/download', [InvoiceController::class, 'download']);
 
         // ── OCR / AI (rate-limited) ────────────────────────────
         Route::get('ai/usage', [OcrController::class, 'getUsage']);
