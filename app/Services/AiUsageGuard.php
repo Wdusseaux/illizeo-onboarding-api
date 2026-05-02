@@ -42,6 +42,10 @@ class AiUsageGuard
         'generate_parcours' => 'ai_bot_messages',
         'cooptation_score' => 'ai_bot_messages',
         'cv_parse' => 'ai_bot_messages',
+        'sentiment_nps' => 'ai_bot_messages',
+        'buddy_match' => 'ai_bot_messages',
+        'weekly_summary' => 'ai_bot_messages',
+        'proactive_insight' => 'ai_bot_messages',
     ];
 
     /**

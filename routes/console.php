@@ -44,3 +44,9 @@ Schedule::command('billing:process')->dailyAt('00:15');
 
 // RGPD data retention: warn J-7, J-1, then auto-delete 30 days after subscription/trial end
 Schedule::command('rgpd:process-retention')->dailyAt('06:00');
+
+// AI weekly executive summary — every Monday at 07:00 (per tenant, per admin)
+Schedule::command('ai:weekly-summary')->mondays()->at('07:00');
+
+// AI proactive insights — daily scan for actionable patterns + push notifications
+Schedule::command('ai:proactive-insights')->dailyAt('07:30');

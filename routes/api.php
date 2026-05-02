@@ -838,6 +838,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);
             Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
             Route::post('ai/chat', [AiChatController::class, 'sendMessage']);
+            // AI insights : NPS sentiment, buddy matching, turnover risk
+            Route::post('ai/nps-sentiment', [\App\Http\Controllers\Api\V1\AiInsightsController::class, 'analyzeNpsResponse']);
+            Route::post('ai/nps-insights', [\App\Http\Controllers\Api\V1\AiInsightsController::class, 'aggregateNpsInsights']);
+            Route::post('ai/suggest-buddy', [\App\Http\Controllers\Api\V1\AiInsightsController::class, 'suggestBuddy']);
+            Route::get('ai/turnover-risk', [\App\Http\Controllers\Api\V1\AiInsightsController::class, 'turnoverRisk']);
             Route::post('ai/admin-chat', [AiChatController::class, 'adminChat']);
             Route::post('ai/generate-parcours', [AiChatController::class, 'generateParcours']);
             Route::get('ai/insights', [AiChatController::class, 'getInsights']);
