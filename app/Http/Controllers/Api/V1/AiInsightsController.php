@@ -247,36 +247,78 @@ class AiInsightsController extends Controller
 
     /**
      * Risk score for turnover prediction across all current collabs.
-     * Composed from : NPS scores, mood entries, parcours completion delays,
-     * and missed RDVs. Returns top N collabs at risk with rationale.
      *
-     * GET /ai/turnover-risk
+     * 3-level analysis:
+     *  - Level 1 (rules)    : score from NPS, mood avg, progression delay (fast)
+     *  - Level 2 (verbatims): Claude reads NPS/mood comments to enrich the narrative
+     *  - Level 3 (temporal) : Claude detects 4-week trends (mood declining, etc.)
+     *
+     * GET /ai/turnover-risk?enrich=1  (default 1; set 0 to disable Claude)
      */
     public function turnoverRisk(Request $request): JsonResponse
     {
         if ($r = AiUsageGuard::blockIfExceeded('insights')) return $r;
+
+        $enrich = $request->query('enrich', '1') === '1';
 
         $collabs = Collaborateur::where('status', '!=', 'termine')
             ->where('progression', '<', 100)
             ->get();
 
         if ($collabs->isEmpty()) {
-            return response()->json(['at_risk' => [], 'note' => 'Aucun collaborateur actif']);
+            return response()->json(['at_risk' => [], 'total_screened' => 0, 'enriched' => false]);
         }
 
+        $collabIds = $collabs->pluck('id')->all();
+
+        // ── Pre-compute temporal data in batch (avoid N+1 queries) ──
+        // Mood weekly average over 4 weeks
+        $moodByCollabWeek = \DB::table('mood_checkins')
+            ->select('collaborateur_id', \DB::raw('FLOOR(DATEDIFF(NOW(), created_at) / 7) as week_offset'), \DB::raw('AVG(mood) as avg_mood'), \DB::raw('COUNT(*) as cnt'))
+            ->whereIn('collaborateur_id', $collabIds)
+            ->where('created_at', '>=', now()->subDays(28))
+            ->groupBy('collaborateur_id', 'week_offset')
+            ->get()
+            ->groupBy('collaborateur_id');
+
+        // Recent mood comments
+        $moodCommentsByCollab = \DB::table('mood_checkins')
+            ->whereIn('collaborateur_id', $collabIds)
+            ->whereNotNull('comment')
+            ->where('comment', '!=', '')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->orderByDesc('created_at')
+            ->get(['collaborateur_id', 'mood', 'comment', 'created_at'])
+            ->groupBy('collaborateur_id');
+
+        // NPS history (last 3 responses + verbatim)
+        $npsByCollab = NpsResponse::whereIn('collaborateur_id', $collabIds)
+            ->whereNotNull('completed_at')
+            ->orderByDesc('completed_at')
+            ->get(['id', 'collaborateur_id', 'score', 'comment', 'completed_at'])
+            ->groupBy('collaborateur_id');
+
+        // Action completion velocity (actions completed last 14d vs prior 14d)
+        $actionsCompletedRecent = \App\Models\CollaborateurAction::whereIn('collaborateur_id', $collabIds)
+            ->where('status', 'termine')
+            ->where('completed_at', '>=', now()->subDays(14))
+            ->get(['collaborateur_id'])
+            ->countBy('collaborateur_id');
+        $actionsCompletedPrior = \App\Models\CollaborateurAction::whereIn('collaborateur_id', $collabIds)
+            ->where('status', 'termine')
+            ->whereBetween('completed_at', [now()->subDays(28), now()->subDays(14)])
+            ->get(['collaborateur_id'])
+            ->countBy('collaborateur_id');
+
+        // ── Level 1 : rule-based scoring ──
         $signals = [];
         foreach ($collabs as $c) {
-            // NPS détracteur récent
-            $npsScore = NpsResponse::where('collaborateur_id', $c->id)
-                ->whereNotNull('completed_at')
-                ->orderByDesc('completed_at')
-                ->value('score');
+            $latestNps = ($npsByCollab[$c->id] ?? collect())->first();
+            $npsScore = $latestNps?->score;
 
-            // Mood récent (7 derniers jours)
-            $moodAvg = \DB::table('mood_checkins')
-                ->where('collaborateur_id', $c->id)
-                ->where('created_at', '>=', now()->subDays(7))
-                ->avg('mood');
+            $moodWeeks = $moodByCollabWeek[$c->id] ?? collect();
+            $moodAvg7d = (float) ($moodWeeks->where('week_offset', 0)->first()?->avg_mood ?? 0);
+            $moodAvgFull = $moodWeeks->avg('avg_mood');
 
             $score = 0;
             $reasons = [];
@@ -285,35 +327,138 @@ class AiInsightsController extends Controller
                 $score += 30;
                 $reasons[] = "Détracteur NPS (note {$npsScore}/10)";
             }
-            if ($moodAvg !== null && $moodAvg < 3) {
+            if ($moodAvg7d > 0 && $moodAvg7d < 3) {
                 $score += 25;
-                $reasons[] = "Humeur moyenne basse (" . round($moodAvg, 1) . "/5) cette semaine";
+                $reasons[] = "Humeur moyenne basse (" . round($moodAvg7d, 1) . "/5) cette semaine";
             }
             if ($c->progression < 50 && $c->date_debut && now()->diffInDays($c->date_debut) > 30) {
                 $score += 20;
                 $reasons[] = "Parcours en retard ({$c->progression}% à J+" . now()->diffInDays($c->date_debut) . ")";
             }
 
-            if ($score >= 25) {
-                $signals[] = [
-                    'id' => $c->id,
-                    'nom' => trim("{$c->prenom} {$c->nom}"),
-                    'poste' => $c->poste,
-                    'site' => $c->site,
-                    'risk_score' => min(100, $score),
-                    'reasons' => $reasons,
-                ];
+            if ($score < 25) continue;
+
+            // ── Level 3 : pre-compute temporal context ──
+            $weeklyMoods = [];
+            for ($w = 3; $w >= 0; $w--) {
+                $entry = $moodWeeks->where('week_offset', $w)->first();
+                $weeklyMoods[] = $entry ? round((float) $entry->avg_mood, 2) : null;
             }
+
+            $velocity = ($actionsCompletedRecent[$c->id] ?? 0) - ($actionsCompletedPrior[$c->id] ?? 0);
+
+            $signals[] = [
+                'id' => $c->id,
+                'nom' => trim("{$c->prenom} {$c->nom}"),
+                'poste' => $c->poste,
+                'site' => $c->site,
+                'risk_score' => min(100, $score),
+                'reasons' => $reasons,
+                // Level 2/3 context (sent to Claude for narrative + trend)
+                '_context' => [
+                    'progression' => $c->progression,
+                    'days_since_start' => $c->date_debut ? (int) now()->diffInDays($c->date_debut) : null,
+                    'nps_history' => ($npsByCollab[$c->id] ?? collect())->take(3)->map(fn ($n) => [
+                        'score' => (int) $n->score,
+                        'date' => \Carbon\Carbon::parse($n->completed_at)->format('Y-m-d'),
+                        'comment' => $n->comment ? mb_substr($n->comment, 0, 250) : null,
+                    ])->values()->toArray(),
+                    'mood_weekly_avg' => $weeklyMoods, // [week-3, week-2, week-1, this week] — null si pas de data
+                    'mood_recent_comments' => ($moodCommentsByCollab[$c->id] ?? collect())->take(3)->map(fn ($m) => [
+                        'mood' => (int) $m->mood,
+                        'date' => \Carbon\Carbon::parse($m->created_at)->format('Y-m-d'),
+                        'comment' => mb_substr($m->comment, 0, 250),
+                    ])->values()->toArray(),
+                    'actions_velocity' => [
+                        'last_14d' => $actionsCompletedRecent[$c->id] ?? 0,
+                        'prior_14d' => $actionsCompletedPrior[$c->id] ?? 0,
+                        'delta' => $velocity,
+                    ],
+                ],
+            ];
         }
 
         usort($signals, fn ($a, $b) => $b['risk_score'] - $a['risk_score']);
 
-        $this->logUsage('insights', null, ['type' => 'turnover_risk', 'count' => count($signals)]);
+        // Cap to top 20 to limit Claude payload
+        $topSignals = array_slice($signals, 0, 20);
+
+        // ── Level 2 + 3 : single Claude call enriching all at-risk collabs ──
+        $enrichments = [];
+        if ($enrich && !empty($topSignals)) {
+            $claudeResult = $this->enrichRiskWithClaude($topSignals);
+            if (isset($claudeResult['enrichments']) && is_array($claudeResult['enrichments'])) {
+                foreach ($claudeResult['enrichments'] as $e) {
+                    if (isset($e['id'])) $enrichments[$e['id']] = $e;
+                }
+            }
+        }
+
+        // Merge enrichments into signals + drop _context (internal only)
+        $output = array_map(function ($s) use ($enrichments) {
+            $e = $enrichments[$s['id']] ?? null;
+            unset($s['_context']);
+            return array_merge($s, $e ? [
+                'narrative' => $e['narrative'] ?? null,
+                'trend' => $e['trend'] ?? null,
+                'trend_label' => $e['trend_label'] ?? null,
+                'targeted_recommendation' => $e['targeted_recommendation'] ?? null,
+            ] : []);
+        }, $topSignals);
+
+        $this->logUsage('insights', null, ['type' => 'turnover_risk', 'count' => count($output), 'enriched' => $enrich]);
 
         return response()->json([
-            'at_risk' => array_slice($signals, 0, 20),
+            'at_risk' => $output,
             'total_screened' => $collabs->count(),
+            'enriched' => $enrich && !empty($enrichments),
         ]);
+    }
+
+    /**
+     * Single Claude call : analyse the ~20 at-risk collabs and return for each :
+     *  - narrative (why they are at risk, in plain French)
+     *  - trend (declining|stable|improving) computed from mood_weekly_avg
+     *  - trend_label (short phrase)
+     *  - targeted_recommendation (concrete action)
+     */
+    private function enrichRiskWithClaude(array $signals): array
+    {
+        // Compact payload for Claude — keep only the essential context
+        $payload = array_map(function ($s) {
+            return [
+                'id' => $s['id'],
+                'nom' => $s['nom'],
+                'poste' => $s['poste'],
+                'risk_score' => $s['risk_score'],
+                'rule_reasons' => $s['reasons'],
+                'context' => $s['_context'] ?? [],
+            ];
+        }, $signals);
+
+        $systemPrompt = "Tu es un expert RH spécialisé dans la prédiction de turnover. Tu reçois une liste de collaborateurs flaggés à risque par un algorithme de scoring + leur contexte temporel sur 4 semaines. Pour chaque collaborateur, retourne UNIQUEMENT un JSON strict (pas de markdown) :\n"
+            . '{"enrichments":[{"id":N,"narrative":"...","trend":"declining|stable|improving|insufficient_data","trend_label":"phrase courte","targeted_recommendation":"action concrète"}]}'."\n"
+            . "Règles strictes :\n"
+            . "- narrative : 2 phrases max en français, explique POURQUOI ce collab est à risque en croisant les signaux disponibles. Cite les verbatims si pertinents (entre guillemets, max 50 caractères chacun).\n"
+            . "- trend : analyse mood_weekly_avg [w-3, w-2, w-1, this week]. Si moyenne baisse de >0.5 entre w-3 et this week → 'declining'. Si stable (<0.3 d'écart) → 'stable'. Si remonte → 'improving'. Si tableau a moins de 2 valeurs non-nulles → 'insufficient_data'.\n"
+            . "- trend_label : phrase courte (max 60 chars) ex. 'Humeur en chute depuis 3 semaines' ou 'Stable mais bas'.\n"
+            . "- targeted_recommendation : une action SPÉCIFIQUE et datée (max 100 chars). Pas générique. Ex. 'Planifier 1:1 avec son manager dans les 7j pour aborder la charge de travail évoquée le 15/04'.\n"
+            . "- Si peu de données, dis-le clairement dans la narrative ('Données limitées : ...').\n"
+            . "- Conserve l'ID exact reçu pour chaque collaborateur.";
+
+        $userPrompt = "COLLABORATEURS À RISQUE :\n" . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+        // Bigger token budget — up to 20 collabs × ~250 tokens = 5000 tokens of output
+        $result = $this->callClaude($systemPrompt, $userPrompt, 6000);
+        if (isset($result['error'])) {
+            \Log::warning("Turnover Claude enrich failed: " . $result['error']);
+            return [];
+        }
+
+        $parsed = $this->parseJson($result['text']);
+        $this->logUsage('insights', $result, ['type' => 'turnover_risk_enrich', 'count' => count($signals)]);
+
+        return $parsed ?: [];
     }
 
     // ──────────────────────────────────────────────────────────────────────
