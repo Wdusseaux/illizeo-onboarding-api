@@ -182,6 +182,23 @@ SCRIPT
                 throw new \Exception($errMsg);
             }
 
+            // ── Welcome email (best-effort, non-blocking) ──
+            try {
+                $appUrl = config('app.frontend_url') ?: env('FRONTEND_URL', 'https://onboarding.illizeo.com');
+                $tenantUrl = "{$appUrl}/{$jsonResult['tenant_id']}";
+                \Illuminate\Support\Facades\Mail::to($jsonResult['user_email'])->send(
+                    new \App\Mail\TenantWelcomeMail(
+                        tenantId: $jsonResult['tenant_id'],
+                        companyName: $request->company_name,
+                        adminName: $jsonResult['user_name'],
+                        adminEmail: $jsonResult['user_email'],
+                        tenantUrl: $tenantUrl,
+                    )
+                );
+            } catch (\Throwable $e) {
+                \Log::warning("Welcome email failed for {$jsonResult['user_email']}: " . $e->getMessage());
+            }
+
             return response()->json([
                 'message' => 'Espace créé avec succès',
                 'tenant_id' => $jsonResult['tenant_id'],

@@ -245,6 +245,13 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             Route::get('ai-config', [SuperAdminController::class, 'getAiConfig']);
             Route::post('ai-config', [SuperAdminController::class, 'updateAiConfig']);
             Route::get('ai-usage', [SuperAdminController::class, 'getAiUsage']);
+            // Coupons / Promotion Codes (Stripe back-office)
+            Route::get('coupons', [\App\Http\Controllers\Api\V1\CouponController::class, 'index']);
+            Route::post('coupons', [\App\Http\Controllers\Api\V1\CouponController::class, 'store']);
+            Route::delete('coupons/{couponId}', [\App\Http\Controllers\Api\V1\CouponController::class, 'destroy']);
+            Route::patch('promotion-codes/{promoCodeId}', [\App\Http\Controllers\Api\V1\CouponController::class, 'togglePromoCode']);
+            // Reporting (MRR, ARR, churn, breakdown plan)
+            Route::get('reporting/revenue', [SuperAdminController::class, 'reportingRevenue']);
         });
 
         // ── Exchange Rates (auth required, public to all logged-in users) ──

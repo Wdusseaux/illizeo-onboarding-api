@@ -57,6 +57,141 @@ class SuperAdminController extends Controller
         ]);
     }
 
+    /**
+     * Detailed revenue reporting: MRR (monthly + annualized), ARR, churn,
+     * breakdown by plan, evolution over the last 12 months.
+     */
+    public function reportingRevenue(Request $request): JsonResponse
+    {
+        $this->authorize($request);
+
+        // ─── Active subscriptions (excluding cancelled / unpaid) ─────────────
+        $activeSubs = Subscription::whereIn('status', ['active', 'trialing'])
+            ->with('plan')
+            ->get();
+
+        // ─── MRR : monthly subs full price + annual subs / 12 ──────────────
+        $mrr = 0;
+        $arr = 0;
+        $byPlan = [];
+
+        foreach ($activeSubs as $sub) {
+            if (!$sub->plan) continue;
+            $cur = strtolower($sub->currency ?? 'chf');
+            $priceField = "prix_{$cur}_mensuel";
+            $unit = (float) ($sub->plan->{$priceField} ?? $sub->plan->prix_chf_mensuel ?? 0);
+            $isAi = ($sub->plan->addon_type ?? null) === 'ai';
+            $isAddon = $sub->plan->is_addon || ($sub->plan->slug ?? '') === 'cooptation';
+            $monthly = $isAi ? $unit : ($isAddon ? $unit * $sub->nombre_collaborateurs : $unit * $sub->nombre_collaborateurs);
+
+            if ($sub->billing_cycle === 'yearly') {
+                // Yearly subs are billed once but count as monthly recurring (×0.9 already applied at billing)
+                $contributedMrr = ($monthly * 12 * 0.9) / 12;
+            } else {
+                $contributedMrr = $monthly;
+            }
+
+            $mrr += $contributedMrr;
+            $arr += $contributedMrr * 12;
+
+            $planSlug = $sub->plan->slug ?? 'unknown';
+            if (!isset($byPlan[$planSlug])) {
+                $byPlan[$planSlug] = [
+                    'slug' => $planSlug,
+                    'nom' => $sub->plan->nom,
+                    'addon_type' => $sub->plan->addon_type,
+                    'subs_count' => 0,
+                    'mrr' => 0,
+                    'collaborateurs' => 0,
+                ];
+            }
+            $byPlan[$planSlug]['subs_count']++;
+            $byPlan[$planSlug]['mrr'] += $contributedMrr;
+            $byPlan[$planSlug]['collaborateurs'] += (int) $sub->nombre_collaborateurs;
+        }
+
+        // ─── Churn rate (last 30 days) ─────────────────────────────────────
+        $thirtyDaysAgo = now()->subDays(30);
+        $churnedLast30d = Subscription::where('status', 'canceled')
+            ->where('canceled_at', '>=', $thirtyDaysAgo)
+            ->count();
+        $activeStartOfPeriod = Subscription::whereIn('status', ['active', 'trialing'])
+            ->where('created_at', '<', $thirtyDaysAgo)
+            ->count();
+        $churnRate30d = $activeStartOfPeriod > 0
+            ? round(($churnedLast30d / $activeStartOfPeriod) * 100, 2)
+            : 0;
+
+        // ─── 12-month evolution ────────────────────────────────────────────
+        $evolution = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $startOfMonth = now()->subMonths($i)->startOfMonth();
+            $endOfMonth = (clone $startOfMonth)->endOfMonth();
+
+            // Subs active during this month
+            $activeInMonth = Subscription::where(function ($q) use ($startOfMonth, $endOfMonth) {
+                $q->where('created_at', '<=', $endOfMonth)
+                  ->where(function ($qq) use ($startOfMonth) {
+                      $qq->whereNull('canceled_at')
+                         ->orWhere('canceled_at', '>=', $startOfMonth);
+                  });
+            })->with('plan')->get();
+
+            $monthMrr = 0;
+            foreach ($activeInMonth as $sub) {
+                if (!$sub->plan) continue;
+                $cur = strtolower($sub->currency ?? 'chf');
+                $unit = (float) ($sub->plan->{"prix_{$cur}_mensuel"} ?? $sub->plan->prix_chf_mensuel ?? 0);
+                $isAi = ($sub->plan->addon_type ?? null) === 'ai';
+                $isAddon = $sub->plan->is_addon || ($sub->plan->slug ?? '') === 'cooptation';
+                $monthly = $isAi ? $unit : ($isAddon ? $unit * $sub->nombre_collaborateurs : $unit * $sub->nombre_collaborateurs);
+                $contrib = $sub->billing_cycle === 'yearly' ? ($monthly * 12 * 0.9) / 12 : $monthly;
+                $monthMrr += $contrib;
+            }
+
+            $newSubs = Subscription::whereBetween('created_at', [$startOfMonth, $endOfMonth])->count();
+            $churned = Subscription::where('status', 'canceled')
+                ->whereBetween('canceled_at', [$startOfMonth, $endOfMonth])
+                ->count();
+
+            $evolution[] = [
+                'month' => $startOfMonth->format('Y-m'),
+                'label' => $startOfMonth->locale('fr')->isoFormat('MMM YY'),
+                'mrr' => round($monthMrr, 2),
+                'subs_count' => $activeInMonth->count(),
+                'new_subs' => $newSubs,
+                'churned' => $churned,
+            ];
+        }
+
+        // ─── Other KPIs ────────────────────────────────────────────────────
+        $totalTenants = Tenant::count();
+        $totalCollaborateurs = $activeSubs->sum('nombre_collaborateurs');
+        $arpu = $activeSubs->count() > 0 ? round($mrr / $activeSubs->count(), 2) : 0; // Average Revenue Per User (sub)
+        $arpc = $totalCollaborateurs > 0 ? round($mrr / $totalCollaborateurs, 2) : 0;  // Per collaborator
+
+        // Last 30 days revenue (paid invoices)
+        $revenue30d = Invoice::where('status', 'paid')
+            ->where('paid_at', '>=', $thirtyDaysAgo)
+            ->sum('montant_ttc');
+
+        return response()->json([
+            'mrr' => round($mrr, 2),
+            'arr' => round($arr, 2),
+            'arpu' => $arpu,
+            'arpc' => $arpc,
+            'active_subs' => $activeSubs->count(),
+            'total_tenants' => $totalTenants,
+            'total_collaborateurs' => (int) $totalCollaborateurs,
+            'churn_rate_30d' => $churnRate30d,
+            'churned_last_30d' => $churnedLast30d,
+            'revenue_last_30d' => round($revenue30d, 2),
+            'by_plan' => array_values($byPlan),
+            'evolution' => $evolution,
+            'currency' => 'CHF', // MRR is converted to CHF — for now we use plan.prix_chf_mensuel
+        ]);
+    }
+
     // ─── Tenants ────────────────────────────────────────────────
 
     public function listTenants(Request $request): JsonResponse

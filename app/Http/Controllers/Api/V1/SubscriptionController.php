@@ -79,6 +79,10 @@ class SubscriptionController extends Controller
         $effectiveDate = now();
         $wasInTrial = false;
 
+        // Capture Stripe link BEFORE we cancel the existing sub locally
+        $existingStripeSubId = $existingSub?->stripe_subscription_id;
+        $existingStripeCustomerId = $existingSub?->stripe_customer_id;
+
         if ($existingSub) {
             $oldPrice = (float) $existingSub->plan->prix_chf_mensuel;
             $newPrice = (float) $newPlan->prix_chf_mensuel;
@@ -286,6 +290,60 @@ class SubscriptionController extends Controller
             'amount_ttc_cents' => $vat['amount_ttc_cents'],
             'vat_treatment' => $vat['treatment'],
         ]);
+
+        // ── Propagate plan change to Stripe (only if the previous sub was a Stripe Checkout sub) ──
+        // For tenants who signed up via Stripe Checkout (stripe_subscription_id set),
+        // we update the Stripe Subscription items in place rather than canceling +
+        // creating a new one. This preserves the billing schedule and lets Stripe
+        // generate a proration invoice automatically.
+        $stripeSyncResult = null;
+        if ($existingStripeSubId && !$isAi && !$isAddon) {
+            try {
+                $mode = config('services.stripe.mode') ?: env('STRIPE_MODE', 'live');
+                $secret = $mode === 'test'
+                    ? (config('services.stripe.test_secret') ?: env('STRIPE_TEST_SECRET'))
+                    : (config('services.stripe.live_secret') ?: env('STRIPE_SECRET'));
+                $stripe = new \Stripe\StripeClient($secret);
+
+                $newPriceId = $newPlan->{"stripe_price_id_{$currency}"} ?? null;
+                if ($newPriceId) {
+                    // Fetch current Stripe sub to get the item id
+                    $stripeSub = $stripe->subscriptions->retrieve($existingStripeSubId, ['expand' => ['items']]);
+                    $itemId = $stripeSub->items->data[0]->id ?? null;
+
+                    if ($itemId) {
+                        // Upgrade: invoice the proration immediately ('always_invoice')
+                        // Downgrade: defer to next cycle ('none' = no immediate invoice, just credit on next)
+                        $prorationBehavior = $isUpgrade ? 'always_invoice' : 'none';
+
+                        $stripe->subscriptions->update($existingStripeSubId, [
+                            'items' => [[
+                                'id' => $itemId,
+                                'price' => $newPriceId,
+                                'quantity' => $newPlan->addon_type === 'ai' ? 1 : $nbCollabs,
+                            ]],
+                            'proration_behavior' => $prorationBehavior,
+                            'metadata' => [
+                                'tenant_id' => $tenant->id,
+                                'plan_id' => (string) $newPlan->id,
+                                'billing_cycle' => $request->billing_cycle,
+                            ],
+                        ]);
+
+                        // Transfer the Stripe link to the new local sub — Stripe will keep
+                        // charging via the same Subscription, no need to cancel it.
+                        $subscription->update([
+                            'stripe_subscription_id' => $existingStripeSubId,
+                            'stripe_customer_id' => $existingStripeCustomerId,
+                        ]);
+                        $stripeSyncResult = 'updated';
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning("Stripe plan-change sync failed for sub {$existingStripeSubId}: " . $e->getMessage());
+                $stripeSyncResult = 'error: ' . $e->getMessage();
+            }
+        }
 
         // Billing is handled by the daily CRON command (billing:process)
         // which creates invoices and charges via PaymentIntent (card/SEPA)
