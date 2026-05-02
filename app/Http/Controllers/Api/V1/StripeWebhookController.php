@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Mail\InvoiceMail;
+use App\Mail\InvoicePaymentFailedMail;
 use App\Models\Invoice;
+use App\Services\InvoicePdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Mail;
 
 class StripeWebhookController extends Controller
 {
@@ -234,6 +238,11 @@ class StripeWebhookController extends Controller
                 'paid_at' => now(),
                 'payment_error' => null,
             ]);
+            // Reactivate subscription if it was past_due
+            if ($subscription && in_array($subscription->status, ['past_due', 'unpaid'])) {
+                $subscription->update(['status' => 'active']);
+            }
+            $this->generateAndEmailInvoice($invoice);
             \Log::info("Invoice {$invoice->invoice_number} paid via Stripe invoice {$stripeInvoice->id}");
             return;
         }
@@ -272,6 +281,7 @@ class StripeWebhookController extends Controller
                 'paid_at' => now(),
             ]);
 
+            $this->generateAndEmailInvoice($newInvoice);
             \Log::info("Invoice {$newInvoice->invoice_number} created from Stripe invoice {$stripeInvoice->id}");
         } catch (\Throwable $e) {
             \Log::error("Failed to create local invoice from Stripe invoice {$stripeInvoice->id}: " . $e->getMessage());
@@ -279,26 +289,110 @@ class StripeWebhookController extends Controller
     }
 
     /**
-     * Stripe Invoice payment failed — mark the local Invoice as failed.
+     * Generate the PDF for an invoice and email it to the billing contact.
+     * Idempotent — can be called multiple times safely.
+     */
+    private function generateAndEmailInvoice(Invoice $invoice): void
+    {
+        try {
+            // Generate (or regenerate) the PDF
+            $pdfService = new InvoicePdfService();
+            $pdfPath = $pdfService->generate($invoice);
+
+            // Resolve recipient email
+            $email = $this->resolveBillingEmail($invoice);
+            if (!$email) {
+                \Log::warning("Cannot email invoice {$invoice->invoice_number}: no billing email");
+                return;
+            }
+
+            Mail::to($email)->send(new InvoiceMail($invoice, $pdfPath));
+            \Log::info("Invoice {$invoice->invoice_number} emailed to {$email}");
+        } catch (\Throwable $e) {
+            \Log::error("Failed to email invoice {$invoice->invoice_number}: " . $e->getMessage());
+        }
+    }
+
+    private function resolveBillingEmail(Invoice $invoice): ?string
+    {
+        $snapshot = $invoice->billing_snapshot ?? [];
+        $email = $snapshot['billing_contact_email'] ?? null;
+        if ($email) return $email;
+
+        $tenant = \App\Models\Tenant::find($invoice->tenant_id);
+        if ($tenant?->billing_email) return $tenant->billing_email;
+
+        // Fallback to Stripe customer email if available
+        try {
+            if (!empty($invoice->stripe_invoice_id)) {
+                $stripe = new \Stripe\StripeClient(env('STRIPE_SECRET'));
+                $stripeInv = $stripe->invoices->retrieve($invoice->stripe_invoice_id);
+                if (!empty($stripeInv->customer_email)) return $stripeInv->customer_email;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+        return null;
+    }
+
+    /**
+     * Stripe Invoice payment failed — mark failed, send dunning email,
+     * and suspend access after MAX_PAYMENT_ATTEMPTS.
      */
     private function handleInvoicePaymentFailed($stripeInvoice): void
     {
         $invoice = Invoice::where('stripe_invoice_id', $stripeInvoice->id)->first();
         if (!$invoice) return;
 
-        $error = 'Payment failed';
+        $error = 'Le paiement a été refusé.';
         if (!empty($stripeInvoice->last_finalization_error->message)) {
             $error = $stripeInvoice->last_finalization_error->message;
+        } elseif (!empty($stripeInvoice->last_payment_error->message)) {
+            $error = $stripeInvoice->last_payment_error->message;
         }
+
+        $attempts = ($invoice->payment_attempts ?? 0) + 1;
+        $maxAttempts = 3;
+        $accessSuspended = $attempts >= $maxAttempts;
 
         $invoice->update([
             'status' => 'failed',
             'payment_error' => $error,
-            'payment_attempts' => ($invoice->payment_attempts ?? 0) + 1,
+            'payment_attempts' => $attempts,
             'last_payment_attempt' => now(),
         ]);
 
-        \Log::warning("Invoice {$invoice->invoice_number} payment failed: {$error}");
+        // After N failed attempts, mark the subscription past_due — frontend
+        // hasActiveSub check will fail and the lock screen will kick in.
+        if ($accessSuspended && $invoice->subscription_id) {
+            $sub = \App\Models\Subscription::find($invoice->subscription_id);
+            if ($sub && $sub->status !== 'cancelled') {
+                $sub->update(['status' => 'past_due']);
+            }
+        }
+
+        // Send dunning email
+        try {
+            $email = $this->resolveBillingEmail($invoice);
+            if ($email) {
+                $tenantId = $invoice->tenant_id;
+                $appUrl = config('app.frontend_url') ?: env('FRONTEND_URL', 'https://onboarding.illizeo.com');
+                $portalUrl = "{$appUrl}/{$tenantId}/admin/abonnement";
+
+                Mail::to($email)->send(new InvoicePaymentFailedMail(
+                    invoice: $invoice,
+                    attemptNumber: $attempts,
+                    accessSuspended: $accessSuspended,
+                    errorMessage: $error,
+                    portalUrl: $portalUrl,
+                ));
+                \Log::info("Dunning email sent to {$email} for invoice {$invoice->invoice_number} (attempt {$attempts}/{$maxAttempts})");
+            }
+        } catch (\Throwable $e) {
+            \Log::error("Failed to send dunning email for invoice {$invoice->invoice_number}: " . $e->getMessage());
+        }
+
+        \Log::warning("Invoice {$invoice->invoice_number} payment failed: {$error} (attempt {$attempts}/{$maxAttempts}" . ($accessSuspended ? ", access suspended" : "") . ")");
     }
 
     /**
