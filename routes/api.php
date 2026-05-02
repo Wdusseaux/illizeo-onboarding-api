@@ -850,6 +850,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // ── Stripe / Payments ─────────────────────────────────
         Route::post('stripe/setup-intent', [StripeController::class, 'createSetupIntent']);
+        Route::post('stripe/checkout/create-session', [StripeController::class, 'createCheckoutSession']);
         Route::get('stripe/payment-methods', [StripeController::class, 'getPaymentMethods']);
         Route::post('stripe/default-payment-method', [StripeController::class, 'setDefaultPaymentMethod']);
         Route::post('stripe/delete-payment-method', [StripeController::class, 'deletePaymentMethod']);

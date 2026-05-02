@@ -68,6 +68,155 @@ class StripeController extends Controller
     }
 
     /**
+     * Create a Stripe Checkout Session for self-service subscription.
+     *
+     * Frontend posts plan_id + billing_cycle + currency + optional billing fields,
+     * we return { url, session_id } and the frontend redirects to url.
+     *
+     * The local Subscription is created by the webhook checkout.session.completed.
+     */
+    public function createCheckoutSession(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'plan_id' => 'required|integer|exists:plans,id',
+            'billing_cycle' => 'required|in:monthly,yearly',
+            'currency' => 'required|string|size:3',
+            'nombre_collaborateurs' => 'sometimes|integer|min:1',
+            // Optional billing override (otherwise read from tenant)
+            'country' => 'sometimes|string|size:2',
+            'customer_type' => 'sometimes|in:company,individual',
+            'vat_number' => 'sometimes|nullable|string|max:32',
+            'success_url' => 'sometimes|string',
+            'cancel_url' => 'sometimes|string',
+        ]);
+
+        $plan = \App\Models\Plan::findOrFail($validated['plan_id']);
+        $currency = strtolower($validated['currency']);
+
+        // Resolve Stripe Price ID by currency
+        $priceField = "stripe_price_id_{$currency}";
+        $stripePriceId = $plan->{$priceField} ?? null;
+        if (!$stripePriceId) {
+            return response()->json([
+                'message' => "Aucun prix Stripe configuré pour le plan « {$plan->nom} » en {$currency}.",
+            ], 422);
+        }
+
+        $tenant = tenant();
+        $customer = $this->getOrCreateCustomer();
+
+        // If the request provided fresh billing info, sync it to the customer + tenant
+        if (!empty($validated['country']) || !empty($validated['vat_number'])) {
+            $this->syncCustomerBilling($customer->id, $tenant, $validated);
+        }
+
+        $stripe = $this->stripe();
+
+        // Build success/cancel URLs (default to current frontend tenant URL)
+        $appUrl = config('app.frontend_url') ?: env('FRONTEND_URL', 'https://onboarding.illizeo.com');
+        $successUrl = $validated['success_url'] ?? "{$appUrl}/{$tenant->id}/admin/abonnement?checkout=success&session_id={CHECKOUT_SESSION_ID}";
+        $cancelUrl = $validated['cancel_url'] ?? "{$appUrl}/{$tenant->id}/admin/abonnement?checkout=cancel";
+
+        $quantity = $validated['nombre_collaborateurs'] ?? 25;
+
+        try {
+            $session = $stripe->checkout->sessions->create([
+                'mode' => 'subscription',
+                'customer' => $customer->id,
+                'payment_method_types' => ['card', 'sepa_debit'],
+                'line_items' => [[
+                    'price' => $stripePriceId,
+                    'quantity' => $plan->addon_type === 'ai' ? 1 : $quantity,
+                ]],
+                'subscription_data' => [
+                    'metadata' => [
+                        'tenant_id' => $tenant->id,
+                        'plan_id' => $plan->id,
+                        'billing_cycle' => $validated['billing_cycle'],
+                        'currency' => $currency,
+                        'nombre_collaborateurs' => $quantity,
+                    ],
+                    'trial_period_days' => 14,
+                ],
+                'metadata' => [
+                    'tenant_id' => $tenant->id,
+                    'plan_id' => $plan->id,
+                    'billing_cycle' => $validated['billing_cycle'],
+                ],
+                'allow_promotion_codes' => true,
+                'billing_address_collection' => 'required',
+                'tax_id_collection' => ['enabled' => true],
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+                'locale' => 'fr',
+            ]);
+
+            return response()->json([
+                'url' => $session->url,
+                'session_id' => $session->id,
+                'publishable_key' => $this->getPublishableKey(),
+            ]);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            \Log::error('Checkout session creation failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Stripe error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function syncCustomerBilling(string $customerId, $tenant, array $data): void
+    {
+        $stripe = $this->stripe();
+
+        $update = [];
+        if (!empty($data['country'])) {
+            $update['address'] = ['country' => strtoupper($data['country'])];
+        }
+        if (!empty($data['vat_number'])) {
+            // Stripe uses tax_id_data on Customer (separate API)
+            try {
+                $stripe->customers->createTaxId($customerId, [
+                    'type' => $this->guessTaxIdType($data['country'] ?? 'CH'),
+                    'value' => $data['vat_number'],
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning("Could not attach tax_id to customer: " . $e->getMessage());
+            }
+        }
+        if (!empty($update)) {
+            try {
+                $stripe->customers->update($customerId, $update);
+            } catch (\Throwable $e) {
+                \Log::warning("Could not update customer billing: " . $e->getMessage());
+            }
+        }
+
+        // Persist on tenant
+        try {
+            $tenant->update([
+                'country' => strtoupper($data['country'] ?? $tenant->country ?? 'CH'),
+                'customer_type' => $data['customer_type'] ?? $tenant->customer_type ?? 'company',
+                'vat_number' => $data['vat_number'] ?? $tenant->vat_number,
+            ]);
+        } catch (\Throwable $e) {
+            // Tenant model may not have these columns yet — silent
+        }
+    }
+
+    private function guessTaxIdType(string $country): string
+    {
+        $country = strtoupper($country);
+        return match ($country) {
+            'CH' => 'ch_vat',
+            'GB' => 'gb_vat',
+            'US' => 'us_ein',
+            'CA' => 'ca_bn',
+            'AU' => 'au_abn',
+            default => 'eu_vat',
+        };
+    }
+
+    /**
      * Create a SetupIntent to save a card for future payments.
      */
     public function createSetupIntent(): JsonResponse
