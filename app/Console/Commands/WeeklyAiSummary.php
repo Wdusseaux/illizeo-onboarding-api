@@ -59,6 +59,23 @@ class WeeklyAiSummary extends Command
             return;
         }
 
+        // Skip tenants on IA Starter — weekly summary requires Business+
+        $aiPlan = Subscription::where('tenant_id', $tenant->id)
+            ->whereIn('status', ['active', 'trialing'])
+            ->whereHas('plan', fn ($q) => $q->where('addon_type', 'ai'))
+            ->with('plan')
+            ->first();
+
+        if (!$aiPlan) {
+            $this->line("  - {$tenant->id}: skip (no AI plan)");
+            return;
+        }
+        $slug = $aiPlan->plan->slug ?? '';
+        if (str_contains($slug, 'starter') || str_contains($slug, 'ia_starter')) {
+            $this->line("  - {$tenant->id}: skip (IA Starter — weekly summary is Business+)");
+            return;
+        }
+
         // Switch to tenant context
         tenancy()->initialize($tenant);
 

@@ -7,6 +7,7 @@ use App\Models\AiUsage;
 use App\Models\Collaborateur;
 use App\Models\NpsResponse;
 use App\Models\NpsSurvey;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\AiUsageGuard;
 use Illuminate\Http\JsonResponse;
@@ -95,6 +96,7 @@ class AiInsightsController extends Controller
     {
         $request->validate(['survey_id' => 'required|integer']);
 
+        if ($r = $this->blockIfStarter('Analyse agrégée NPS')) return $r;
         if ($r = AiUsageGuard::blockIfExceeded('sentiment_nps')) return $r;
 
         $survey = NpsSurvey::find($request->survey_id);
@@ -257,6 +259,7 @@ class AiInsightsController extends Controller
      */
     public function turnoverRisk(Request $request): JsonResponse
     {
+        if ($r = $this->blockIfStarter('Analyse de risque turnover')) return $r;
         if ($r = AiUsageGuard::blockIfExceeded('insights')) return $r;
 
         $enrich = $request->query('enrich', '1') === '1';
@@ -539,5 +542,37 @@ class AiInsightsController extends Controller
     {
         // Claude Haiku 4.5 pricing : $1/MTok input, $5/MTok output
         return ($input * 1.0 + $output * 5.0) / 1_000_000;
+    }
+
+    /**
+     * Block Starter-tier AI plans on heavy multi-collab features.
+     * Returns 402 JSON if the tenant only has IA Starter; null otherwise.
+     */
+    private function blockIfStarter(string $featureLabel): ?JsonResponse
+    {
+        $tenant = tenant();
+        if (!$tenant) return null;
+
+        $aiSub = Subscription::where('tenant_id', $tenant->id)
+            ->whereIn('status', ['active', 'trialing'])
+            ->whereHas('plan', fn ($q) => $q->where('addon_type', 'ai'))
+            ->with('plan')
+            ->first();
+
+        // No AI plan at all is handled by AiUsageGuard::blockIfExceeded — let it pass through
+        if (!$aiSub) return null;
+
+        $slug = $aiSub->plan->slug ?? '';
+        $isStarter = str_contains($slug, 'starter') || str_contains($slug, 'ia_starter');
+
+        if ($isStarter) {
+            return response()->json([
+                'error' => "{$featureLabel} : disponible à partir du plan IA Business.",
+                'tier_required' => 'business',
+                'current_plan' => $aiSub->plan->nom ?? null,
+                'feature' => $featureLabel,
+            ], 402);
+        }
+        return null;
     }
 }
