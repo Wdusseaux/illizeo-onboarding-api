@@ -26,12 +26,20 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'stripe_customer_id',
             'trial_ends_at',
             'billing_email',
+            'country',
+            'customer_type',
+            'vat_number',
+            'vat_validation_status',
+            'vat_validated_at',
+            'billing_address',
         ];
     }
 
     protected $casts = [
         'actif' => 'boolean',
         'trial_ends_at' => 'date',
+        'vat_validated_at' => 'datetime',
+        'billing_address' => 'array',
     ];
 
     public function planRelation(): BelongsTo

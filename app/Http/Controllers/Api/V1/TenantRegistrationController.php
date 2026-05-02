@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\ViesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -25,7 +26,42 @@ class TenantRegistrationController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'plan_ids' => 'sometimes|array',
             'plan_ids.*' => 'integer|exists:plans,id',
+            // Billing fields (Feature 2 — required for VAT-compliant invoicing)
+            'country' => 'required|string|size:2',
+            'customer_type' => 'required|in:company,individual',
+            'vat_number' => 'nullable|string|max:32',
+            'billing_address' => 'nullable|array',
+            'billing_address.street' => 'nullable|string|max:255',
+            'billing_address.postal_code' => 'nullable|string|max:20',
+            'billing_address.city' => 'nullable|string|max:100',
         ]);
+
+        // VIES validation for EU B2B with VAT number
+        $vatStatus = 'not_required';
+        $vatValidatedAt = null;
+        if (!empty($request->vat_number) && $request->customer_type === 'company') {
+            $country = strtoupper($request->country);
+            $isEu = in_array($country, [
+                'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE',
+                'IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE',
+            ], true);
+            if ($isEu) {
+                try {
+                    $result = ViesService::validate($country, $request->vat_number);
+                    $vatStatus = $result['valid'] ? 'valid' : 'invalid';
+                    $vatValidatedAt = now()->toIso8601String();
+                } catch (\Throwable $e) {
+                    \Log::warning('VIES check failed at signup: ' . $e->getMessage());
+                    $vatStatus = 'pending';
+                }
+            } elseif ($country === 'CH') {
+                // CH VAT format: CHE-XXX.XXX.XXX (not validated by VIES)
+                $vatStatus = preg_match('/^CHE-?\d{3}\.?\d{3}\.?\d{3}/', $request->vat_number) ? 'valid' : 'pending';
+                $vatValidatedAt = now()->toIso8601String();
+            } else {
+                $vatStatus = 'pending';
+            }
+        }
 
         // Generate a unique tenant ID from company name
         $tenantId = Str::slug($request->company_name);
@@ -59,6 +95,11 @@ class TenantRegistrationController extends Controller
             $passwordHash = Hash::make($request->password);
             $passwordHashEscaped = addslashes($passwordHash);
 
+            $country = strtoupper($request->country);
+            $customerType = $request->customer_type;
+            $vatNumber = addslashes($request->vat_number ?? '');
+            $billingAddressJson = addslashes(json_encode($request->billing_address ?? []));
+
             file_put_contents($scriptPath, <<<SCRIPT
 <?php
 require __DIR__ . '/vendor/autoload.php';
@@ -73,6 +114,13 @@ try {
         'slug' => '{$tenantId}',
         'plan' => 'starter',
         'actif' => true,
+        'billing_email' => '{$adminEmail}',
+        'country' => '{$country}',
+        'customer_type' => '{$customerType}',
+        'vat_number' => '{$vatNumber}' ?: null,
+        'vat_validation_status' => '{$vatStatus}',
+        'vat_validated_at' => '{$vatValidatedAt}' ?: null,
+        'billing_address' => json_decode('{$billingAddressJson}', true) ?: null,
     ]);
 
     // Initialize tenancy
