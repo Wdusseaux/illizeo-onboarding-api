@@ -21,7 +21,9 @@ class WeeklyAiSummaryMail extends Mailable
         public string $aiNarrative, // Claude-generated executive summary
         public array $recommendations, // Claude-generated action items
         public string $appUrl,
-    ) {}
+    ) {
+        $this->embedIllizeoLogo();
+    }
 
     public function envelope(): Envelope
     {

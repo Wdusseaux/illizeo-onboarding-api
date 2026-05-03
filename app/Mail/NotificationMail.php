@@ -21,7 +21,9 @@ class NotificationMail extends Mailable
         public string $ctaLabel = '',
         public string $ctaUrl = '',
         public string $accentColor = '#E91E63',
-    ) {}
+    ) {
+        $this->embedIllizeoLogo();
+    }
 
     public function envelope(): Envelope
     {

@@ -3,33 +3,44 @@
 namespace App\Mail\Concerns;
 
 /**
- * Helper trait — returns the Illizeo logo as a base64 data URI.
+ * Trait — embeds the Illizeo logo as an inline (CID) attachment.
  *
- * Why not a remote URL?
- *  - Email clients (especially Outlook) block remote images by default.
- *  - Production server sets `Cross-Origin-Resource-Policy: same-origin`,
- *    which prevents Outlook's image proxy from caching the asset.
- *  - Inline base64 is universally compatible across all major mail clients.
+ * This is the email industry standard for inline images. The logo is
+ * attached to the email with a Content-ID, and referenced in the HTML
+ * via `<img src="cid:illizeo-logo">`. Works in 100% of email clients
+ * (Outlook desktop & web, Gmail, Apple Mail, Yahoo, mobile clients).
  *
- * Cost: ~73 KB added to each email (vs. 55 KB original PNG).
- * Acceptable for transactional emails.
+ * Avoids :
+ *  - Base64 data URIs (broken in Outlook desktop > ~10 KB)
+ *  - Remote URLs (blocked by email proxies due to server CORP headers)
+ *
+ * Usage in a Mailable :
+ *   1. Add `use HasIllizeoLogo;`
+ *   2. Call `$this->embedIllizeoLogo();` in the constructor
+ *   3. Reference in HTML : <img src="cid:illizeo-logo">
  */
 trait HasIllizeoLogo
 {
     /**
-     * Returns the public URL of the Illizeo logo for use in emails.
-     *
-     * We use a dedicated /email-assets/illizeo-logo.png endpoint that
-     * explicitly sets Cross-Origin-Resource-Policy: cross-origin so that
-     * Outlook & Gmail image proxies can cache the image. The default
-     * /build/* assets have CORP: same-origin which blocks email proxies.
-     *
-     * Avoid base64 data URIs : Outlook desktop fails to render them when
-     * larger than ~10 KB.
+     * Returns the cid: reference to use in <img src="...">.
      */
     public function illizeoLogoSrc(): string
     {
-        $appUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://onboarding.illizeo.com'), '/');
-        return "{$appUrl}/email-assets/illizeo-logo.png";
+        return 'cid:illizeo-logo';
+    }
+
+    /**
+     * Register the inline logo attachment on the underlying Symfony Email.
+     * Call this from the Mailable's constructor (or anywhere before send).
+     */
+    protected function embedIllizeoLogo(): void
+    {
+        $this->withSymfonyMessage(function (\Symfony\Component\Mime\Email $email): void {
+            $logoPath = public_path('build/illizeo-Logo-site.png');
+            if (!file_exists($logoPath)) return;
+            // embedFromPath automatically sets Content-Disposition: inline
+            // and uses the provided name as the Content-ID
+            $email->embedFromPath($logoPath, 'illizeo-logo', 'image/png');
+        });
     }
 }

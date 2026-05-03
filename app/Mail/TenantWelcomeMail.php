@@ -19,7 +19,9 @@ class TenantWelcomeMail extends Mailable
         public string $adminName,
         public string $adminEmail,
         public string $tenantUrl,
-    ) {}
+    ) {
+        $this->embedIllizeoLogo();
+    }
 
     public function envelope(): Envelope
     {

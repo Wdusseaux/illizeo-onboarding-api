@@ -20,7 +20,9 @@ class InvoiceMail extends Mailable
         public string $pdfPath,
         public bool $isReminder = false,
         public int $reminderDay = 0,
-    ) {}
+    ) {
+        $this->embedIllizeoLogo();
+    }
 
     public function envelope(): Envelope
     {

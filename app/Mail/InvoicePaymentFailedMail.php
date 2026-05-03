@@ -20,7 +20,9 @@ class InvoicePaymentFailedMail extends Mailable
         public bool $accessSuspended = false,
         public ?string $errorMessage = null,
         public ?string $portalUrl = null,
-    ) {}
+    ) {
+        $this->embedIllizeoLogo();
+    }
 
     public function envelope(): Envelope
     {
