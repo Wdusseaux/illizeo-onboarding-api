@@ -40,7 +40,7 @@ class TenantWelcomeMail extends Mailable
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <span style="font-size: 28px; font-weight: 700; color: #E91E63;">ILLIZEO</span>
+        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 44px; width: auto; max-width: 220px;" />
     </div>
 
     <div style="background: linear-gradient(135deg, #E91E63 0%, #9C27B0 100%); border-radius: 16px; padding: 32px 28px; color: #fff; text-align: center; margin-bottom: 28px;">

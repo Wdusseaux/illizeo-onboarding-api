@@ -61,7 +61,7 @@ class WeeklyAiSummaryMail extends Mailable
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px; color: #333;">
     <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-size: 24px; font-weight: 700; color: #E91E63;">ILLIZEO</span>
+        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
 
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4d 100%); color: #fff; border-radius: 16px; padding: 28px 28px; margin-bottom: 24px;">

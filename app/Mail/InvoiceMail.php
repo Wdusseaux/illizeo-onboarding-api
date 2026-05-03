@@ -59,7 +59,7 @@ class InvoiceMail extends Mailable
             return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <span style="font-size: 24px; font-weight: 700; color: #E91E63;">ILLIZEO</span>
+        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
     <p>Bonjour {$name},</p>
     <p>Nous vous rappelons que la facture <strong>{$number}</strong> d'un montant de <strong>{$montant} CHF</strong> arrive à échéance le <strong>{$echeance}</strong> (dans {$daysLeft} jours).</p>
@@ -83,7 +83,7 @@ HTML;
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <span style="font-size: 24px; font-weight: 700; color: #E91E63;">ILLIZEO</span>
+        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
     <p>Bonjour {$name},</p>
     <p>Veuillez trouver ci-joint votre facture <strong>{$number}</strong> d'un montant de <strong>{$montant} CHF</strong>.</p>

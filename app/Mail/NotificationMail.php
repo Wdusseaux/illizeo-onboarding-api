@@ -46,8 +46,7 @@ HTML;
         return <<<HTML
 <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <span style="font-size: 24px; font-weight: 700; color: #E91E63;">ILLIZEO</span>
-        <br><span style="font-size: 10px; color: #999; letter-spacing: 1px;">THE ALL-IN-ONE HR SOLUTION</span>
+        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 44px; width: auto; max-width: 220px;" />
     </div>
 
     <div style="background: #f8f9fa; border-radius: 12px; padding: 24px 28px; margin-bottom: 20px;">
