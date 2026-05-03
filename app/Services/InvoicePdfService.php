@@ -118,14 +118,18 @@ class InvoicePdfService
         $dateEmission = \Carbon\Carbon::parse($invoice->date_emission)->format('d/m/Y');
         $dateEcheance = \Carbon\Carbon::parse($invoice->date_echeance)->format('d/m/Y');
 
-        // Logo — base64 data URI for maximum DomPDF compatibility
-        // (file paths and remote URLs sometimes fail silently in DomPDF)
-        $logoFilePath = public_path('build/illizeo-Logo-site.png');
+        // Logo — DomPDF requires PHP GD for image rendering. If GD is not
+        // available on the server, fall back to a text-based logo. Detect
+        // GD presence and act accordingly.
+        $hasGd = extension_loaded('gd');
         $logoSrc = '';
-        if (file_exists($logoFilePath)) {
-            $logoData = @file_get_contents($logoFilePath);
-            if ($logoData !== false) {
-                $logoSrc = 'data:image/png;base64,' . base64_encode($logoData);
+        if ($hasGd) {
+            $logoFilePath = public_path('build/illizeo-Logo-site.png');
+            if (file_exists($logoFilePath)) {
+                $logoData = @file_get_contents($logoFilePath);
+                if ($logoData !== false) {
+                    $logoSrc = 'data:image/png;base64,' . base64_encode($logoData);
+                }
             }
         }
 
@@ -153,8 +157,8 @@ class InvoicePdfService
 <meta charset="UTF-8">
 <style>
     body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #333; margin: 40px; }
-    .logo { font-size: 24px; font-weight: 700; color: #E91E63; }
-    .logo-sub { font-size: 9px; color: #888; }
+    .logo { font-size: 28px; font-weight: 800; color: #E91E63; letter-spacing: 1px; }
+    .logo-sub { font-size: 9px; color: #888; letter-spacing: 1.5px; }
     .invoice-title { font-size: 28px; font-weight: 700; color: #1a1a2e; margin-bottom: 5px; }
     .invoice-number { font-size: 14px; color: #666; }
     .status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; }
