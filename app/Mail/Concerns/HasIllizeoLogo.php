@@ -16,28 +16,20 @@ namespace App\Mail\Concerns;
  */
 trait HasIllizeoLogo
 {
-    private static ?string $_cachedLogoSrc = null;
-
     /**
-     * Returns the logo as <img> src — base64 data URI, or remote fallback.
+     * Returns the public URL of the Illizeo logo for use in emails.
+     *
+     * We use a dedicated /email-assets/illizeo-logo.png endpoint that
+     * explicitly sets Cross-Origin-Resource-Policy: cross-origin so that
+     * Outlook & Gmail image proxies can cache the image. The default
+     * /build/* assets have CORP: same-origin which blocks email proxies.
+     *
+     * Avoid base64 data URIs : Outlook desktop fails to render them when
+     * larger than ~10 KB.
      */
     public function illizeoLogoSrc(): string
     {
-        if (self::$_cachedLogoSrc !== null) {
-            return self::$_cachedLogoSrc;
-        }
-
-        $logoPath = public_path('build/illizeo-Logo-site.png');
-        if (file_exists($logoPath)) {
-            $contents = file_get_contents($logoPath);
-            if ($contents !== false) {
-                self::$_cachedLogoSrc = 'data:image/png;base64,' . base64_encode($contents);
-                return self::$_cachedLogoSrc;
-            }
-        }
-
-        // Fallback to remote URL (unlikely to load in Outlook but better than nothing)
-        self::$_cachedLogoSrc = 'https://onboarding.illizeo.com/build/illizeo-Logo-site.png';
-        return self::$_cachedLogoSrc;
+        $appUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://onboarding.illizeo.com'), '/');
+        return "{$appUrl}/email-assets/illizeo-logo.png";
     }
 }
