@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\HasIllizeoLogo;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -10,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 class WeeklyAiSummaryMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, HasIllizeoLogo;
 
     public function __construct(
         public string $tenantName,
@@ -39,6 +40,7 @@ class WeeklyAiSummaryMail extends Mailable
         $week = htmlspecialchars($this->weekLabel);
         $url = htmlspecialchars($this->appUrl);
         $narrative = nl2br(htmlspecialchars($this->aiNarrative));
+        $logoSrc = $this->illizeoLogoSrc();
 
         $k = $this->kpis;
         $newCollabs = (int) ($k['new_collabs'] ?? 0);
@@ -61,7 +63,7 @@ class WeeklyAiSummaryMail extends Mailable
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px; color: #333;">
     <div style="text-align: center; margin-bottom: 24px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
 
     <div style="background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4d 100%); color: #fff; border-radius: 16px; padding: 28px 28px; margin-bottom: 24px;">

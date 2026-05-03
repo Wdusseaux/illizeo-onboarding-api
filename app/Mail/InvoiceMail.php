@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\HasIllizeoLogo;
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -12,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 
 class InvoiceMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, HasIllizeoLogo;
 
     public function __construct(
         public Invoice $invoice,
@@ -53,13 +54,14 @@ class InvoiceMail extends Mailable
         $montant = number_format((float) $this->invoice->montant_ttc, 2, '.', "'");
         $echeance = \Carbon\Carbon::parse($this->invoice->date_echeance)->format('d/m/Y');
         $number = $this->invoice->invoice_number;
+        $logoSrc = $this->illizeoLogoSrc();
 
         if ($this->isReminder) {
             $daysLeft = max(0, 30 - $this->reminderDay);
             return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
     <p>Bonjour {$name},</p>
     <p>Nous vous rappelons que la facture <strong>{$number}</strong> d'un montant de <strong>{$montant} CHF</strong> arrive à échéance le <strong>{$echeance}</strong> (dans {$daysLeft} jours).</p>
@@ -83,7 +85,7 @@ HTML;
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
     <p>Bonjour {$name},</p>
     <p>Veuillez trouver ci-joint votre facture <strong>{$number}</strong> d'un montant de <strong>{$montant} CHF</strong>.</p>

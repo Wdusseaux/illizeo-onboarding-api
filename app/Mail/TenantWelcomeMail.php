@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\HasIllizeoLogo;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -10,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 class TenantWelcomeMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, HasIllizeoLogo;
 
     public function __construct(
         public string $tenantId,
@@ -36,11 +37,12 @@ class TenantWelcomeMail extends Mailable
         $company = htmlspecialchars($this->companyName);
         $url = htmlspecialchars($this->tenantUrl);
         $tenantId = htmlspecialchars($this->tenantId);
+        $logoSrc = $this->illizeoLogoSrc();
 
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 44px; width: auto; max-width: 220px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 44px; width: auto; max-width: 220px;" />
     </div>
 
     <div style="background: linear-gradient(135deg, #E91E63 0%, #9C27B0 100%); border-radius: 16px; padding: 32px 28px; color: #fff; text-align: center; margin-bottom: 28px;">

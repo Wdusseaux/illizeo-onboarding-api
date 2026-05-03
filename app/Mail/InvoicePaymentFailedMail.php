@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\HasIllizeoLogo;
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -11,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 class InvoicePaymentFailedMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, HasIllizeoLogo;
 
     public function __construct(
         public Invoice $invoice,
@@ -48,12 +49,13 @@ class InvoicePaymentFailedMail extends Mailable
         $number = $this->invoice->invoice_number;
         $err = htmlspecialchars($this->errorMessage ?? 'Le paiement a été refusé par votre banque.');
         $portal = $this->portalUrl ?: 'https://onboarding.illizeo.com';
+        $logoSrc = $this->illizeoLogoSrc();
 
         if ($this->accessSuspended) {
             return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
     <div style="background: #FFEBEE; border-left: 4px solid #C62828; padding: 16px 20px; margin-bottom: 24px; border-radius: 4px;">
         <strong style="color: #C62828; font-size: 16px;">⚠ Accès suspendu</strong><br>
@@ -81,7 +83,7 @@ HTML;
         return <<<HTML
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 40px; width: auto; max-width: 200px;" />
     </div>
     <div style="background: #FFF8E1; border-left: 4px solid #FFC107; padding: 16px 20px; margin-bottom: 24px; border-radius: 4px;">
         <strong style="color: #5D4037; font-size: 14px;">Action requise — Paiement échoué</strong>

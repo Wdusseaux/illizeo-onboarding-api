@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\HasIllizeoLogo;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -10,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 class NotificationMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, HasIllizeoLogo;
 
     public function __construct(
         public string $recipientName,
@@ -43,10 +44,12 @@ class NotificationMail extends Mailable
 HTML;
         }
 
+        $logoSrc = $this->illizeoLogoSrc();
+
         return <<<HTML
 <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
     <div style="text-align: center; margin-bottom: 30px;">
-        <img src="https://onboarding.illizeo.com/build/illizeo-Logo-site.png" alt="Illizeo" style="height: 44px; width: auto; max-width: 220px;" />
+        <img src="{$logoSrc}" alt="Illizeo" style="height: 44px; width: auto; max-width: 220px;" />
     </div>
 
     <div style="background: #f8f9fa; border-radius: 12px; padding: 24px 28px; margin-bottom: 20px;">
