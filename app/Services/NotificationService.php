@@ -4,16 +4,22 @@ namespace App\Services;
 
 use App\Mail\NotificationMail;
 use App\Models\UserNotification;
+use App\Support\NotificationRegistry;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class NotificationService
 {
     /**
-     * Send in-app notification + optional email.
+     * Send in-app notification (gated on tenant config).
+     * Returns null if the in-app channel is disabled for this type.
      */
-    public static function send(int $userId, string $type, string $title, string $content, string $icon = 'bell', string $color = '#C2185B', ?array $data = null): UserNotification
+    public static function send(int $userId, string $type, string $title, string $content, string $icon = 'bell', string $color = '#C2185B', ?array $data = null): ?UserNotification
     {
+        if (!NotificationRegistry::isEnabled($type, 'inapp')) {
+            return null;
+        }
+
         return UserNotification::create([
             'user_id' => $userId,
             'type' => $type,
@@ -27,10 +33,15 @@ class NotificationService
 
     /**
      * Send in-app notification + email to user.
+     * Each channel is independently gated on the tenant's notif_config.
      */
-    public static function sendWithEmail(int $userId, string $type, string $title, string $content, string $icon = 'bell', string $color = '#C2185B', ?array $data = null, string $ctaLabel = '', string $ctaUrl = ''): UserNotification
+    public static function sendWithEmail(int $userId, string $type, string $title, string $content, string $icon = 'bell', string $color = '#C2185B', ?array $data = null, string $ctaLabel = '', string $ctaUrl = ''): ?UserNotification
     {
         $notif = self::send($userId, $type, $title, $content, $icon, $color, $data);
+
+        if (!NotificationRegistry::isEnabled($type, 'email')) {
+            return $notif;
+        }
 
         try {
             $user = \App\Models\User::find($userId);
