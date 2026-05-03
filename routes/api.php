@@ -276,7 +276,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::put('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs,edit');
         Route::patch('collaborateurs/{collaborateur}', [CollaborateurController::class, 'update'])->middleware('permission:collaborateurs,edit');
         Route::delete('collaborateurs/{collaborateur}', [CollaborateurController::class, 'destroy'])->middleware('permission:collaborateurs,edit');
-        Route::post('collaborateurs/purge-demo', [CollaborateurController::class, 'purgeDemo'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('collaborateurs/purge-demo', [CollaborateurController::class, 'purgeDemo'])->middleware('permission:collaborateurs,admin');
         Route::post('collaborateurs/{collaborateur}/relancer', [CollaborateurController::class, 'relancer'])->middleware('permission:collaborateurs,edit');
 
         // ── Parcours ────────────────────────────────────────
@@ -369,6 +369,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::get('mail-config', [EmailTemplateController::class, 'getMailConfig']);
 
         // ── Notifications Config ────────────────────────────
+        // Static registry of all notification types the backend can emit.
+        // Used by the admin UI to render toggles in sync with the real list.
+        Route::get('notifications-registry', function () {
+            return response()->json(\App\Support\NotificationRegistry::toArray());
+        });
         Route::get('notifications-config', [NotificationConfigController::class, 'index'])->middleware('permission:workflows,view');
         Route::post('notifications-config', [NotificationConfigController::class, 'store'])->middleware('permission:workflows,edit');
         Route::put('notifications-config/{notificationConfig}', [NotificationConfigController::class, 'update'])->middleware('permission:workflows,edit');
@@ -409,22 +414,22 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('ad-sync-users', [EntraIdController::class, 'syncUsers'])->middleware('permission:integrations,admin');
 
         // Field config
-        Route::get('field-config', [FieldConfigController::class, 'index']);
-        Route::post('field-config', [FieldConfigController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('field-config/{collaborateurFieldConfig}', [FieldConfigController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('field-config/{collaborateurFieldConfig}', [FieldConfigController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('field-config/bulk', [FieldConfigController::class, 'bulkUpdate'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('field-config', [FieldConfigController::class, 'index'])->middleware('permission:fields,view');
+        Route::post('field-config', [FieldConfigController::class, 'store'])->middleware('permission:fields,admin');
+        Route::put('field-config/{collaborateurFieldConfig}', [FieldConfigController::class, 'update'])->middleware('permission:fields,admin');
+        Route::delete('field-config/{collaborateurFieldConfig}', [FieldConfigController::class, 'destroy'])->middleware('permission:fields,admin');
+        Route::post('field-config/bulk', [FieldConfigController::class, 'bulkUpdate'])->middleware('permission:fields,admin');
 
         // Password
         Route::post('change-password', [PasswordController::class, 'changePassword']);
-        Route::post('users/{user}/reset-password', [PasswordController::class, 'adminResetPassword'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('users/{user}/reset-password', [PasswordController::class, 'adminResetPassword'])->middleware('permission:users,admin');
 
         // User management (admin only)
-        Route::get('users', [UserManagementController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('users', [UserManagementController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('users/invite', [UserManagementController::class, 'invite'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('users/{user}', [UserManagementController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->middleware('role:super_admin|admin');
+        Route::get('users', [UserManagementController::class, 'index'])->middleware('permission:users,view');
+        Route::post('users', [UserManagementController::class, 'store'])->middleware('permission:users,admin');
+        Route::post('users/invite', [UserManagementController::class, 'invite'])->middleware('permission:users,admin');
+        Route::put('users/{user}', [UserManagementController::class, 'update'])->middleware('permission:users,admin');
+        Route::delete('users/{user}', [UserManagementController::class, 'destroy'])->middleware('permission:users,admin');
 
         // Action assignments
         Route::post('assignments/assign', [CollaborateurActionController::class, 'assign'])->middleware('permission:parcours,edit');
@@ -452,48 +457,48 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
             return response()->json($a);
         });
 
-        // Company settings (appearance)
+        // Company settings (appearance) — read open to all authenticated users (FE branding)
         Route::get('company-settings', [CompanySettingController::class, 'index']);
-        Route::get('audit-logs', [\App\Http\Controllers\Api\V1\AuditLogController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('audit-logs', [\App\Http\Controllers\Api\V1\AuditLogController::class, 'index'])->middleware('permission:audit,view');
 
         // ── Support Access ────────────────────────────────────
-        Route::get('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'grant'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('support-accesses/{id}/revoke', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'index'])->middleware('permission:security,view');
+        Route::post('support-accesses', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'grant'])->middleware('permission:security,admin');
+        Route::post('support-accesses/{id}/revoke', [\App\Http\Controllers\Api\V1\SupportAccessController::class, 'revoke'])->middleware('permission:security,admin');
 
         // ── IP Whitelist ──────────────────────────────────────
-        Route::get('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('ip-whitelist/toggle', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'toggle'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('ip-whitelist/{id}', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'index'])->middleware('permission:security,view');
+        Route::post('ip-whitelist', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'store'])->middleware('permission:security,admin');
+        Route::post('ip-whitelist/toggle', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'toggle'])->middleware('permission:security,admin');
+        Route::delete('ip-whitelist/{id}', [\App\Http\Controllers\Api\V1\IpWhitelistController::class, 'destroy'])->middleware('permission:security,admin');
 
         // ── API Keys ──────────────────────────────────────────
-        Route::get('api-keys', [ApiKeyController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('api-keys', [ApiKeyController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('api-keys/{id}/revoke', [ApiKeyController::class, 'revoke'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('api-keys/{id}', [ApiKeyController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('api-keys', [ApiKeyController::class, 'index'])->middleware('permission:integrations,view');
+        Route::post('api-keys', [ApiKeyController::class, 'store'])->middleware('permission:integrations,admin');
+        Route::post('api-keys/{id}/revoke', [ApiKeyController::class, 'revoke'])->middleware('permission:integrations,admin');
+        Route::delete('api-keys/{id}', [ApiKeyController::class, 'destroy'])->middleware('permission:integrations,admin');
 
         // ── Webhooks ─────────────────────────────────────────
-        Route::get('webhooks-config', [WebhookController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('webhooks-config', [WebhookController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('webhooks-config/{id}', [WebhookController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('webhooks-config/{id}', [WebhookController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('webhooks-config/{id}/test', [WebhookController::class, 'test'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('webhooks-config', [WebhookController::class, 'index'])->middleware('permission:integrations,view');
+        Route::post('webhooks-config', [WebhookController::class, 'store'])->middleware('permission:integrations,admin');
+        Route::put('webhooks-config/{id}', [WebhookController::class, 'update'])->middleware('permission:integrations,admin');
+        Route::delete('webhooks-config/{id}', [WebhookController::class, 'destroy'])->middleware('permission:integrations,admin');
+        Route::post('webhooks-config/{id}/test', [WebhookController::class, 'test'])->middleware('permission:integrations,admin');
 
         // ── API Logs ─────────────────────────────────────────
-        Route::get('api-logs', [ApiLogController::class, 'index'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('api-logs', [ApiLogController::class, 'index'])->middleware('permission:audit,view');
 
         // ── Security ──────────────────────────────────────────
         Route::get('security/sessions', [\App\Http\Controllers\Api\V1\SecurityController::class, 'listSessions']);
         Route::post('security/sessions/{id}/revoke', [\App\Http\Controllers\Api\V1\SecurityController::class, 'revokeSession']);
         Route::post('security/sessions/revoke-all', [\App\Http\Controllers\Api\V1\SecurityController::class, 'revokeAllOtherSessions']);
         Route::get('security/login-history', [\App\Http\Controllers\Api\V1\SecurityController::class, 'loginHistory']);
-        Route::get('security/login-history/all', [\App\Http\Controllers\Api\V1\SecurityController::class, 'allLoginHistory'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('security/settings', [\App\Http\Controllers\Api\V1\SecurityController::class, 'getSecuritySettings'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('security/settings', [\App\Http\Controllers\Api\V1\SecurityController::class, 'updateSecuritySettings'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('security/schedules', [\App\Http\Controllers\Api\V1\SecurityController::class, 'storeSchedule'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('security/schedules/{id}', [\App\Http\Controllers\Api\V1\SecurityController::class, 'deleteSchedule'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('export/encrypted', [DataExportController::class, 'exportEncrypted'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('security/login-history/all', [\App\Http\Controllers\Api\V1\SecurityController::class, 'allLoginHistory'])->middleware('permission:security,view');
+        Route::get('security/settings', [\App\Http\Controllers\Api\V1\SecurityController::class, 'getSecuritySettings'])->middleware('permission:security,view');
+        Route::put('security/settings', [\App\Http\Controllers\Api\V1\SecurityController::class, 'updateSecuritySettings'])->middleware('permission:security,admin');
+        Route::post('security/schedules', [\App\Http\Controllers\Api\V1\SecurityController::class, 'storeSchedule'])->middleware('permission:security,admin');
+        Route::delete('security/schedules/{id}', [\App\Http\Controllers\Api\V1\SecurityController::class, 'deleteSchedule'])->middleware('permission:security,admin');
+        Route::post('export/encrypted', [DataExportController::class, 'exportEncrypted'])->middleware('permission:rgpd,admin');
 
         // ── Demo Mode ─────────────────────────────────────────
         // Reactivation is non-destructive: if demo data was already seeded once,
@@ -538,8 +543,8 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
                 'demo_mode' => true,
                 'reseeded' => true,
             ]);
-        })->middleware('role:super_admin|admin|admin_rh');
-        Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
+        })->middleware('permission:settings,admin');
+        Route::put('company-settings', [CompanySettingController::class, 'update'])->middleware('permission:apparence,edit');
 
         // Company page blocks
         Route::get('company-blocks', [CompanyBlockController::class, 'activeBlocks']);
@@ -633,11 +638,11 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::delete('quotes/{quote}', [QuoteController::class, 'destroy'])->middleware('permission:quotes,edit');
 
         // Messaging
-        Route::get('messages/conversations', [MessageController::class, 'conversations']);
-        Route::get('messages/conversations/{conversation}', [MessageController::class, 'messages']);
-        Route::post('messages/send', [MessageController::class, 'send']);
-        Route::get('messages/unread', [MessageController::class, 'unreadCount']);
-        Route::get('messages/users', [MessageController::class, 'availableUsers']);
+        Route::get('messages/conversations', [MessageController::class, 'conversations'])->middleware('permission:my_messaging,view');
+        Route::get('messages/conversations/{conversation}', [MessageController::class, 'messages'])->middleware('permission:my_messaging,view');
+        Route::post('messages/send', [MessageController::class, 'send'])->middleware('permission:my_messaging,edit');
+        Route::get('messages/unread', [MessageController::class, 'unreadCount'])->middleware('permission:my_messaging,view');
+        Route::get('messages/users', [MessageController::class, 'availableUsers'])->middleware('permission:my_messaging,view');
 
         // DocuSign
         Route::get('integrations/docusign/redirect', [DocuSignController::class, 'redirect'])->middleware('permission:integrations,admin');
@@ -768,13 +773,13 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // ── Signature Documents (lecture + signature) ─────
         Route::get('signature-documents', [SignatureDocumentController::class, 'index']);
-        Route::post('signature-documents', [SignatureDocumentController::class, 'store'])->middleware('role:super_admin|admin|admin_rh');
-        Route::put('signature-documents/{signatureDocument}', [SignatureDocumentController::class, 'update'])->middleware('role:super_admin|admin|admin_rh');
-        Route::delete('signature-documents/{signatureDocument}', [SignatureDocumentController::class, 'destroy'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('signature-documents/{signatureDocument}/upload', [SignatureDocumentController::class, 'uploadFile'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('signature-documents', [SignatureDocumentController::class, 'store'])->middleware('permission:signatures,edit');
+        Route::put('signature-documents/{signatureDocument}', [SignatureDocumentController::class, 'update'])->middleware('permission:signatures,edit');
+        Route::delete('signature-documents/{signatureDocument}', [SignatureDocumentController::class, 'destroy'])->middleware('permission:signatures,edit');
+        Route::post('signature-documents/{signatureDocument}/upload', [SignatureDocumentController::class, 'uploadFile'])->middleware('permission:signatures,edit');
         Route::get('signature-documents/{signatureDocument}/file', [SignatureDocumentController::class, 'viewFile']); // self-view if has acknowledgement, else admin only
-        Route::post('signature-documents/{signatureDocument}/send', [SignatureDocumentController::class, 'sendTo'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('signature-documents/{signatureDocument}/send-all', [SignatureDocumentController::class, 'sendToAll'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('signature-documents/{signatureDocument}/send', [SignatureDocumentController::class, 'sendTo'])->middleware('permission:signatures,edit');
+        Route::post('signature-documents/{signatureDocument}/send-all', [SignatureDocumentController::class, 'sendToAll'])->middleware('permission:signatures,edit');
         Route::get('signature-documents/{signatureDocument}/acknowledgements', [SignatureDocumentController::class, 'acknowledgements']);
         Route::post('acknowledgements/{acknowledgement}/sign', [SignatureDocumentController::class, 'acknowledge']);
         Route::post('acknowledgements/{acknowledgement}/refuse', [SignatureDocumentController::class, 'refuse']);
@@ -786,17 +791,17 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
 
         // ── Dossier Validation & SIRH Export ───────────────
         Route::get('collaborateurs/{collaborateur}/dossier-check', [\App\Http\Controllers\Api\V1\DossierController::class, 'check']);
-        Route::post('collaborateurs/{collaborateur}/dossier-validate', [\App\Http\Controllers\Api\V1\DossierController::class, 'validate'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('collaborateurs/{collaborateur}/dossier-export', [\App\Http\Controllers\Api\V1\DossierController::class, 'export'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('collaborateurs/{collaborateur}/dossier-reset', [\App\Http\Controllers\Api\V1\DossierController::class, 'reset'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('collaborateurs/{collaborateur}/dossier-validate', [\App\Http\Controllers\Api\V1\DossierController::class, 'validate'])->middleware('permission:collaborateurs,admin');
+        Route::post('collaborateurs/{collaborateur}/dossier-export', [\App\Http\Controllers\Api\V1\DossierController::class, 'export'])->middleware('permission:collaborateurs,admin');
+        Route::post('collaborateurs/{collaborateur}/dossier-reset', [\App\Http\Controllers\Api\V1\DossierController::class, 'reset'])->middleware('permission:collaborateurs,admin');
 
         // ── Data export & RGPD ─────────────────────────────
-        Route::get('export/all', [DataExportController::class, 'exportAll'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('export/collaborateurs', [DataExportController::class, 'exportCollaborateurs'])->middleware('role:super_admin|admin|admin_rh');
-        Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog'])->middleware('role:super_admin|admin|admin_rh');
+        Route::get('export/all', [DataExportController::class, 'exportAll'])->middleware('permission:rgpd,admin');
+        Route::get('export/collaborateurs', [DataExportController::class, 'exportCollaborateurs'])->middleware('permission:rgpd,view');
+        Route::get('export/audit-log', [DataExportController::class, 'exportAuditLog'])->middleware('permission:audit,view');
         Route::get('collaborateurs/{collaborateur}/documents-zip', [DataExportController::class, 'downloadCollaborateurDocuments']);
-        Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('rgpd/delete-collaborateur', [DataExportController::class, 'deleteCollaborateurData'])->middleware('permission:rgpd,admin');
+        Route::post('rgpd/delete-account', [DataExportController::class, 'requestAccountDeletion'])->middleware('permission:rgpd,admin');
 
         // ── Buddy / Mentor Pairing ─────────────────────────
         Route::get('buddy-pairs', [BuddyPairController::class, 'index'])->middleware('permission:parcours,view');
@@ -814,13 +819,17 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::post('roles/{role}/remove', [RoleController::class, 'removeUser'])->middleware('permission:settings,admin');
         Route::post('roles/{role}/duplicate', [RoleController::class, 'duplicate'])->middleware('permission:settings,admin');
         Route::get('permissions/schema', [RoleController::class, 'permissions'])->middleware('permission:settings,admin');
+        // Canonical permission registry (modules + sections + levels with labels)
+        Route::get('permissions-registry', function () {
+            return response()->json(\App\Support\PermissionRegistry::toArray());
+        })->middleware('permission:roles,view');
         Route::get('permissions/effective', [RoleController::class, 'effectivePermissions'])->middleware('permission:settings,admin');
         Route::get('permissions/logs', [RoleController::class, 'logs'])->middleware('permission:settings,admin');
 
         // ── Subscription management ────────────────────────
         Route::get('my-subscription', [SubscriptionController::class, 'mySubscription']);
-        Route::post('subscribe', [SubscriptionController::class, 'subscribe'])->middleware('role:super_admin|admin|admin_rh');
-        Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->middleware('role:super_admin|admin|admin_rh');
+        Route::post('subscribe', [SubscriptionController::class, 'subscribe'])->middleware('permission:subscription,admin');
+        Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->middleware('permission:subscription,admin');
         Route::get('available-plans', [SubscriptionController::class, 'availablePlans']);
         Route::get('active-modules', [SubscriptionController::class, 'activeModules']);
         Route::get('storage-usage', [SubscriptionController::class, 'storageUsage']);
@@ -837,7 +846,7 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         Route::middleware('ai.rate')->group(function () {
             Route::post('ocr/identity', [OcrController::class, 'extractIdentity']);
             Route::post('ai/buy-credits', [OcrController::class, 'buyExtraCredits']);
-            Route::post('ai/chat', [AiChatController::class, 'sendMessage']);
+            Route::post('ai/chat', [AiChatController::class, 'sendMessage'])->middleware('permission:my_assistant,view');
             // AI insights : NPS sentiment, buddy matching, turnover risk
             Route::post('ai/nps-sentiment', [\App\Http\Controllers\Api\V1\AiInsightsController::class, 'analyzeNpsResponse']);
             Route::post('ai/nps-insights', [\App\Http\Controllers\Api\V1\AiInsightsController::class, 'aggregateNpsInsights']);
@@ -850,15 +859,15 @@ Route::middleware([InitializeTenancyByRequestData::class])->group(function () {
         });
 
         // ── Calendar ─────────────────────────────────────────────
-        Route::get('calendar-events', [CalendarController::class, 'index']);
+        Route::get('calendar-events', [CalendarController::class, 'index'])->middleware('permission:calendar,view');
         // Settings/admin endpoints — must NOT go through ai.rate so admins can always
         // manage their cap / buy credits even when AI calls are blocked.
-        Route::get('ai/auto-recharge', [AiChatController::class, 'getAutoRechargeConfig']);
-        Route::post('ai/auto-recharge', [AiChatController::class, 'updateAutoRechargeConfig']);
-        Route::get('ai/spending-cap', [AiChatController::class, 'getSpendingCap']);
-        Route::post('ai/spending-cap', [AiChatController::class, 'updateSpendingCap']);
-        Route::post('ai/recharge', [AiChatController::class, 'manualRecharge']);
-        Route::get('ai/recharges', [AiChatController::class, 'getRechargeHistory']);
+        Route::get('ai/auto-recharge', [AiChatController::class, 'getAutoRechargeConfig'])->middleware('permission:ai_assistant,view');
+        Route::post('ai/auto-recharge', [AiChatController::class, 'updateAutoRechargeConfig'])->middleware('permission:ai_assistant,admin');
+        Route::get('ai/spending-cap', [AiChatController::class, 'getSpendingCap'])->middleware('permission:ai_assistant,view');
+        Route::post('ai/spending-cap', [AiChatController::class, 'updateSpendingCap'])->middleware('permission:ai_assistant,admin');
+        Route::post('ai/recharge', [AiChatController::class, 'manualRecharge'])->middleware('permission:ai_assistant,admin');
+        Route::get('ai/recharges', [AiChatController::class, 'getRechargeHistory'])->middleware('permission:ai_assistant,view');
 
         // ── Stripe / Payments ─────────────────────────────────
         Route::post('stripe/setup-intent', [StripeController::class, 'createSetupIntent']);

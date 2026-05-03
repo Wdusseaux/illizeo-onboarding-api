@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PermissionLog;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\PermissionRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,29 +16,18 @@ class RoleController extends Controller
 {
     /**
      * Permission levels ordered from lowest to highest.
+     * Mirrors PermissionRegistry::LEVELS but kept here as a private const so
+     * the existing levelIndex() helper stays self-contained.
      */
-    private const LEVELS = ['none', 'view', 'edit', 'admin'];
+    private const LEVELS = PermissionRegistry::LEVELS;
 
     /**
-     * All permission modules.
+     * All permission modules — sourced from the canonical registry.
      */
-    private const MODULES = [
-        'parcours',
-        'collaborateurs',
-        'documents',
-        'equipements',
-        'nps',
-        'workflows',
-        'company_page',
-        'integrations',
-        'settings',
-        'reports',
-        'cooptation',
-        'contrats',
-        'signatures',
-        'gamification',
-        'projets',
-    ];
+    private static function modules(): array
+    {
+        return PermissionRegistry::moduleKeys();
+    }
 
     /**
      * List all roles with user count.
@@ -78,6 +68,8 @@ class RoleController extends Controller
             'ordre' => 'nullable|integer',
             'actif' => 'nullable|boolean',
         ]);
+
+        $validated['permissions'] = $this->sanitizePermissions($validated['permissions'] ?? []);
 
         // Auto-generate slug from nom if not provided
         if (empty($validated['slug'])) {
@@ -139,6 +131,10 @@ class RoleController extends Controller
             'ordre' => 'nullable|integer',
             'actif' => 'nullable|boolean',
         ]);
+
+        if (array_key_exists('permissions', $validated)) {
+            $validated['permissions'] = $this->sanitizePermissions($validated['permissions']);
+        }
 
         // If this role is marked as default, unset others
         if (!empty($validated['is_default'])) {
@@ -236,11 +232,13 @@ class RoleController extends Controller
 
     /**
      * Return the full permissions schema (modules + levels).
+     * Kept for backward compatibility — prefer GET /permissions-registry which
+     * also returns labels and section grouping.
      */
     public function permissions(): JsonResponse
     {
         return response()->json([
-            'modules' => self::MODULES,
+            'modules' => self::modules(),
             'levels' => self::LEVELS,
         ]);
     }
@@ -257,7 +255,7 @@ class RoleController extends Controller
         $user = User::with('customRoles')->findOrFail($request->user_id);
 
         // Start with all "none"
-        $effective = array_fill_keys(self::MODULES, 'none');
+        $effective = array_fill_keys(self::modules(), 'none');
 
         foreach ($user->customRoles as $role) {
             if (!$role->actif) {
@@ -272,7 +270,7 @@ class RoleController extends Controller
 
             $rolePermissions = $role->permissions ?? [];
 
-            foreach (self::MODULES as $module) {
+            foreach (self::modules() as $module) {
                 $roleLevel = $rolePermissions[$module] ?? 'none';
                 $currentLevel = $effective[$module];
 
@@ -287,6 +285,25 @@ class RoleController extends Controller
             'user_id' => $user->id,
             'permissions' => $effective,
         ]);
+    }
+
+    /**
+     * Drop unknown module keys silently and clamp values to valid levels.
+     * Prevents arbitrary keys from being stored in roles.permissions and
+     * ensures the FE never persists permissions for a module that doesn't
+     * exist in the registry.
+     */
+    private function sanitizePermissions(array $permissions): array
+    {
+        $allowedModules = self::modules();
+        $clean = [];
+        foreach ($permissions as $key => $level) {
+            if (!in_array($key, $allowedModules, true)) {
+                continue;
+            }
+            $clean[$key] = in_array($level, self::LEVELS, true) ? $level : 'none';
+        }
+        return $clean;
     }
 
     /**
