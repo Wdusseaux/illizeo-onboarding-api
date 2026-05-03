@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Events\ActionCompleted;
 use App\Events\AllDocumentsValidated;
 use App\Events\AnniversaireEmbauche;
+use App\Events\AnniversairePersonnel;
+use App\Events\ArriveeJour;
 use App\Events\CollaborateurEnRetard;
 use App\Events\ContratReady;
 use App\Events\ContratSigned;
@@ -13,6 +15,7 @@ use App\Events\DeadlineApproaching;
 use App\Events\DocumentRefused;
 use App\Events\DocumentSubmitted;
 use App\Events\DocumentValidated;
+use App\Events\FinEssaiApproche;
 use App\Events\FormulaireSubmitted;
 use App\Events\MessageReceived;
 use App\Events\NewCollaborateur;
@@ -23,6 +26,7 @@ use App\Events\ParcoursOffboardingTermine;
 use App\Events\PeriodeEssaiTerminee;
 use App\Events\PostArrivalMilestone;
 use App\Events\PreArrivalReminder;
+use App\Events\RenouvellementCDD;
 use App\Events\SignatureReminder;
 use App\Events\WeeklyDigest;
 use App\Listeners\AssignParcoursActions;
@@ -69,9 +73,13 @@ class AppServiceProvider extends ServiceProvider
             NewCollaborateur::class,
             DeadlineApproaching::class,
             PreArrivalReminder::class,
+            ArriveeJour::class,
             PostArrivalMilestone::class,
             PeriodeEssaiTerminee::class,
+            FinEssaiApproche::class,
+            RenouvellementCDD::class,
             AnniversaireEmbauche::class,
+            AnniversairePersonnel::class,
             CollaborateurEnRetard::class,
             WeeklyDigest::class,
             SignatureReminder::class,

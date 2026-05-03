@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Events\ActionCompleted;
 use App\Events\AllDocumentsValidated;
 use App\Events\AnniversaireEmbauche;
+use App\Events\AnniversairePersonnel;
+use App\Events\ArriveeJour;
 use App\Events\CollaborateurEnRetard;
 use App\Events\ContratReady;
 use App\Events\ContratSigned;
@@ -13,6 +15,7 @@ use App\Events\DeadlineApproaching;
 use App\Events\DocumentRefused;
 use App\Events\DocumentSubmitted;
 use App\Events\DocumentValidated;
+use App\Events\FinEssaiApproche;
 use App\Events\FormulaireSubmitted;
 use App\Events\MessageReceived;
 use App\Events\NewCollaborateur;
@@ -23,9 +26,14 @@ use App\Events\ParcoursOffboardingTermine;
 use App\Events\PeriodeEssaiTerminee;
 use App\Events\PostArrivalMilestone;
 use App\Events\PreArrivalReminder;
+use App\Events\RenouvellementCDD;
 use App\Events\SignatureReminder;
 use App\Events\WeeklyDigest;
+use App\Models\Action;
 use App\Models\Badge;
+use App\Models\CollaborateurAction;
+use App\Models\Document;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Collaborateur;
 use App\Models\Cooptation;
 use App\Models\EmailTemplate;
@@ -60,9 +68,13 @@ class WorkflowEngine
         // Time-based (fired by CheckDeadlines command)
         DeadlineApproaching::class => 'J-7 avant date limite',
         PreArrivalReminder::class => 'J-3 avant date d\'arrivée',
+        ArriveeJour::class => 'Jour d\'arrivée (J+0)',
         PostArrivalMilestone::class => 'Milestone post-arrivée',
         PeriodeEssaiTerminee::class => 'Période d\'essai terminée',
+        FinEssaiApproche::class => 'Fin de période d\'essai (J-15)',
+        RenouvellementCDD::class => 'Renouvellement CDD (J-60)',
         AnniversaireEmbauche::class => 'Anniversaire d\'embauche',
+        AnniversairePersonnel::class => 'Anniversaire personnel',
         CollaborateurEnRetard::class => 'Collaborateur en retard',
         WeeklyDigest::class => 'Hebdomadaire (lundi)',
         SignatureReminder::class => 'J+3 après envoi signature',
@@ -162,6 +174,7 @@ class WorkflowEngine
             $stepWorkflow->badge_color = $step['badge_color'] ?? $workflow->badge_color;
             $stepWorkflow->target_user_id = $step['target_user_id'] ?? $workflow->target_user_id;
             $stepWorkflow->target_group_id = $step['target_group_id'] ?? $workflow->target_group_id;
+            $stepWorkflow->target_action_id = $step['target_action_id'] ?? $workflow->target_action_id;
 
             self::executeAction($stepWorkflow, $event);
         }
@@ -320,9 +333,23 @@ class WorkflowEngine
                 break;
 
             case 'Assigner action automatiquement':
-                if ($user) {
-                    NotificationService::actionAssigned($user->id, 'Nouvelle action assignée automatiquement', 'Workflow');
+                if (!$workflow->target_action_id) {
+                    Log::warning("Workflow '{$workflow->nom}': 'Assigner action' configured but target_action_id is null — no action created.");
+                    break;
                 }
+                $action = Action::find($workflow->target_action_id);
+                if (!$action) {
+                    Log::warning("Workflow '{$workflow->nom}': target_action_id={$workflow->target_action_id} not found.");
+                    break;
+                }
+                $assignment = CollaborateurAction::firstOrCreate(
+                    ['collaborateur_id' => $collaborateur->id, 'action_id' => $action->id],
+                    ['status' => 'a_faire']
+                );
+                if ($user && $assignment->wasRecentlyCreated) {
+                    NotificationService::actionAssigned($user->id, $action->titre, 'Workflow');
+                }
+                Log::info("Workflow: assigned action #{$action->id} '{$action->titre}' to {$collabFullName} (created=" . ($assignment->wasRecentlyCreated ? 'yes' : 'already-existed') . ")");
                 break;
 
             case 'Changer statut du parcours':
@@ -337,14 +364,24 @@ class WorkflowEngine
                 break;
 
             case 'Envoyer via Teams':
-                try {
-                    $integration = Integration::where('provider', 'teams')->where('actif', true)->first();
-                    if ($integration && !empty($integration->config['webhook_url'])) {
-                        $teamsService = TeamsService::fromIntegration($integration);
-                        $teamsService->sendWebhookCard($workflow->nom, self::buildEventDescription($event));
+                $integration = Integration::where('provider', 'teams')->where('actif', true)->first();
+                if (!$integration || empty($integration->config['webhook_url'] ?? null)) {
+                    Log::warning("Workflow '{$workflow->nom}': Teams integration is not configured (provider=teams, actif=true, webhook_url required).");
+                    // Surface the misconfiguration to RH admins so they can fix it.
+                    foreach (User::whereHas('roles', fn ($q) => $q->whereIn('name', ['admin_rh', 'admin']))->pluck('id') as $adminId) {
+                        NotificationService::send($adminId, 'workflow', "Workflow Teams non configuré", "Le workflow « {$workflow->nom} » n'a pas pu envoyer un message Teams : intégration absente ou inactive.", 'alert', '#E53935', ['workflow_id' => $workflow->id]);
                     }
+                    break;
+                }
+                try {
+                    $teamsService = TeamsService::fromIntegration($integration);
+                    $teamsService->sendWebhookCard($workflow->nom, self::buildEventDescription($event));
+                    Log::info("Workflow '{$workflow->nom}': Teams card sent.");
                 } catch (\Exception $e) {
-                    Log::warning("Teams workflow failed: " . $e->getMessage());
+                    Log::warning("Teams workflow '{$workflow->nom}' failed: " . $e->getMessage());
+                    foreach (User::whereHas('roles', fn ($q) => $q->whereIn('name', ['admin_rh', 'admin']))->pluck('id') as $adminId) {
+                        NotificationService::send($adminId, 'workflow', "Workflow Teams en échec", "Le workflow « {$workflow->nom} » a échoué : " . $e->getMessage(), 'alert', '#E53935', ['workflow_id' => $workflow->id]);
+                    }
                 }
                 break;
 
@@ -395,10 +432,45 @@ class WorkflowEngine
                 break;
 
             case 'Générer un document':
-                if ($user) {
-                    NotificationService::send($user->id, 'workflow', 'Document généré', 'Un nouveau document a été généré pour votre dossier', 'file', '#1A73E8');
+                $docTitle = strtr($workflow->email_subject ?: ($workflow->nom ?: 'Document généré'), $vars);
+                $docBody = strtr($workflow->email_body ?: '<p>Document généré automatiquement par le workflow Illizeo.</p>', $vars);
+                if (!extension_loaded('gd')) {
+                    Log::warning("Workflow '{$workflow->nom}': document generation requires PHP-GD; skipped.");
+                    break;
                 }
-                Log::info("Workflow: document generation triggered for {$collabFullName} — needs DomPDF template");
+                try {
+                    $options = new \Dompdf\Options();
+                    $options->set('isHtml5ParserEnabled', true);
+                    $options->set('isRemoteEnabled', false);
+                    $options->set('defaultFont', 'Helvetica');
+                    $dompdf = new \Dompdf\Dompdf($options);
+                    $html = '<html><head><meta charset="UTF-8"><style>body{font-family:Helvetica,Arial,sans-serif;color:#1a1a2e;font-size:13px;line-height:1.6;padding:0 20px;}h1{font-size:20px;margin:0 0 16px;color:#1a1a2e;}</style></head><body><h1>' . htmlspecialchars($docTitle) . '</h1>' . $docBody . '</body></html>';
+                    $dompdf->loadHtml($html);
+                    $dompdf->setPaper('A4', 'portrait');
+                    $dompdf->render();
+                    $filename = 'workflow-' . $workflow->id . '-' . time() . '.pdf';
+                    $path = "documents/{$collaborateur->id}/{$filename}";
+                    Storage::disk('local')->put($path, $dompdf->output());
+                    $document = Document::create([
+                        'nom' => $docTitle,
+                        'description' => "Généré par le workflow « {$workflow->nom} »",
+                        'obligatoire' => false,
+                        'type' => 'genere',
+                        'is_template' => false,
+                        'status' => 'valide',
+                        'collaborateur_id' => $collaborateur->id,
+                        'fichier_path' => $path,
+                        'fichier_original' => $filename,
+                        'fichier_taille' => Storage::disk('local')->size($path),
+                        'fichier_mime' => 'application/pdf',
+                    ]);
+                    if ($user) {
+                        NotificationService::send($user->id, 'workflow', 'Document généré', "Le document « {$docTitle} » est disponible dans votre dossier.", 'file', '#1A73E8', ['document_id' => $document->id]);
+                    }
+                    Log::info("Workflow: generated document #{$document->id} '{$docTitle}' for {$collabFullName}");
+                } catch (\Throwable $e) {
+                    Log::warning("Workflow '{$workflow->nom}': document generation failed: " . $e->getMessage());
+                }
                 break;
         }
 
@@ -452,7 +524,11 @@ class WorkflowEngine
 
     private static function renderHtmlEmail(string $subject, string $body, string $themeColor = '#C2185B'): string
     {
-        $bodyHtml = nl2br(htmlspecialchars($body));
+        // Email templates are authored as HTML by tenant admins (RichEditor),
+        // so we render the body verbatim. If a body has no HTML tags, convert
+        // newlines to <br> for readability.
+        $bodyHtml = preg_match('/<[a-z][^>]*>/i', $body) ? $body : nl2br(htmlspecialchars($body));
+        $logoCid = 'cid:' . \App\Mail\Support\TenantLogoEmbedder::CID_NAME;
         return <<<HTML
 <!DOCTYPE html>
 <html>
@@ -461,8 +537,8 @@ class WorkflowEngine
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5fa;padding:24px 0;">
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">
-  <tr><td style="background:{$themeColor};padding:20px 24px;text-align:center;">
-    <span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">ILLIZEO</span>
+  <tr><td style="background:#ffffff;padding:24px 24px 12px;text-align:center;border-bottom:1px solid #E8E8EE;">
+    <img src="{$logoCid}" alt="Logo" style="height:44px;width:auto;max-width:240px;display:inline-block;" />
   </td></tr>
   <tr><td style="padding:32px 32px 24px;">
     <div style="font-size:13px;color:#888;margin-bottom:4px;">Sujet</div>
@@ -509,12 +585,16 @@ HTML;
             $body = strtr($fallbackBody, $variables);
         }
 
-        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+        $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/');
+        if (function_exists('tenant') && tenant()) {
+            $frontendUrl .= '/' . tenant()->id;
+        }
         $html = str_replace('{FRONTEND_URL}', $frontendUrl, self::renderHtmlEmail($subject, $body));
 
         try {
             Mail::html($html, function ($message) use ($user, $subject) {
                 $message->to($user->email)->subject($subject);
+                \App\Mail\Support\TenantLogoEmbedder::embed($message->getSymfonyMessage(), useTenantLogo: true);
             });
         } catch (\Exception $e) {
             Log::warning("Workflow email failed to {$user->email}: " . $e->getMessage());
@@ -552,16 +632,31 @@ HTML;
                 return array_unique($ids);
 
             case 'Parrain/Buddy':
-                $buddyId = $collaborateur->accompagnants()->where('role', 'buddy')->value('user_id');
-                return $buddyId ? [$buddyId] : [];
+                $buddyId = $collaborateur->accompagnants()->whereIn('role', ['buddy', 'parrain'])->value('user_id');
+                if ($buddyId) return [$buddyId];
+                Log::info("Workflow Parrain/Buddy resolution: no buddy assigned to collaborateur #{$collaborateur->id}.");
+                return [];
 
             case 'N+2':
-                // Get manager's manager — simplified: get all admin_rh users as N+2 proxy
-                $managerId = $collaborateur->accompagnants()->where('role', 'manager')->value('user_id');
-                if ($managerId) {
-                    return User::whereHas('roles', fn ($q) => $q->where('name', 'admin_rh'))->pluck('id')->toArray();
+                // True N+2 = manager's manager. We resolve in three steps :
+                //  1. get the N+1 user_id from accompagnants
+                //  2. find the Collaborateur record matching that user
+                //  3. look up that collaborateur's own manager
+                // If any step fails (manager has no fiche, or no manager assigned),
+                // fall back to admin_rh users so the workflow doesn't silently die.
+                $n1UserId = $collaborateur->accompagnants()->where('role', 'manager')->value('user_id');
+                if ($n1UserId) {
+                    $n1Collab = Collaborateur::where('user_id', $n1UserId)->first();
+                    if ($n1Collab) {
+                        $n2UserId = DB::table('collaborateur_accompagnants')
+                            ->where('collaborateur_id', $n1Collab->id)
+                            ->where('role', 'manager')
+                            ->value('user_id');
+                        if ($n2UserId) return [$n2UserId];
+                    }
                 }
-                return [];
+                Log::info("Workflow N+2 resolution: no real N+2 found for collaborateur #{$collaborateur->id}, falling back to admin_rh.");
+                return User::whereHas('roles', fn ($q) => $q->where('name', 'admin_rh'))->pluck('id')->toArray();
 
             case 'Utilisateur spécifique':
                 return $workflow && $workflow->target_user_id ? [$workflow->target_user_id] : [];

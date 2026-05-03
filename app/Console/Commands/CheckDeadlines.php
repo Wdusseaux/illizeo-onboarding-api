@@ -3,11 +3,15 @@
 namespace App\Console\Commands;
 
 use App\Events\AnniversaireEmbauche;
+use App\Events\AnniversairePersonnel;
+use App\Events\ArriveeJour;
 use App\Events\CollaborateurEnRetard;
 use App\Events\DeadlineApproaching;
+use App\Events\FinEssaiApproche;
 use App\Events\PeriodeEssaiTerminee;
 use App\Events\PreArrivalReminder;
 use App\Events\PostArrivalMilestone;
+use App\Events\RenouvellementCDD;
 use App\Events\WeeklyDigest;
 use App\Models\Collaborateur;
 use App\Models\CollaborateurAction;
@@ -24,10 +28,14 @@ class CheckDeadlines extends Command
     {
         $this->checkDeadlines();
         $this->checkPeriodeEssai();
+        $this->checkFinEssaiApproche();
         $this->checkAnniversaires();
+        $this->checkAnniversairesPersonnels();
         $this->checkRetards();
         $this->checkPreArrival();
+        $this->checkArriveeJour();
         $this->checkPostArrivalMilestones();
+        $this->checkRenouvellementCDD();
         $this->checkBadgeMilestones();
         $this->checkWeeklyDigest();
 
@@ -287,5 +295,97 @@ class CheckDeadlines extends Command
         }
 
         $this->info("Fired {$fired} WeeklyDigest event(s).");
+    }
+
+    /**
+     * Fire ArriveeJour for collaborateurs whose date_debut == today.
+     */
+    private function checkArriveeJour(): void
+    {
+        $today = Carbon::today()->toDateString();
+        $fired = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_debut')
+            ->whereIn('status', ['pre_onboarding', 'en_cours'])
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            if ($collab->date_debut->toDateString() === $today) {
+                ArriveeJour::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", "Jour d'arrivée");
+                $fired++;
+            }
+        }
+
+        $this->info("Fired {$fired} ArriveeJour event(s).");
+    }
+
+    /**
+     * Fire FinEssaiApproche 15 days before the end of période d'essai.
+     */
+    private function checkFinEssaiApproche(): void
+    {
+        $targetDate = Carbon::today()->addDays(15)->toDateString();
+        $fired = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_fin_essai')
+            ->where('status', '!=', 'termine')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            $finEssai = Carbon::parse($collab->date_fin_essai)->toDateString();
+            if ($finEssai === $targetDate) {
+                FinEssaiApproche::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'J-15 fin essai');
+                $fired++;
+            }
+        }
+
+        $this->info("Fired {$fired} FinEssaiApproche event(s).");
+    }
+
+    /**
+     * Fire RenouvellementCDD 60 days before the end of a CDD contract.
+     */
+    private function checkRenouvellementCDD(): void
+    {
+        $targetDate = Carbon::today()->addDays(60)->toDateString();
+        $fired = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_fin_contrat')
+            ->where('type_contrat', 'CDD')
+            ->where('status', '!=', 'termine')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            $finContrat = Carbon::parse($collab->date_fin_contrat)->toDateString();
+            if ($finContrat === $targetDate) {
+                RenouvellementCDD::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'J-60 fin CDD');
+                $fired++;
+            }
+        }
+
+        $this->info("Fired {$fired} RenouvellementCDD event(s).");
+    }
+
+    /**
+     * Fire AnniversairePersonnel when date_naissance day/month == today day/month.
+     */
+    private function checkAnniversairesPersonnels(): void
+    {
+        $today = Carbon::today();
+        $fired = 0;
+
+        $collaborateurs = Collaborateur::whereNotNull('date_naissance')
+            ->where('status', '!=', 'termine')
+            ->get();
+
+        foreach ($collaborateurs as $collab) {
+            $dn = Carbon::parse($collab->date_naissance);
+            if ($dn->month === $today->month && $dn->day === $today->day) {
+                AnniversairePersonnel::dispatch($collab->id, "{$collab->prenom} {$collab->nom}", 'Anniversaire personnel');
+                $fired++;
+            }
+        }
+
+        $this->info("Fired {$fired} AnniversairePersonnel event(s).");
     }
 }
