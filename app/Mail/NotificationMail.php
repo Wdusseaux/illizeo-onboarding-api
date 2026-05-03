@@ -22,7 +22,9 @@ class NotificationMail extends Mailable
         public string $ctaUrl = '',
         public string $accentColor = '#E91E63',
     ) {
-        $this->embedIllizeoLogo();
+        // Tenant→employee email: use the tenant's custom logo if defined,
+        // fallback to the Illizeo logo otherwise.
+        $this->embedIllizeoLogo(useTenantLogo: true);
     }
 
     public function envelope(): Envelope

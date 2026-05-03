@@ -86,11 +86,16 @@ class EmailTemplateController extends Controller
         $body = strtr($emailTemplate->contenu ?: 'Pas de contenu défini pour ce template.', $variables);
 
         $themeColor = \App\Models\CompanySetting::get('theme_color', '#C2185B');
-        $html = \App\Services\WorkflowEngine::buildHtmlEmail($subject, $body, $themeColor);
+        $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/');
+        if (function_exists('tenant') && tenant()) {
+            $frontendUrl .= '/' . tenant()->id;
+        }
+        $html = str_replace('{FRONTEND_URL}', $frontendUrl, \App\Services\WorkflowEngine::buildHtmlEmail($subject, $body, $themeColor));
 
         try {
             Mail::html($html, function ($message) use ($request, $subject) {
                 $message->to($request->email)->subject('[TEST] ' . $subject);
+                \App\Mail\Support\TenantLogoEmbedder::embed($message->getSymfonyMessage(), useTenantLogo: true);
             });
             return response()->json(['success' => true, 'message' => "Email test envoyé à {$request->email}"]);
         } catch (\Exception $e) {

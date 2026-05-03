@@ -26,21 +26,23 @@ trait HasIllizeoLogo
      */
     public function illizeoLogoSrc(): string
     {
-        return 'cid:illizeo-logo';
+        return 'cid:' . \App\Mail\Support\TenantLogoEmbedder::CID_NAME;
     }
 
     /**
      * Register the inline logo attachment on the underlying Symfony Email.
      * Call this from the Mailable's constructor (or anywhere before send).
+     *
+     * When $useTenantLogo is true, the tenant's custom logo (CompanySetting
+     * key "custom_logo_full") is used if defined; otherwise the Illizeo logo
+     * is used as fallback. Tenant logo only applies for tenant→employee
+     * mailables (NotificationMail). Platform→tenant mailables (Invoice,
+     * Welcome, Dunning, WeeklyAiSummary) always keep the Illizeo logo.
      */
-    protected function embedIllizeoLogo(): void
+    protected function embedIllizeoLogo(bool $useTenantLogo = false): void
     {
-        $this->withSymfonyMessage(function (\Symfony\Component\Mime\Email $email): void {
-            $logoPath = public_path('build/illizeo-Logo-site.png');
-            if (!file_exists($logoPath)) return;
-            // embedFromPath automatically sets Content-Disposition: inline
-            // and uses the provided name as the Content-ID
-            $email->embedFromPath($logoPath, 'illizeo-logo', 'image/png');
+        $this->withSymfonyMessage(function (\Symfony\Component\Mime\Email $email) use ($useTenantLogo): void {
+            \App\Mail\Support\TenantLogoEmbedder::embed($email, $useTenantLogo);
         });
     }
 }
