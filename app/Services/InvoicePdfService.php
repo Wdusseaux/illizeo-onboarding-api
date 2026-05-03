@@ -118,6 +118,12 @@ class InvoicePdfService
         $dateEmission = \Carbon\Carbon::parse($invoice->date_emission)->format('d/m/Y');
         $dateEcheance = \Carbon\Carbon::parse($invoice->date_echeance)->format('d/m/Y');
 
+        // Logo path — DomPDF prefers absolute file paths over remote URLs
+        $logoFilePath = public_path('build/illizeo-Logo-site.png');
+        $logoSrc = file_exists($logoFilePath)
+            ? $logoFilePath
+            : 'https://onboarding.illizeo.com/build/illizeo-Logo-site.png';
+
         // CHF equivalent for foreign-currency invoices (Code des obligations art. 957)
         $chfEquivalentBlock = '';
         if ($currency !== 'CHF') {
@@ -176,7 +182,7 @@ class InvoicePdfService
 
 <table width="100%" style="margin-bottom: 30px;">
 <tr>
-    <td><span class="logo">ILLIZEO</span><br><span class="logo-sub">THE ALL-IN-ONE HR SOLUTION</span></td>
+    <td><img src="{$logoSrc}" alt="Illizeo" style="height: 36px; width: auto;" /></td>
     <td style="text-align: right;">
         <div class="invoice-title">FACTURE</div>
         <div class="invoice-number">{$invoice->invoice_number}</div>
